@@ -1,0 +1,100 @@
+from rest_framework import serializers
+from rest_framework_simplejwt.serializers import TokenObtainPairSerializer
+from rest_framework_simplejwt.tokens import Token
+
+from .models import User
+
+
+class CustomTokenObtainPairSerializer(TokenObtainPairSerializer):
+    """
+    Adds role and showroom info directly into the JWT payload so the
+    frontend knows immediately (without an extra API call) whether the
+    logged-in user is an Admin or which Showroom they belong to.
+    """
+
+    @classmethod
+    def get_token(cls, user):
+        token = super().get_token(user)
+        token["role"] = user.role
+        token["showroom_id"] = user.showroom_id
+        token["showroom_name"] = user.showroom.name if user.showroom_id else None
+        token["full_name"] = user.get_full_name() or user.username
+        return token
+
+
+class ShowroomTokenObtainPairSerializer(serializers.Serializer):
+    """
+    Authenticates a showroom by username and password.
+    Returns a JWT token with showroom info in the payload.
+    """
+    username = serializers.CharField()
+    password = serializers.CharField(write_only=True)
+
+    def validate(self, attrs):
+        from django.contrib.auth.hashers import check_password
+        from rest_framework_simplejwt.tokens import RefreshToken
+        
+        username = attrs.get("username")
+        password = attrs.get("password")
+
+        from apps.showrooms.models import Showroom
+        
+        try:
+            showroom = Showroom.objects.get(username=username, is_active=True)
+        except Showroom.DoesNotExist:
+            raise serializers.ValidationError(
+                {"detail": "Invalid username or password."}
+            )
+
+        if not showroom.check_password(password):
+            raise serializers.ValidationError(
+                {"detail": "Invalid username or password."}
+            )
+
+        # Create JWT tokens with showroom info
+        refresh = RefreshToken()
+        refresh.payload.update({
+            "showroom_id": showroom.id,
+            "showroom_name": showroom.name,
+            "role": "showroom",
+        })
+
+        return {
+            "refresh": str(refresh),
+            "access": str(refresh.access_token),
+        }
+
+
+class UserSerializer(serializers.ModelSerializer):
+    showroom_name = serializers.CharField(source="showroom.name", read_only=True)
+
+    class Meta:
+        model = User
+        fields = [
+            "id", "username", "first_name", "last_name", "email",
+            "role", "showroom", "showroom_name", "is_active",
+        ]
+        read_only_fields = ["id"]
+
+
+class ShowroomUserCreateSerializer(serializers.ModelSerializer):
+    """Used by Admin to create a new showroom user account."""
+
+    password = serializers.CharField(write_only=True, min_length=6)
+
+    class Meta:
+        model = User
+        fields = ["id", "username", "first_name", "last_name", "email", "password", "showroom", "is_active"]
+
+    def validate(self, attrs):
+        if not attrs.get("showroom"):
+            raise serializers.ValidationError({"showroom": "Showroom is required for a showroom user."})
+        return attrs
+
+    def create(self, validated_data):
+        password = validated_data.pop("password")
+        user = User(role=User.Role.SHOWROOM_USER, **validated_data)
+        user.set_password(password)
+        user.full_clean()
+        user.save()
+        return user
