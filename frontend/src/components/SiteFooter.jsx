@@ -1,6 +1,6 @@
 export function SiteFooter() {
   return (
-    <footer className="border-t border-gray-200/80 px-4 py-3 text-center text-xs text-gray-500 dark:border-slate-700 dark:text-slate-400">
+    <footer className="app-footer border-t px-4 py-3 text-center text-xs">
       Copyright reserved MHRobin
     </footer>
   );

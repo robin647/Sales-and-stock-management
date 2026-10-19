@@ -23,8 +23,8 @@ export default function Layout({ children }) {
   return (
     <div className="h-screen flex overflow-hidden bg-gray-50 dark:bg-slate-950">
       {menuOpen && <button aria-label="Close menu" onClick={() => setMenuOpen(false)} className="fixed inset-0 z-30 bg-slate-950/45 md:hidden" />}
-      <aside className={`fixed inset-y-0 left-0 z-40 w-[272px] bg-white border-r border-gray-200 flex flex-col transition-transform duration-200 md:static md:translate-x-0 dark:bg-slate-900 ${menuOpen ? "translate-x-0" : "-translate-x-full"}`}>
-        <div className="px-5 py-5 border-b border-gray-100">
+      <aside className={`app-sidebar fixed inset-y-0 left-0 z-40 w-[272px] border-r flex flex-col transition-transform duration-200 md:static md:translate-x-0 ${menuOpen ? "translate-x-0" : "-translate-x-full"}`}>
+        <div className="app-sidebar-brand px-5 py-5 border-b">
           <div className="flex items-center gap-3">
             <div className="flex h-10 w-10 items-center justify-center rounded-xl bg-gradient-to-br from-brand-500 to-brand-700 text-sm font-bold tracking-wide text-white shadow-md shadow-brand-500/20">MS</div>
             <div>
@@ -60,7 +60,7 @@ export default function Layout({ children }) {
             </>
           )}
         </nav>
-        <div className="p-3 border-t border-gray-100 dark:border-slate-700">
+        <div className="app-sidebar-footer p-3 border-t">
           <div className="mb-3 flex items-center gap-3 rounded-xl bg-gray-50 p-3 dark:bg-slate-800">
             <div className="flex h-9 w-9 items-center justify-center rounded-full bg-brand-100 text-sm font-bold text-brand-700">{user?.fullName?.charAt(0)?.toUpperCase() || "U"}</div>
             <div className="min-w-0"><div className="truncate text-sm font-semibold text-gray-800 dark:text-slate-100">{user?.fullName}</div><div className="text-xs text-gray-500">{isAdmin ? "Administrator" : "Showroom user"}</div></div>
@@ -74,7 +74,7 @@ export default function Layout({ children }) {
         </div>
       </aside>
       <main className="flex h-screen min-h-0 min-w-0 flex-1 flex-col">
-        <header className="sticky top-0 z-20 flex items-center justify-between border-b border-gray-200/80 bg-white/90 px-4 py-3 backdrop-blur-xl sm:px-6 lg:px-8 dark:bg-slate-900/90">
+        <header className="app-topbar sticky top-0 z-20 flex items-center justify-between border-b px-4 py-3 backdrop-blur-xl sm:px-6 lg:px-8">
           <div className="flex items-center gap-3">
             <button onClick={() => setMenuOpen(true)} className="rounded-xl border border-gray-200 px-3 py-2 text-sm font-medium text-gray-700 hover:bg-gray-50 md:hidden dark:text-slate-100">Menu</button>
             <div className="min-w-0 truncate text-sm font-semibold text-gray-800 dark:text-slate-100">

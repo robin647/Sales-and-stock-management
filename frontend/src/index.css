@@ -18,7 +18,7 @@
   --accent: #c39a58;
   --accent-light: #f8eedb;
 
-  --page: #f6f4ee;
+  --page: #f1efe7;
   --surface: #ffffff;
   --surface-soft: #faf9f5;
 
@@ -174,7 +174,7 @@ p {
    used by common page and layout wrappers. */
 
 .bg-gray-50 {
-  background-color: #f6f4ee !important;
+  background-color: #f1efe7 !important;
 }
 
 .bg-gray-100 {
@@ -182,7 +182,7 @@ p {
 }
 
 .bg-slate-50 {
-  background-color: #f6f4ee !important;
+  background-color: #f1efe7 !important;
 }
 
 .bg-slate-100 {
@@ -987,4 +987,116 @@ main a:focus-visible {
   main textarea {
     width: 100%;
   }
+}
+
+/* Light theme chrome: warm surfaces keep the whole app from feeling washed out. */
+:root:not(.dark) body {
+  background-color: #f1efe7;
+  color: #202923;
+}
+
+:root:not(.dark) .app-sidebar {
+  background: #f8f7f1;
+  border-color: #ddd9ce;
+  box-shadow: 8px 0 26px rgba(35, 48, 39, 0.045);
+}
+
+:root:not(.dark) .app-sidebar-brand {
+  background: linear-gradient(145deg, #f8f7f1 0%, #eeefe5 100%);
+  border-color: #dedbce;
+}
+
+:root:not(.dark) .app-sidebar-brand > div:last-child {
+  color: #435348;
+}
+
+:root:not(.dark) .app-sidebar nav a {
+  color: #3d4d42;
+  font-weight: 600;
+}
+
+:root:not(.dark) .app-sidebar nav a:hover:not([aria-current="page"]) {
+  background: #e8eee5;
+  color: #174d3a;
+}
+
+:root:not(.dark) .app-sidebar nav a[aria-current="page"] {
+  background: #176b52;
+  color: #fff;
+  box-shadow: 0 5px 14px rgba(23, 107, 82, 0.18);
+}
+
+:root:not(.dark) .app-sidebar-footer {
+  background: #eeece3;
+  border-color: #dedbce;
+}
+
+:root:not(.dark) .app-sidebar-footer > div {
+  background: #f8f7f1;
+  border: 1px solid #e2dfd4;
+}
+
+:root:not(.dark) .app-topbar {
+  color: #28392e;
+  background: rgba(248, 247, 241, 0.96);
+  border-color: #dedbce;
+  box-shadow: 0 3px 14px rgba(35, 48, 39, 0.035);
+}
+
+:root:not(.dark) .app-topbar button {
+  color: #34473b;
+  background-color: #f8f7f1;
+  border-color: #d8d8cc;
+}
+
+:root:not(.dark) .app-topbar button:hover {
+  background-color: #e8eee5;
+}
+
+.app-footer {
+  color: #4e5d52;
+  background: #e9e7de;
+  border-color: #d8d5ca;
+  font-weight: 500;
+  letter-spacing: 0.01em;
+}
+
+.dark .app-sidebar {
+  background: #163b2f;
+  border-color: #30483b;
+}
+
+.dark .app-sidebar-brand,
+.dark .app-sidebar-footer {
+  border-color: #30483b;
+}
+
+.dark .app-sidebar-footer {
+  background: #102d23;
+}
+
+.dark .app-sidebar-footer > div {
+  border: 1px solid #30483b;
+}
+
+.dark .app-topbar {
+  color: #e5eee7;
+  background: rgba(22, 59, 47, 0.96);
+  border-color: #30483b;
+}
+
+.dark .app-topbar button {
+  color: #e5eee7;
+  border-color: #40574a;
+  background: #1b4032;
+}
+
+.dark .app-topbar button:hover {
+  background: #24513f;
+}
+
+.dark .app-footer {
+  color: #c4d0c6;
+  background: #102d23;
+  border-color: #30483b;
 }
