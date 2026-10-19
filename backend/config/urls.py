@@ -4,8 +4,10 @@ from django.urls import include, path
 from rest_framework_simplejwt.views import TokenRefreshView
 
 from apps.accounts.views import CustomTokenObtainPairView, ShowroomLoginView
+from config.views import api_status
 
 urlpatterns = [
+    path("", api_status, name="root-status"),
     path("api/health/", lambda request: JsonResponse({"status": "ok"}), name="health"),
     path("admin/", admin.site.urls),
     path("api/auth/login/", CustomTokenObtainPairView.as_view(), name="token_obtain_pair"),
