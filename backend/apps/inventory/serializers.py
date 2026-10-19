@@ -65,6 +65,11 @@ class DailyBalanceSerializer(serializers.ModelSerializer):
             "id", "opening_balance", "total_sale", "closing_balance",
             "created_by", "created_at", "updated_at",
         ]
+        # DRF's generated UniqueTogetherValidator requires every field in the
+        # constraint, even though showroom is assigned from the logged-in
+        # showroom user after validation. The explicit validate() below checks
+        # uniqueness with that server-resolved showroom instead.
+        validators = []
 
     def validate(self, attrs):
         showroom = attrs.get("showroom") or getattr(self.instance, "showroom", None)
