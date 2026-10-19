@@ -12,6 +12,8 @@ db.sqlite3
 staticfiles/
 media/
 .env
+.env.*
+!.env.example
 
 # Node / React
 node_modules/
@@ -27,3 +29,4 @@ frontend/build/
 # OS
 .DS_Store
 Thumbs.db
+.neon

@@ -1,10 +1,12 @@
 from django.contrib import admin
+from django.http import JsonResponse
 from django.urls import include, path
 from rest_framework_simplejwt.views import TokenRefreshView
 
 from apps.accounts.views import CustomTokenObtainPairView, ShowroomLoginView
 
 urlpatterns = [
+    path("api/health/", lambda request: JsonResponse({"status": "ok"}), name="health"),
     path("admin/", admin.site.urls),
     path("api/auth/login/", CustomTokenObtainPairView.as_view(), name="token_obtain_pair"),
     path("api/auth/login/showroom/", ShowroomLoginView.as_view(), name="showroom_login"),

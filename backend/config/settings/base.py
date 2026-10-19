@@ -13,7 +13,12 @@ import environ
 BASE_DIR = Path(__file__).resolve().parent.parent.parent
 
 env = environ.Env()
-environ.Env.read_env(BASE_DIR / ".env")
+# Neon CLI writes pulled variables at the repository root, while local Django
+# settings historically read backend/.env. Load root env files first so
+# DATABASE_URL from Neon is available to Django, then fall back to backend/.env.
+for env_file in (BASE_DIR.parent / ".env.local", BASE_DIR.parent / ".env", BASE_DIR / ".env"):
+    if env_file.is_file():
+        environ.Env.read_env(env_file)
 
 SECRET_KEY = env("SECRET_KEY", default="unsafe-dev-key-change-me")
 

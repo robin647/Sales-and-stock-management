@@ -82,61 +82,9 @@ Visit `http://localhost:3000`.
 
 ---
 
-## 4. Deploying to Render
+## 4. Production deployment
 
-Render needs three pieces: a PostgreSQL database, a backend web service, and a frontend static site.
-
-### Step 1 — PostgreSQL database
-
-1. Render dashboard → **New** → **PostgreSQL**.
-2. Choose a name (e.g. `mahir-showroom-db`) and region.
-3. Once created, copy the **Internal Database URL** — you'll use it as `DATABASE_URL` for the backend service.
-
-### Step 2 — Backend web service
-
-1. Render dashboard → **New** → **Web Service** → connect your GitHub repo.
-2. Root directory: `backend`
-3. Runtime: Docker (it will use `backend/Dockerfile` automatically), **or** if not using Docker:
-   - Build command: `pip install -r requirements.txt && python manage.py collectstatic --noinput && python manage.py migrate`
-   - Start command: `gunicorn config.wsgi:application --bind 0.0.0.0:$PORT`
-4. Environment variables:
-
-   | Key | Value |
-   |---|---|
-   | `DJANGO_SETTINGS_MODULE` | `config.settings.production` |
-   | `SECRET_KEY` | (generate a long random string) |
-   | `DEBUG` | `False` |
-   | `ALLOWED_HOSTS` | `your-backend-service.onrender.com` |
-   | `DATABASE_URL` | (Internal Database URL from Step 1) |
-   | `CORS_ALLOWED_ORIGINS` | `https://your-frontend-site.onrender.com` |
-
-5. Deploy. Once live, run migrations if they didn't run automatically (Render Shell tab):
-   ```bash
-   python manage.py migrate
-   python manage.py createsuperuser
-   ```
-
-### Step 3 — Frontend static site
-
-1. Render dashboard → **New** → **Static Site** → same repo.
-2. Root directory: `frontend`
-3. Build command: `npm install && npm run build`
-4. Publish directory: `dist`
-5. Environment variable:
-
-   | Key | Value |
-   |---|---|
-   | `VITE_API_URL` | `https://your-backend-service.onrender.com/api` |
-
-6. Add a rewrite rule so client-side routing works: **Redirects/Rewrites** → source `/*`, destination `/index.html`, action `Rewrite`.
-
-### Step 4 — Connect them
-
-- Update the backend's `ALLOWED_HOSTS` and `CORS_ALLOWED_ORIGINS` to match the final Render URLs once both services are live (Render assigns the `.onrender.com` subdomain on first deploy, so you may need one redeploy after both services exist).
-
-No secrets or API keys are hardcoded anywhere in this codebase — everything sensitive is read from environment variables (`.env` locally, Render's Environment tab in production).
-
----
+The production stack is Neon (PostgreSQL), Render (Django API), and Vercel (React/Vite frontend). Follow [DEPLOYMENT.md](DEPLOYMENT.md) for the exact setup order, dashboard values, migration commands, and verification steps. The root `render.yaml` configures the Render API service; `frontend/vercel.json` configures Vercel client-side routing.
 
 ## 5. Project structure
 
