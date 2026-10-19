@@ -103,7 +103,8 @@ export default function Reports() {
             <>
               <div>
                 <div className="text-sm font-medium text-gray-700 mb-2">Stock</div>
-                <table className="w-full text-sm">
+                <div className="overflow-x-auto">
+                <table className="w-full min-w-[680px] text-sm">
                   <thead>
                     <tr className="text-left text-gray-500 border-b border-gray-100">
                       <th className="py-1">Product</th><th>Opening</th><th>Received</th><th>Sold</th><th>Return</th><th>Adjustment</th><th>Closing</th>
@@ -120,12 +121,14 @@ export default function Reports() {
                     )}
                   </tbody>
                 </table>
+                </div>
               </div>
 
               <div>
                 <div className="text-sm font-medium text-gray-700 mb-2">Balance</div>
                 {dailyData.balance ? (
-                  <table className="w-full text-sm max-w-sm">
+                  <div className="overflow-x-auto">
+                  <table className="w-full min-w-[360px] text-sm max-w-sm">
                     <tbody>
                       {[
                         ["Opening Balance", dailyData.balance.opening_balance],
@@ -144,6 +147,7 @@ export default function Reports() {
                       ))}
                     </tbody>
                   </table>
+                  </div>
                 ) : (
                   <div className="text-gray-400 text-sm">No balance entry for this date.</div>
                 )}
@@ -186,7 +190,8 @@ export default function Reports() {
             <>
               <div>
                 <div className="text-sm font-medium text-gray-700 mb-2">Balance summary</div>
-                <table className="w-full text-sm">
+                <div className="overflow-x-auto">
+                <table className="w-full min-w-[700px] text-sm">
                   <thead>
                     <tr className="text-left text-gray-500 border-b border-gray-100">
                       <th className="py-1">Showroom</th><th>Total Sale</th><th>Cash</th><th>Card</th><th>Expense</th><th>Salary</th><th>Deposit</th>
@@ -206,11 +211,13 @@ export default function Reports() {
                     ))}
                   </tbody>
                 </table>
+                </div>
               </div>
 
               <div>
                 <div className="text-sm font-medium text-gray-700 mb-2">Stock summary</div>
-                <table className="w-full text-sm">
+                <div className="overflow-x-auto">
+                <table className="w-full min-w-[620px] text-sm">
                   <thead>
                     <tr className="text-left text-gray-500 border-b border-gray-100">
                       <th className="py-1">Product</th><th>Received</th><th>Sold</th><th>Return</th><th>Adjustment</th>
@@ -224,6 +231,7 @@ export default function Reports() {
                     ))}
                   </tbody>
                 </table>
+                </div>
               </div>
             </>
           )}

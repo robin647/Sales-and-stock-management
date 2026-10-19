@@ -871,3 +871,119 @@ aside a:hover,
     transition-duration: 0.01ms !important;
   }
 }
+
+/* ================= READABLE BUSINESS SCREENS ================= */
+
+main > .mx-auto {
+  width: 100%;
+}
+
+main h1 {
+  margin-bottom: 0.15rem;
+  color: var(--text) !important;
+  font-size: clamp(1.45rem, 2.5vw, 1.8rem);
+  font-weight: 750;
+  letter-spacing: -0.04em;
+  line-height: 1.25;
+}
+
+main h2 {
+  color: var(--text) !important;
+  font-size: clamp(1rem, 1.5vw, 1.15rem);
+  font-weight: 700;
+  letter-spacing: -0.02em;
+}
+
+main p.text-sm,
+main label,
+main button,
+main input,
+main select,
+main textarea {
+  line-height: 1.5;
+}
+
+main input:not([type="checkbox"]):not([type="radio"]):not([type="range"]),
+main select,
+main textarea {
+  min-height: 42px;
+  border-color: #d8ded8;
+  background-color: #fff;
+}
+
+main input[type="checkbox"],
+main input[type="radio"] {
+  min-height: auto;
+}
+
+main .grid > .bg-white {
+  border: 1px solid var(--border);
+  border-radius: 14px;
+  box-shadow: var(--shadow-sm);
+}
+
+main .grid > .border-l-2.bg-white {
+  border-left: 3px solid var(--brand);
+  padding: 1rem;
+}
+
+main section > h2,
+main section > .border-b + h2 {
+  line-height: 1.45;
+}
+
+main table {
+  font-variant-numeric: tabular-nums;
+}
+
+main table tbody td {
+  line-height: 1.5;
+}
+
+main .overflow-x-auto {
+  max-width: 100%;
+  overscroll-behavior-x: contain;
+  scrollbar-width: thin;
+}
+
+main .overflow-x-auto table {
+  min-width: 620px;
+}
+
+main .overflow-x-auto table th,
+main .overflow-x-auto table td {
+  padding-right: 1rem;
+  padding-left: 1rem;
+}
+
+main button:focus-visible,
+main a:focus-visible {
+  outline-color: var(--accent);
+}
+
+.dark main input:not([type="checkbox"]):not([type="radio"]):not([type="range"]),
+.dark main select,
+.dark main textarea {
+  background-color: #17231b;
+  border-color: #40574a;
+}
+
+@media (max-width: 640px) {
+  main > .mx-auto {
+    padding: 1rem;
+  }
+
+  main h1 {
+    font-size: 1.45rem;
+  }
+
+  main .grid.grid-cols-2 {
+    grid-template-columns: 1fr;
+  }
+
+  main input:not([type="checkbox"]):not([type="radio"]):not([type="range"]),
+  main select,
+  main textarea {
+    width: 100%;
+  }
+}

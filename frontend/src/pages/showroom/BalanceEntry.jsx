@@ -50,7 +50,8 @@ export default function BalanceEntry() {
       {existing ? (
         <div className="bg-white rounded-2xl border border-gray-100 p-4 max-w-md">
           <div className="text-sm font-medium text-gray-700 mb-3">Already recorded for {date}</div>
-          <table className="w-full text-sm">
+          <div className="overflow-x-auto">
+          <table className="w-full min-w-[420px] text-sm">
             <tbody>
               {[
                 ["Opening Balance", existing.opening_balance],
@@ -69,6 +70,7 @@ export default function BalanceEntry() {
               ))}
             </tbody>
           </table>
+          </div>
         </div>
       ) : (
         <form onSubmit={handleSubmit} className="bg-white rounded-2xl border border-gray-100 p-4 max-w-md">
