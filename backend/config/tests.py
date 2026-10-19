@@ -1,8 +1,11 @@
 from types import SimpleNamespace
+from unittest.mock import patch
 
 from django.test import SimpleTestCase
 from django.urls import resolve, reverse
 from rest_framework.test import APIClient
+
+from apps.accounts.models import User
 
 
 class RootStatusTests(SimpleTestCase):
@@ -109,3 +112,80 @@ class CorsPreflightTests(SimpleTestCase):
             "https://sales-and-stock-management-s7d7.vercel.app",
         )
         self.assertIn("POST", response["Access-Control-Allow-Methods"])
+
+
+class AdminLoginTests(SimpleTestCase):
+    """Exercise the real SimpleJWT/Django password validation without a DB."""
+
+    def setUp(self):
+        self.client = APIClient()
+        self.login_url = reverse("token_obtain_pair")
+
+    def make_user(self, *, active=True):
+        user = User(
+            pk=101,
+            username="admin-test",
+            role=User.Role.ADMIN,
+            is_active=active,
+        )
+        user.set_password("correct-horse-battery")
+        return user
+
+    def test_valid_credentials_return_tokens_and_admin_claims(self):
+        user = self.make_user()
+        with patch.object(User.objects, "get_by_natural_key", return_value=user):
+            response = self.client.post(
+                self.login_url,
+                {"username": user.username, "password": "correct-horse-battery"},
+                format="json",
+                secure=True,
+            )
+
+        self.assertEqual(response.status_code, 200)
+        self.assertIn("access", response.json())
+        self.assertIn("refresh", response.json())
+
+    def test_incorrect_password_is_rejected(self):
+        user = self.make_user()
+        with patch.object(User.objects, "get_by_natural_key", return_value=user):
+            response = self.client.post(
+                self.login_url,
+                {"username": user.username, "password": "wrong-password"},
+                format="json",
+                secure=True,
+            )
+
+        self.assertEqual(response.status_code, 401)
+
+    def test_missing_user_is_rejected(self):
+        with patch.object(User.objects, "get_by_natural_key", side_effect=User.DoesNotExist):
+            response = self.client.post(
+                self.login_url,
+                {"username": "not-present", "password": "any-password"},
+                format="json",
+                secure=True,
+            )
+
+        self.assertEqual(response.status_code, 401)
+
+    def test_invalid_payload_is_rejected(self):
+        response = self.client.post(
+            self.login_url,
+            {"username": "admin-test"},
+            format="json",
+            secure=True,
+        )
+
+        self.assertEqual(response.status_code, 400)
+
+    def test_inactive_user_is_rejected(self):
+        user = self.make_user(active=False)
+        with patch.object(User.objects, "get_by_natural_key", return_value=user):
+            response = self.client.post(
+                self.login_url,
+                {"username": user.username, "password": "correct-horse-battery"},
+                format="json",
+                secure=True,
+            )
+
+        self.assertEqual(response.status_code, 401)
