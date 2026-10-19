@@ -3,12 +3,24 @@ import { Bar, BarChart, CartesianGrid, ResponsiveContainer, Tooltip, XAxis, YAxi
 import { reportApi } from "../../api/endpoints";
 import { localDateString } from "../../utils/date";
 
-function StatCard({ label, value }) {
+const money = (amount) => `\u09F3 ${Number(amount || 0).toLocaleString("en-BD", { maximumFractionDigits: 0 })}`;
+
+function StatCard({ label, value, description, currency = true, accent = "green" }) {
+  const accentStyles = {
+    green: "border-emerald-200 bg-emerald-50 text-emerald-800",
+    gold: "border-amber-200 bg-amber-50 text-amber-800",
+    blue: "border-sky-200 bg-sky-50 text-sky-800",
+    rose: "border-rose-200 bg-rose-50 text-rose-800",
+  };
   return (
-    <div className="bg-white rounded-2xl border border-gray-100 p-4">
-      <div className="text-xs text-gray-500">{label}</div>
-      <div className="text-2xl font-semibold text-gray-900 mt-1">৳ {Number(value).toLocaleString()}</div>
-    </div>
+    <article className="dashboard-stat-card">
+      <div className="flex items-start justify-between gap-3">
+        <p className="dashboard-stat-label">{label}</p>
+        <span className={`dashboard-stat-mark ${accentStyles[accent]}`} aria-hidden="true" />
+      </div>
+      <p className="dashboard-stat-value">{currency ? money(value) : Number(value || 0).toLocaleString()}</p>
+      {description && <p className="dashboard-stat-description">{description}</p>}
+    </article>
   );
 }
 
@@ -23,34 +35,69 @@ export default function AdminDashboard() {
       .catch(() => setError("Could not load dashboard data."));
   }, []);
 
-  if (error) return <div className="text-red-600 text-sm">{error}</div>;
-  if (!data) return <div className="text-gray-500 text-sm">Loading dashboard...</div>;
+  if (error) return <div role="alert" className="rounded-xl border border-rose-200 bg-rose-50 p-4 text-sm font-medium text-rose-800">{error}</div>;
+  if (!data) return <div className="rounded-xl border border-gray-200 bg-white p-5 text-sm font-medium text-gray-600">Loading dashboard…</div>;
+
+  const wholesale = data.wholesale_summary || {};
 
   return (
-    <div>
-      <h1 className="text-lg font-semibold mb-4">Admin Dashboard — {data.date}</h1>
+    <div className="space-y-8">
+      <header className="dashboard-heading">
+        <div>
+          <p className="dashboard-eyebrow">Business overview</p>
+          <h1>Admin Dashboard</h1>
+          <p className="mt-1 text-sm text-gray-600">Showroom performance for {data.date}, with wholesale account totals.</p>
+        </div>
+        <span className="dashboard-date-chip">{data.date}</span>
+      </header>
 
-      <div className="grid grid-cols-2 md:grid-cols-4 gap-4 mb-6">
-        <StatCard label="Total Showrooms" value={data.total_showrooms} />
-        <StatCard label="Today's Total Sales" value={data.total_sale} />
-        <StatCard label="Cash Sales" value={data.cash_sale} />
-        <StatCard label="Card Sales" value={data.card_sale} />
-        <StatCard label="Expenses" value={data.expense} />
-        <StatCard label="Deposit" value={data.deposit} />
-      </div>
+      <section aria-labelledby="showroom-overview-title" className="space-y-4">
+        <div className="dashboard-section-heading">
+          <div><h2 id="showroom-overview-title">Showroom overview</h2><p>Today's recorded sales and cash position</p></div>
+          <span className="dashboard-section-tag">{Number(data.total_showrooms || 0)} showrooms</span>
+        </div>
+        <div className="grid grid-cols-1 gap-3 sm:grid-cols-2 xl:grid-cols-3 2xl:grid-cols-6">
+          <StatCard label="Total Sales" value={data.total_sale} description="All showrooms today" accent="green" />
+          <StatCard label="Cash Sales" value={data.cash_sale} description="Cash received today" accent="blue" />
+          <StatCard label="Card Sales" value={data.card_sale} description="Card payments today" accent="gold" />
+          <StatCard label="Expenses" value={data.expense} description="Recorded today" accent="rose" />
+          <StatCard label="Deposits" value={data.deposit} description="Deposited today" accent="blue" />
+          <StatCard label="Closing Cash" value={data.closing_balance} description="Combined showroom balance" accent="green" />
+        </div>
+      </section>
 
-      <div className="bg-white rounded-2xl border border-gray-100 p-4">
-        <div className="text-sm font-medium text-gray-700 mb-4">Showroom-wise Sales</div>
-        <ResponsiveContainer width="100%" height={280}>
-          <BarChart data={data.showroom_wise}>
-            <CartesianGrid strokeDasharray="3 3" stroke="#eee" />
-            <XAxis dataKey="showroom__name" tick={{ fontSize: 12 }} />
-            <YAxis tick={{ fontSize: 12 }} />
-            <Tooltip />
-            <Bar dataKey="total_sale" fill="#3b5fe0" radius={[6, 6, 0, 0]} name="Total Sale" />
-          </BarChart>
-        </ResponsiveContainer>
-      </div>
+      <section aria-labelledby="wholesale-overview-title" className="space-y-4">
+        <div className="dashboard-section-heading">
+          <div><h2 id="wholesale-overview-title">Wholesale overview</h2><p>Combined invoice and Easy Wholesale accounts · all time</p></div>
+          <span className="dashboard-section-tag dashboard-section-tag-gold">Wholesale</span>
+        </div>
+        <div className="grid grid-cols-1 gap-3 sm:grid-cols-2 xl:grid-cols-3 2xl:grid-cols-5">
+          <StatCard label="Total Parties" value={wholesale.total_parties} currency={false} description={`${Number(wholesale.active_parties || 0).toLocaleString()} active accounts`} accent="blue" />
+          <StatCard label="Net Wholesale Sales" value={wholesale.total_sales} description="After recorded returns" accent="green" />
+          <StatCard label="Outstanding Due" value={wholesale.total_due} description="Amount still receivable" accent="rose" />
+          <StatCard label="Payments Received" value={wholesale.total_payments} description="Invoice + Easy payments" accent="blue" />
+          <StatCard label="Party Credit" value={wholesale.total_credit} description="Customer credit balance" accent="gold" />
+        </div>
+      </section>
+
+      <section className="dashboard-chart-panel">
+        <div className="dashboard-section-heading mb-4">
+          <div><h2>Showroom sales comparison</h2><p>Daily sales recorded for each showroom</p></div>
+        </div>
+        {data.showroom_wise?.length ? (
+          <div className="h-[300px] w-full sm:h-[340px]">
+            <ResponsiveContainer width="100%" height="100%">
+              <BarChart data={data.showroom_wise} margin={{ top: 8, right: 12, left: 0, bottom: 8 }}>
+                <CartesianGrid strokeDasharray="3 3" stroke="#e6e9e2" vertical={false} />
+                <XAxis dataKey="showroom__name" tick={{ fontSize: 12, fill: "#59685e" }} axisLine={false} tickLine={false} />
+                <YAxis tick={{ fontSize: 12, fill: "#59685e" }} axisLine={false} tickLine={false} width={72} tickFormatter={(value) => Number(value).toLocaleString()} />
+                <Tooltip formatter={(value) => money(value)} cursor={{ fill: "#edf3ed" }} />
+                <Bar dataKey="total_sale" fill="#176b52" radius={[7, 7, 0, 0]} maxBarSize={64} name="Showroom sales" />
+              </BarChart>
+            </ResponsiveContainer>
+          </div>
+        ) : <p className="rounded-xl bg-gray-50 px-4 py-8 text-center text-sm text-gray-600">No showroom sales have been recorded for this date.</p>}
+      </section>
     </div>
   );
 }

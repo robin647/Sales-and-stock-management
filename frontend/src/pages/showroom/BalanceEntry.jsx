@@ -4,6 +4,16 @@ import { localDateString } from "../../utils/date";
 
 const todayStr = () => localDateString();
 
+function errorMessage(error) {
+  const response = error.response?.data;
+  const fieldErrors = response?.errors || {};
+  const messages = Object.entries(fieldErrors).flatMap(([field, value]) =>
+    (Array.isArray(value) ? value : [value]).filter((message) => typeof message === "string")
+      .map((message) => field === "non_field_errors" ? message : `${field.replaceAll("_", " ")}: ${message}`)
+  );
+  return messages.join(" ") || response?.detail || "Could not save balance entry. Please check the values and try again.";
+}
+
 export default function BalanceEntry() {
   const [date, setDate] = useState(todayStr());
   const [existing, setExisting] = useState(null);
@@ -12,9 +22,13 @@ export default function BalanceEntry() {
   const [success, setSuccess] = useState("");
 
   function loadEntry() {
+    setError("");
     balanceApi.list({ date }).then((res) => {
       const results = res.data.results || res.data;
       setExisting(results[0] || null);
+    }).catch((err) => {
+      setExisting(null);
+      setError(err.response?.data?.detail || "Could not load the balance entry for this date.");
     });
   }
 
@@ -30,11 +44,7 @@ export default function BalanceEntry() {
       setForm({ cash_sale: 0, card_sale: 0, expense: 0, salary: 0, deposit: 0 });
       loadEntry();
     } catch (err) {
-      setError(
-        err.response?.data?.errors?.non_field_errors?.[0] ||
-        err.response?.data?.detail ||
-        "Could not save balance entry."
-      );
+      setError(errorMessage(err));
     }
   }
 

@@ -46,6 +46,11 @@ class DailyStockSerializer(serializers.ModelSerializer):
 
 
 class DailyBalanceSerializer(serializers.ModelSerializer):
+    # Showroom accounts inherit their showroom from the authenticated user in
+    # ShowroomScopedMixin.perform_create; admin accounts must still provide it.
+    showroom = serializers.PrimaryKeyRelatedField(
+        queryset=Showroom.objects.all(), required=False
+    )
     showroom_name = serializers.CharField(source="showroom.name", read_only=True)
 
     class Meta:
@@ -63,6 +68,9 @@ class DailyBalanceSerializer(serializers.ModelSerializer):
 
     def validate(self, attrs):
         showroom = attrs.get("showroom") or getattr(self.instance, "showroom", None)
+        request = self.context.get("request")
+        if showroom is None and request and request.user.role != "admin":
+            showroom = request.user.showroom
         date = attrs.get("date") or getattr(self.instance, "date", None)
 
         if DailyBalance.objects.filter(showroom=showroom, date=date).exclude(

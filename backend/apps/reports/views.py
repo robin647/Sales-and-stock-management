@@ -66,6 +66,16 @@ class DashboardView(APIView):
         if request.user.role != "admin":
             data.pop("showroom_wise", None)
             data.pop("total_showrooms", None)
+        else:
+            from apps.wholesale.models import WholesaleParty
+            from apps.wholesale.services import all_party_summary
+
+            _, wholesale_totals = all_party_summary({})
+            data["wholesale_summary"] = {
+                "total_parties": WholesaleParty.objects.count(),
+                "active_parties": WholesaleParty.objects.filter(is_active=True).count(),
+                **wholesale_totals,
+            }
 
         return Response(data)
 
