@@ -1,7 +1,7 @@
 from types import SimpleNamespace
 
 from django.test import SimpleTestCase
-from django.urls import reverse
+from django.urls import resolve, reverse
 from rest_framework.test import APIClient
 
 
@@ -44,6 +44,12 @@ class RootStatusTests(SimpleTestCase):
         for route_name in route_names:
             with self.subTest(route=route_name):
                 self.assertTrue(reverse(route_name))
+
+    def test_login_routes_keep_the_api_prefix_and_trailing_slash(self):
+        self.assertEqual(reverse("token_obtain_pair"), "/api/auth/login/")
+        self.assertEqual(reverse("showroom_login"), "/api/auth/login/showroom/")
+        login_view = resolve(reverse("token_obtain_pair")).func.cls
+        self.assertIn("post", login_view.http_method_names)
 
     def test_existing_health_and_protected_api_routes_still_respond(self):
         health_response = self.client.get(reverse("health"), secure=True)
