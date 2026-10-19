@@ -43,9 +43,9 @@ INSTALLED_APPS = [
 ]
 
 MIDDLEWARE = [
+    "corsheaders.middleware.CorsMiddleware",
     "django.middleware.security.SecurityMiddleware",
     "whitenoise.middleware.WhiteNoiseMiddleware",
-    "corsheaders.middleware.CorsMiddleware",
     "django.contrib.sessions.middleware.SessionMiddleware",
     "django.middleware.common.CommonMiddleware",
     "django.middleware.csrf.CsrfViewMiddleware",
@@ -135,6 +135,9 @@ SIMPLE_JWT = {
 
 # --- CORS ---
 CORS_ALLOWED_ORIGINS = env.list("CORS_ALLOWED_ORIGINS", default=[])
+VERCEL_FRONTEND_ORIGIN = "https://sales-and-stock-management-s7d7.vercel.app"
+if VERCEL_FRONTEND_ORIGIN not in CORS_ALLOWED_ORIGINS:
+    CORS_ALLOWED_ORIGINS.append(VERCEL_FRONTEND_ORIGIN)
 
 # --- Logging ---
 LOGGING = {

@@ -85,3 +85,21 @@ class RootStatusTests(SimpleTestCase):
         response = self.client.get("/this-route-does-not-exist/", secure=True)
 
         self.assertEqual(response.status_code, 404)
+
+
+class CorsPreflightTests(SimpleTestCase):
+    def test_login_preflight_allows_vercel_frontend(self):
+        response = APIClient().options(
+            reverse("token_obtain_pair"),
+            secure=True,
+            HTTP_ORIGIN="https://sales-and-stock-management-s7d7.vercel.app",
+            HTTP_ACCESS_CONTROL_REQUEST_METHOD="POST",
+            HTTP_ACCESS_CONTROL_REQUEST_HEADERS="content-type",
+        )
+
+        self.assertEqual(response.status_code, 200)
+        self.assertEqual(
+            response["Access-Control-Allow-Origin"],
+            "https://sales-and-stock-management-s7d7.vercel.app",
+        )
+        self.assertIn("POST", response["Access-Control-Allow-Methods"])
