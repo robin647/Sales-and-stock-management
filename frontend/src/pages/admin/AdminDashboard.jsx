@@ -1,6 +1,7 @@
 import { useEffect, useState } from "react";
 import { Bar, BarChart, CartesianGrid, ResponsiveContainer, Tooltip, XAxis, YAxis } from "recharts";
 import { reportApi } from "../../api/endpoints";
+import { localDateString } from "../../utils/date";
 
 function StatCard({ label, value }) {
   return (
@@ -17,7 +18,7 @@ export default function AdminDashboard() {
 
   useEffect(() => {
     reportApi
-      .dashboard({ date: new Date().toISOString().slice(0, 10) })
+      .dashboard({ date: localDateString() })
       .then((res) => setData(res.data))
       .catch(() => setError("Could not load dashboard data."));
   }, []);

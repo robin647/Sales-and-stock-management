@@ -1,16 +1,32 @@
 import { useEffect, useState } from "react";
-import { categoryApi, productApi } from "../../api/endpoints";
+import { categoryApi, factoryStockApi, productApi, showroomApi, showroomStockApi } from "../../api/endpoints";
 
 export default function Products() {
   const [categories, setCategories] = useState([]);
   const [products, setProducts] = useState([]);
   const [newCategory, setNewCategory] = useState("");
-  const [form, setForm] = useState({ name: "", category: "", size: "", selling_price: "" });
+  const [factoryStock, setFactoryStock] = useState({});
+  const [showroomStock, setShowroomStock] = useState({});
+  const [showrooms, setShowrooms] = useState([]);
+  const [form, setForm] = useState({ name: "", code: "", category: "", size: "", selling_price: "", initial_stock: "" });
   const [error, setError] = useState("");
 
   function loadAll() {
     categoryApi.list().then((res) => setCategories(res.data.results || res.data));
     productApi.list().then((res) => setProducts(res.data.results || res.data));
+    factoryStockApi.list().then((res) => {
+      const stocks = {};
+      (res.data.results || res.data).forEach((stock) => { stocks[stock.product] = stock.quantity; });
+      setFactoryStock(stocks);
+    });
+    showroomApi.list().then((res) => setShowrooms(res.data.results || res.data));
+    showroomStockApi.list().then((res) => {
+      const stocks = {};
+      (res.data.results || res.data).forEach((stock) => {
+        stocks[`${stock.product}-${stock.showroom}`] = stock.quantity;
+      });
+      setShowroomStock(stocks);
+    });
   }
 
   useEffect(loadAll, []);
@@ -28,7 +44,7 @@ export default function Products() {
     setError("");
     try {
       await productApi.create(form);
-      setForm({ name: "", category: "", size: "", selling_price: "" });
+      setForm({ name: "", code: "", category: "", size: "", selling_price: "", initial_stock: "" });
       loadAll();
     } catch (err) {
       setError("Could not create product. Check the fields and try again.");
@@ -44,14 +60,17 @@ export default function Products() {
     <div className="space-y-8">
       <h1 className="text-lg font-semibold">Products</h1>
 
-      <div className="bg-white rounded-2xl border border-gray-100 p-4">
-        <table className="w-full text-sm">
+      <div className="bg-white rounded-2xl border border-gray-100 p-4 overflow-x-auto">
+        <table className="w-full text-sm whitespace-nowrap">
           <thead>
             <tr className="text-left text-gray-500 border-b border-gray-100">
               <th className="py-2">Name</th>
+              <th>Code</th>
               <th>Category</th>
               <th>Size</th>
               <th>Price</th>
+              <th>Factory stock</th>
+              {showrooms.map((showroom) => <th key={showroom.id}>{showroom.name}</th>)}
               <th>Status</th>
               <th></th>
             </tr>
@@ -60,9 +79,14 @@ export default function Products() {
             {products.map((p) => (
               <tr key={p.id} className="border-b border-gray-50">
                 <td className="py-2 font-medium">{p.name}</td>
+                <td className="text-gray-500">{p.code || "—"}</td>
                 <td className="text-gray-500">{p.category_name}</td>
                 <td className="text-gray-500">{p.size || "—"}</td>
                 <td>৳ {Number(p.selling_price).toLocaleString()}</td>
+                <td className="font-medium">{factoryStock[p.id] || 0} pcs</td>
+                {showrooms.map((showroom) => (
+                  <td key={showroom.id}>{showroomStock[`${p.id}-${showroom.id}`] || 0} pcs</td>
+                ))}
                 <td>
                   <span className={`text-xs px-2 py-1 rounded-full ${p.is_active ? "bg-green-50 text-green-700" : "bg-gray-100 text-gray-500"}`}>
                     {p.is_active ? "Active" : "Inactive"}
@@ -110,6 +134,12 @@ export default function Products() {
             className="w-full mb-2 border border-gray-300 rounded-lg px-3 py-2 text-sm"
             required
           />
+          <input
+            placeholder="Product code (optional)"
+            value={form.code}
+            onChange={(e) => setForm({ ...form, code: e.target.value })}
+            className="w-full mb-2 border border-gray-300 rounded-lg px-3 py-2 text-sm"
+          />
           <select
             value={form.category}
             onChange={(e) => setForm({ ...form, category: e.target.value })}
@@ -133,6 +163,16 @@ export default function Products() {
             placeholder="Selling price"
             value={form.selling_price}
             onChange={(e) => setForm({ ...form, selling_price: e.target.value })}
+            className="w-full mb-3 border border-gray-300 rounded-lg px-3 py-2 text-sm"
+            required
+          />
+          <input
+            type="number"
+            min="0"
+            step="1"
+            placeholder="Initial factory stock (pcs)"
+            value={form.initial_stock}
+            onChange={(e) => setForm({ ...form, initial_stock: e.target.value })}
             className="w-full mb-3 border border-gray-300 rounded-lg px-3 py-2 text-sm"
             required
           />

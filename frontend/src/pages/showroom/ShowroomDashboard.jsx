@@ -1,5 +1,6 @@
 import { useEffect, useState } from "react";
 import { reportApi } from "../../api/endpoints";
+import { localDateString } from "../../utils/date";
 
 function StatCard({ label, value, isCurrency = true }) {
   return (
@@ -18,7 +19,7 @@ export default function ShowroomDashboard() {
 
   useEffect(() => {
     reportApi
-      .dashboard({ date: new Date().toISOString().slice(0, 10) })
+      .dashboard({ date: localDateString() })
       .then((res) => setData(res.data))
       .catch(() => setError("Could not load dashboard data."));
   }, []);

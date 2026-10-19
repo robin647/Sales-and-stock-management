@@ -6,11 +6,22 @@ const AuthContext = createContext(null);
 function decodeToken(token) {
   try {
     const payload = token.split(".")[1];
-    const decoded = JSON.parse(atob(payload.replace(/-/g, "+").replace(/_/g, "/")));
-    return decoded;
+    return JSON.parse(atob(payload.replace(/-/g, "+").replace(/_/g, "/")));
   } catch {
     return null;
   }
+}
+
+function userFromToken(token) {
+  const decoded = decodeToken(token);
+  if (!decoded) return null;
+  return {
+    id: decoded.user_id,
+    role: decoded.role, // "admin" | "showroom_user"
+    showroomId: decoded.showroom_id,
+    showroomName: decoded.showroom_name,
+    fullName: decoded.full_name,
+  };
 }
 
 export function AuthProvider({ children }) {
@@ -19,56 +30,28 @@ export function AuthProvider({ children }) {
 
   useEffect(() => {
     const token = localStorage.getItem("access_token");
-    if (token) {
-      const decoded = decodeToken(token);
-      if (decoded) {
-        setUser({
-          id: decoded.user_id || decoded.showroom_id,
-          role: decoded.role,
-          showroomId: decoded.showroom_id,
-          showroomName: decoded.showroom_name,
-          fullName: decoded.full_name,
-        });
-      }
-    }
+    if (token) setUser(userFromToken(token));
     setLoading(false);
   }, []);
 
-  // Listen for showroom login events
-  useEffect(() => {
-    function handleLoginSuccess() {
-      const token = localStorage.getItem("access_token");
-      if (token) {
-        const decoded = decodeToken(token);
-        if (decoded) {
-          setUser({
-            id: decoded.showroom_id,
-            role: decoded.role || "showroom",
-            showroomId: decoded.showroom_id,
-            showroomName: decoded.showroom_name,
-            fullName: decoded.showroom_name,
-          });
-        }
-      }
-    }
-
-    window.addEventListener("loginSuccess", handleLoginSuccess);
-    return () => window.removeEventListener("loginSuccess", handleLoginSuccess);
-  }, []);
-
+  // Single login path for both Admin and Showroom accounts — both are
+  // `User` rows authenticated the same way, differing only by `role`.
   async function login(username, password) {
     const { data } = await authApi.login(username, password);
+    return saveSession(data);
+  }
+
+  async function loginShowroom(username, password) {
+    const { data } = await authApi.showroomLogin(username, password);
+    return saveSession(data);
+  }
+
+  function saveSession(data) {
     localStorage.setItem("access_token", data.access);
     localStorage.setItem("refresh_token", data.refresh);
-    const decoded = decodeToken(data.access);
-    setUser({
-      id: decoded.user_id,
-      role: decoded.role,
-      showroomId: decoded.showroom_id,
-      showroomName: decoded.showroom_name,
-      fullName: decoded.full_name,
-    });
-    return decoded;
+    const nextUser = userFromToken(data.access);
+    setUser(nextUser);
+    return nextUser;
   }
 
   function logout() {
@@ -77,7 +60,9 @@ export function AuthProvider({ children }) {
   }
 
   return (
-    <AuthContext.Provider value={{ user, loading, login, logout, isAdmin: user?.role === "admin" }}>
+    <AuthContext.Provider
+      value={{ user, loading, login, loginShowroom, logout, isAdmin: user?.role === "admin" }}
+    >
       {children}
     </AuthContext.Provider>
   );

@@ -1,19 +1,7 @@
 import axios from "axios";
 
-const configuredApiUrl =
-  import.meta.env.VITE_API_URL ||
-  (import.meta.env.DEV ? "http://localhost:8000/api" : "");
-const trimmedApiUrl = configuredApiUrl.trim();
-
-const API_URL = trimmedApiUrl
-  ? `${trimmedApiUrl.replace(/\/+$/, "").replace(/(?:\/api)+$/i, "")}/api`
-  : "";
-
-if (!API_URL) {
-  throw new Error(
-    "VITE_API_URL is missing. Set it in the frontend hosting environment and redeploy."
-  );
-}
+const configuredApiUrl = import.meta.env.VITE_API_URL?.trim();
+const API_URL = (configuredApiUrl || "http://localhost:8000/api").replace(/\/+$/, "");
 
 const api = axios.create({ baseURL: API_URL });
 
@@ -40,6 +28,14 @@ api.interceptors.response.use(
   (response) => response,
   async (error) => {
     const originalRequest = error.config;
+
+    if (import.meta.env.DEV) {
+      console.error("[API request failed]", {
+        method: originalRequest?.method?.toUpperCase(),
+        url: originalRequest?.baseURL ? `${originalRequest.baseURL}${originalRequest.url}` : originalRequest?.url,
+        status: error.response?.status,
+      });
+    }
 
     if (error.response?.status === 401 && !originalRequest._retry) {
       const refreshToken = localStorage.getItem("refresh_token");

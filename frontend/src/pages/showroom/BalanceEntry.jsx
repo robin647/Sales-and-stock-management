@@ -1,7 +1,8 @@
 import { useEffect, useState } from "react";
 import { balanceApi } from "../../api/endpoints";
+import { localDateString } from "../../utils/date";
 
-const todayStr = () => new Date().toISOString().slice(0, 10);
+const todayStr = () => localDateString();
 
 export default function BalanceEntry() {
   const [date, setDate] = useState(todayStr());
