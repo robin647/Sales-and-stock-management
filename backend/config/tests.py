@@ -113,6 +113,27 @@ class CorsPreflightTests(SimpleTestCase):
         )
         self.assertIn("POST", response["Access-Control-Allow-Methods"])
 
+    def test_easy_sales_preflight_allows_idempotency_key_and_default_headers(self):
+        response = APIClient().options(
+            "/api/wholesale/easy/sales/",
+            secure=True,
+            HTTP_ORIGIN="https://sales-and-stock-management-s7d7.vercel.app",
+            HTTP_ACCESS_CONTROL_REQUEST_METHOD="POST",
+            HTTP_ACCESS_CONTROL_REQUEST_HEADERS=(
+                "authorization,content-type,idempotency-key"
+            ),
+        )
+
+        self.assertEqual(response.status_code, 200)
+        self.assertEqual(
+            response["Access-Control-Allow-Origin"],
+            "https://sales-and-stock-management-s7d7.vercel.app",
+        )
+        allowed_headers = response["Access-Control-Allow-Headers"].lower()
+        for header in ("authorization", "content-type", "idempotency-key"):
+            with self.subTest(header=header):
+                self.assertIn(header, allowed_headers)
+
 
 class AdminLoginTests(SimpleTestCase):
     """Exercise the real SimpleJWT/Django password validation without a DB."""
