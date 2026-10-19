@@ -1,7 +1,7 @@
-export function SiteFooter() {
+export function SiteFooter({ className = "" }) {
   return (
-    <footer className="app-footer border-t px-4 py-3 text-center text-xs">
-      Copyright reserved MHRobin
+    <footer className={`app-footer ${className} border-t px-4 py-3 text-center text-xs`}>
+      Copyright (C) {new Date().getFullYear()} MHRobin <span aria-hidden="true">|</span> Mahir Sherwani Showroom Management
     </footer>
   );
 }
