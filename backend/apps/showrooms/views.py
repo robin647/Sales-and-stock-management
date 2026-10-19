@@ -19,8 +19,8 @@ class ShowroomViewSet(viewsets.ModelViewSet):
     def get_queryset(self):
         user = self.request.user
         if user.role == "admin":
-            return Showroom.objects.all()
-        return Showroom.objects.filter(id=user.showroom_id)
+            return Showroom.objects.prefetch_related("users").all()
+        return Showroom.objects.prefetch_related("users").filter(id=user.showroom_id)
 
     def check_permissions(self, request):
         super().check_permissions(request)

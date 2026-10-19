@@ -31,33 +31,55 @@ class ShowroomTokenObtainPairSerializer(serializers.Serializer):
     password = serializers.CharField(write_only=True)
 
     def validate(self, attrs):
-        from django.contrib.auth.hashers import check_password
+        from django.contrib.auth import authenticate
+        from django.db import IntegrityError, transaction
         from rest_framework_simplejwt.tokens import RefreshToken
         
         username = attrs.get("username")
         password = attrs.get("password")
-
         from apps.showrooms.models import Showroom
-        
-        try:
-            showroom = Showroom.objects.get(username=username, is_active=True)
-        except Showroom.DoesNotExist:
-            raise serializers.ValidationError(
-                {"detail": "Invalid username or password."}
+        user = User.objects.filter(username=username).first()
+        if user:
+            if user.role != User.Role.SHOWROOM_USER or not user.is_active:
+                raise serializers.ValidationError({"detail": "Invalid username or password."})
+            authenticated = authenticate(
+                request=self.context.get("request"), username=username, password=password,
             )
+            if not authenticated or authenticated.pk != user.pk:
+                raise serializers.ValidationError({"detail": "Invalid username or password."})
+            user = authenticated
+        else:
+            # Older deployments stored showroom credentials directly on the
+            # Showroom row. Verify that stored hash, then create the normal
+            # role-scoped account so JWTAuthentication can resolve every API
+            # request to an actual User record.
+            showroom = next((
+                row for row in Showroom.objects.filter(username=username, is_active=True).order_by("id")
+                if row.check_password(password)
+            ), None)
+            if showroom is None:
+                raise serializers.ValidationError({"detail": "Invalid username or password."})
+            try:
+                with transaction.atomic():
+                    user = User.objects.create_user(
+                        username=username,
+                        password=password,
+                        role=User.Role.SHOWROOM_USER,
+                        showroom=showroom,
+                        is_active=showroom.is_active,
+                    )
+            except IntegrityError:
+                user = User.objects.filter(username=username).first()
+                if not user or user.role != User.Role.SHOWROOM_USER or not user.is_active:
+                    raise serializers.ValidationError({"detail": "Invalid username or password."})
+                authenticated = authenticate(
+                    request=self.context.get("request"), username=username, password=password,
+                )
+                if not authenticated or authenticated.pk != user.pk:
+                    raise serializers.ValidationError({"detail": "Invalid username or password."})
+                user = authenticated
 
-        if not showroom.check_password(password):
-            raise serializers.ValidationError(
-                {"detail": "Invalid username or password."}
-            )
-
-        # Create JWT tokens with showroom info
-        refresh = RefreshToken()
-        refresh.payload.update({
-            "showroom_id": showroom.id,
-            "showroom_name": showroom.name,
-            "role": "showroom",
-        })
+        refresh = CustomTokenObtainPairSerializer.get_token(user)
 
         return {
             "refresh": str(refresh),

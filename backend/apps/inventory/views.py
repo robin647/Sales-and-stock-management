@@ -1,8 +1,9 @@
 from rest_framework import viewsets, permissions
-from rest_framework.exceptions import PermissionDenied
+from rest_framework.exceptions import MethodNotAllowed, PermissionDenied
 
-from .models import DailyBalance, DailyStock
-from .serializers import DailyBalanceSerializer, DailyStockSerializer
+from .models import DailyBalance, DailyStock, FactoryStock, ShowroomStock, StockTransfer
+from .serializers import (DailyBalanceSerializer, DailyStockSerializer, FactoryStockSerializer,
+                          ShowroomStockSerializer, StockTransferSerializer)
 
 
 class ShowroomScopedMixin:
@@ -47,8 +48,19 @@ class ShowroomScopedMixin:
                 raise PermissionDenied("Admin must specify a showroom when creating an entry.")
             serializer.save()
         else:
+            if not user.showroom_id:
+                raise PermissionDenied("Your account is not assigned to a showroom.")
             # Showroom user's own showroom is forced here — any showroom_id
             # sent from the client for this field is silently overridden.
+            serializer.save(showroom=user.showroom)
+
+    def perform_update(self, serializer):
+        user = self.request.user
+        if user.role == "admin":
+            serializer.save()
+        else:
+            if not user.showroom_id:
+                raise PermissionDenied("Your account is not assigned to a showroom.")
             serializer.save(showroom=user.showroom)
 
 
@@ -66,3 +78,56 @@ class DailyBalanceViewSet(ShowroomScopedMixin, viewsets.ModelViewSet):
 
     def queryset_base(self):
         return DailyBalance.objects.select_related("showroom").all()
+
+
+class FactoryStockViewSet(viewsets.ReadOnlyModelViewSet):
+    serializer_class = FactoryStockSerializer
+    permission_classes = [permissions.IsAuthenticated]
+    queryset = FactoryStock.objects.select_related("product").all()
+
+    def check_permissions(self, request):
+        super().check_permissions(request)
+        if request.user.role != "admin":
+            raise PermissionDenied("Only Admin can view factory inventory.")
+
+
+class ShowroomStockViewSet(viewsets.ReadOnlyModelViewSet):
+    serializer_class = ShowroomStockSerializer
+    permission_classes = [permissions.IsAuthenticated]
+
+    def get_queryset(self):
+        queryset = ShowroomStock.objects.select_related("product", "showroom")
+        if self.request.user.role == "admin":
+            showroom_id = self.request.query_params.get("showroom")
+            if showroom_id:
+                queryset = queryset.filter(showroom_id=showroom_id)
+            return queryset
+        return queryset.filter(showroom_id=self.request.user.showroom_id)
+
+
+class StockTransferViewSet(viewsets.ModelViewSet):
+    serializer_class = StockTransferSerializer
+    permission_classes = [permissions.IsAuthenticated]
+    http_method_names = ["get", "post", "head", "options"]
+
+    def get_queryset(self):
+        queryset = StockTransfer.objects.select_related("product", "showroom", "created_by")
+        user = self.request.user
+        if user.role != "admin":
+            queryset = queryset.filter(showroom_id=user.showroom_id)
+        if self.request.query_params.get("date"):
+            queryset = queryset.filter(date=self.request.query_params["date"])
+        return queryset
+
+    def perform_create(self, serializer):
+        user = self.request.user
+        if user.role == "admin":
+            showroom = serializer.validated_data.get("showroom")
+            if not showroom:
+                raise PermissionDenied("Admin must select a showroom.")
+        else:
+            if not user.showroom_id:
+                raise PermissionDenied("Your account is not assigned to a showroom.")
+            serializer.save(showroom=user.showroom)
+            return
+        serializer.save()

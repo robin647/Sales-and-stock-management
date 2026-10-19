@@ -6,6 +6,54 @@ from apps.products.models import Product
 from apps.showrooms.models import Showroom
 
 
+class FactoryStock(models.Model):
+    product = models.OneToOneField(Product, on_delete=models.PROTECT, related_name="factory_stock")
+    quantity = models.PositiveIntegerField(default=0)
+    updated_at = models.DateTimeField(auto_now=True)
+
+
+class ShowroomStock(models.Model):
+    showroom = models.ForeignKey(Showroom, on_delete=models.PROTECT, related_name="product_stocks")
+    product = models.ForeignKey(Product, on_delete=models.PROTECT, related_name="showroom_stocks")
+    quantity = models.PositiveIntegerField(default=0)
+    updated_at = models.DateTimeField(auto_now=True)
+
+    class Meta:
+        ordering = ["showroom_id", "product_id"]
+        constraints = [models.UniqueConstraint(fields=["showroom", "product"], name="unique_showroom_product_stock")]
+
+
+class StockAdjustment(models.Model):
+    LOCATION_CHOICES = [("factory", "Factory"), ("showroom", "Showroom")]
+    product = models.ForeignKey(Product, on_delete=models.PROTECT, related_name="stock_adjustments")
+    location = models.CharField(max_length=12, choices=LOCATION_CHOICES)
+    showroom = models.ForeignKey(Showroom, null=True, blank=True, on_delete=models.PROTECT, related_name="stock_adjustments")
+    previous_quantity = models.PositiveIntegerField()
+    new_quantity = models.PositiveIntegerField()
+    difference = models.IntegerField()
+    reason = models.CharField(max_length=255)
+    created_by = models.ForeignKey(settings.AUTH_USER_MODEL, on_delete=models.PROTECT, related_name="stock_adjustments")
+    created_at = models.DateTimeField(auto_now_add=True)
+
+    class Meta:
+        ordering = ["-created_at", "-id"]
+
+
+class StockTransfer(models.Model):
+    TRANSFER_TYPES = [("receive", "Receive"), ("sale", "Sale"), ("return", "Return")]
+    product = models.ForeignKey(Product, on_delete=models.PROTECT, related_name="stock_transfers")
+    showroom = models.ForeignKey(Showroom, on_delete=models.PROTECT, related_name="stock_transfers")
+    quantity = models.PositiveIntegerField(validators=[MinValueValidator(1)])
+    transfer_type = models.CharField(max_length=12, choices=TRANSFER_TYPES)
+    date = models.DateField()
+    notes = models.CharField(max_length=255, blank=True)
+    created_by = models.ForeignKey(settings.AUTH_USER_MODEL, on_delete=models.PROTECT, related_name="stock_transfers")
+    created_at = models.DateTimeField(auto_now_add=True)
+
+    class Meta:
+        ordering = ["-date", "-created_at"]
+
+
 class DailyStock(models.Model):
     """
     One row per (showroom, product, date).
