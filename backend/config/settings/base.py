@@ -33,6 +33,7 @@ INSTALLED_APPS = [
     # third party
     "rest_framework",
     "rest_framework_simplejwt",
+    "rest_framework_simplejwt.token_blacklist",
     "corsheaders",
     "django_filters",
     # local apps
@@ -88,6 +89,9 @@ DATABASES = {
         "DATABASE_URL", default="postgres://placeholder:placeholder@localhost:5432/placeholder"
     ),
 }
+DATABASES["default"].setdefault("CONN_MAX_AGE", env.int("DB_CONN_MAX_AGE", default=60))
+DATABASES["default"].setdefault("CONN_HEALTH_CHECKS", True)
+DATABASES["default"].setdefault("OPTIONS", {}).setdefault("connect_timeout", 10)
 
 AUTH_PASSWORD_VALIDATORS = [
     {"NAME": "django.contrib.auth.password_validation.UserAttributeSimilarityValidator"},
@@ -118,15 +122,24 @@ REST_FRAMEWORK = {
     "DEFAULT_FILTER_BACKENDS": (
         "django_filters.rest_framework.DjangoFilterBackend",
     ),
-    "DEFAULT_PAGINATION_CLASS": "rest_framework.pagination.PageNumberPagination",
+    "DEFAULT_PAGINATION_CLASS": "core.pagination.StandardPageNumberPagination",
     "PAGE_SIZE": 20,
+    "DEFAULT_THROTTLE_CLASSES": (
+        "rest_framework.throttling.AnonRateThrottle",
+        "rest_framework.throttling.UserRateThrottle",
+    ),
+    "DEFAULT_THROTTLE_RATES": {
+        "anon": "60/minute",
+        "user": "300/minute",
+        "login": "10/minute",
+    },
     "EXCEPTION_HANDLER": "core.exceptions.custom_exception_handler",
 }
 
 # --- JWT ---
 SIMPLE_JWT = {
     "ACCESS_TOKEN_LIFETIME": timedelta(
-        minutes=env.int("ACCESS_TOKEN_LIFETIME_MINUTES", default=60)
+        minutes=env.int("ACCESS_TOKEN_LIFETIME_MINUTES", default=15)
     ),
     "REFRESH_TOKEN_LIFETIME": timedelta(
         days=env.int("REFRESH_TOKEN_LIFETIME_DAYS", default=7)

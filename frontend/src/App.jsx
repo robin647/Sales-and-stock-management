@@ -1,23 +1,24 @@
+import { lazy, Suspense } from "react";
 import { Navigate, Route, Routes } from "react-router-dom";
 import Layout from "./components/Layout.jsx";
 import { useAuth } from "./context/AuthContext.jsx";
 import ProtectedRoute from "./routes/ProtectedRoute.jsx";
 
-import Login from "./pages/Login.jsx";
-import Reports from "./pages/Reports.jsx";
-import AdminDashboard from "./pages/admin/AdminDashboard.jsx";
-import Products from "./pages/admin/Products.jsx";
-import Showrooms from "./pages/admin/Showrooms.jsx";
-import StockAdjustments from "./pages/admin/StockAdjustments.jsx";
-import WholesaleParties from "./pages/admin/WholesaleParties.jsx";
-import WholesaleSales from "./pages/admin/WholesaleSales.jsx";
-import EasyWholesaleManagement from "./pages/admin/EasyWholesaleManagement.jsx";
-import WholesaleReturns from "./pages/admin/WholesaleReturns.jsx";
-import AllPartiesSummary from "./pages/admin/AllPartiesSummary.jsx";
-import WholesaleReports from "./pages/admin/WholesaleReports.jsx";
-import BalanceEntry from "./pages/showroom/BalanceEntry.jsx";
-import ShowroomDashboard from "./pages/showroom/ShowroomDashboard.jsx";
-import StockEntry from "./pages/showroom/StockEntry.jsx";
+const Login = lazy(() => import("./pages/Login.jsx"));
+const Reports = lazy(() => import("./pages/Reports.jsx"));
+const AdminDashboard = lazy(() => import("./pages/admin/AdminDashboard.jsx"));
+const Products = lazy(() => import("./pages/admin/Products.jsx"));
+const Showrooms = lazy(() => import("./pages/admin/Showrooms.jsx"));
+const StockAdjustments = lazy(() => import("./pages/admin/StockAdjustments.jsx"));
+const WholesaleParties = lazy(() => import("./pages/admin/WholesaleParties.jsx"));
+const WholesaleSales = lazy(() => import("./pages/admin/WholesaleSales.jsx"));
+const EasyWholesaleManagement = lazy(() => import("./pages/admin/EasyWholesaleManagement.jsx"));
+const WholesaleReturns = lazy(() => import("./pages/admin/WholesaleReturns.jsx"));
+const AllPartiesSummary = lazy(() => import("./pages/admin/AllPartiesSummary.jsx"));
+const WholesaleReports = lazy(() => import("./pages/admin/WholesaleReports.jsx"));
+const BalanceEntry = lazy(() => import("./pages/showroom/BalanceEntry.jsx"));
+const ShowroomDashboard = lazy(() => import("./pages/showroom/ShowroomDashboard.jsx"));
+const StockEntry = lazy(() => import("./pages/showroom/StockEntry.jsx"));
 import { WhatsAppButton } from "./components/SiteFooter.jsx";
 
 function Home() {
@@ -28,6 +29,7 @@ function Home() {
 export default function App() {
   return (
     <>
+    <Suspense fallback={<div className="flex min-h-screen items-center justify-center text-slate-600">Loading workspace…</div>}>
     <Routes>
       <Route path="/login" element={<Login />} />
 
@@ -91,6 +93,7 @@ export default function App() {
 
       <Route path="*" element={<Navigate to="/" replace />} />
     </Routes>
+    </Suspense>
     <WhatsAppButton />
     </>
   );
