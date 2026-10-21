@@ -76,11 +76,16 @@ export default function StockEntry() {
       setForm({ product: "", quantity: "" });
       await Promise.all([loadTransfers(), loadStocks()]);
     } catch (err) {
-      const errorMsg = err.response?.data?.detail ||
-        err.response?.data?.product?.[0] ||
-        err.response?.data?.quantity?.[0] ||
-        err.response?.data?.transfer_type?.[0] ||
-        err.response?.data?.non_field_errors?.[0] ||
+      const response = err.response?.data;
+      const validationErrors = response?.errors || response;
+      const fieldMessages = validationErrors && typeof validationErrors === "object"
+        ? Object.entries(validationErrors).flatMap(([field, messages]) => {
+          const values = Array.isArray(messages) ? messages : [messages];
+          return values.filter((message) => typeof message === "string")
+            .map((message) => field === "non_field_errors" || field === "detail" ? message : `${field.replaceAll("_", " ")}: ${message}`);
+        })
+        : [];
+      const errorMsg = fieldMessages.join(" ") || response?.detail ||
         "Could not save stock transfer. Check the quantities and try again.";
       setError(errorMsg);
       console.error("Transfer error:", err.response?.data);
