@@ -19,6 +19,10 @@ def _undo_easy_stock_movement(record, user):
     from apps.inventory.models import FactoryStock, ShowroomStock
     from .models import EasyWholesaleStockMovement
 
+    if isinstance(record, EasyWholesalePayment):
+        return
+    if not isinstance(record, (EasyWholesaleSale, EasyWholesaleReturn)):
+        return
     movement = EasyWholesaleStockMovement.objects.select_for_update().filter(
         **({"easy_sale": record} if isinstance(record, EasyWholesaleSale) else {"easy_return": record})
     ).first()
