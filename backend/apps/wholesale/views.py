@@ -136,14 +136,20 @@ class InvoiceViewSet(AdminOnlyViewSet):
             queryset = [invoice for invoice in queryset if _payment_status(invoice) == payment_status.lower()]
         return queryset
 
-    def update(self, request, *args, **kwargs):
-        raise MethodNotAllowed(request.method, detail="Invoices cannot be edited; record payments or returns instead.")
+    def perform_destroy(self, instance):
+        from django.db import transaction
+        from rest_framework.exceptions import ValidationError
+        from apps.wholesale.serializers import _get_location_stock
 
-    def partial_update(self, request, *args, **kwargs):
-        raise MethodNotAllowed(request.method, detail="Invoices cannot be edited; record payments or returns instead.")
-
-    def destroy(self, request, *args, **kwargs):
-        raise MethodNotAllowed(request.method, detail="Invoices are immutable and cannot be deleted.")
+        with transaction.atomic():
+            if instance.payments.exists() or any(item.returns.exists() for item in instance.items.all()):
+                raise ValidationError("This sale has linked payments or returns. Delete those records first.")
+            for item in instance.items.select_for_update().select_related("product"):
+                stock = _get_location_stock(item.product, instance.stock_location, instance.showroom, lock=True)
+                stock.quantity += item.quantity
+                stock.save(update_fields=["quantity", "updated_at"])
+                item.delete()
+            instance.delete()
 
 
 class PaymentViewSet(AdminOnlyViewSet):
@@ -151,7 +157,7 @@ class PaymentViewSet(AdminOnlyViewSet):
     serializer_class = PaymentCreateSerializer
 
     def get_serializer_class(self):
-        return PaymentCreateSerializer if self.action == "create" else PaymentSerializer
+        return PaymentCreateSerializer if self.action in {"create", "update", "partial_update"} else PaymentSerializer
 
     def get_queryset(self):
         queryset = super().get_queryset()
@@ -163,14 +169,6 @@ class PaymentViewSet(AdminOnlyViewSet):
             queryset = queryset.filter(invoice__party_id=party_id)
         return queryset
 
-    def update(self, request, *args, **kwargs):
-        raise MethodNotAllowed(request.method, detail="Payments are immutable; record a new payment entry.")
-
-    def partial_update(self, request, *args, **kwargs):
-        raise MethodNotAllowed(request.method, detail="Payments are immutable; record a new payment entry.")
-
-    def destroy(self, request, *args, **kwargs):
-        raise MethodNotAllowed(request.method, detail="Payments are immutable.")
 
 
 class ReturnViewSet(AdminOnlyViewSet):
@@ -193,14 +191,19 @@ class ReturnViewSet(AdminOnlyViewSet):
             queryset = queryset.filter(invoice_item__invoice__party_id=party_id)
         return queryset
 
-    def update(self, request, *args, **kwargs):
-        raise MethodNotAllowed(request.method, detail="Returns are immutable.")
+    def perform_destroy(self, instance):
+        from django.db import transaction
+        from rest_framework.exceptions import ValidationError
+        from apps.wholesale.serializers import _get_location_stock
 
-    def partial_update(self, request, *args, **kwargs):
-        raise MethodNotAllowed(request.method, detail="Returns are immutable.")
-
-    def destroy(self, request, *args, **kwargs):
-        raise MethodNotAllowed(request.method, detail="Returns are immutable.")
+        with transaction.atomic():
+            item = instance.invoice_item
+            stock = _get_location_stock(item.product, item.invoice.stock_location, item.invoice.showroom, lock=True)
+            if stock.quantity < instance.quantity:
+                raise ValidationError("Returned stock has already been used and cannot be removed.")
+            stock.quantity -= instance.quantity
+            stock.save(update_fields=["quantity", "updated_at"])
+            instance.delete()
 
 
 class StockAdjustmentViewSet(AdminOnlyViewSet):
@@ -218,7 +221,7 @@ class StockAdjustmentViewSet(AdminOnlyViewSet):
 
 
 class EasyTransactionViewSet(AdminOnlyViewSet):
-    http_method_names = ["get", "post", "head", "options"]
+    http_method_names = ["get", "post", "put", "patch", "delete", "head", "options"]
 
     def get_queryset(self):
         queryset = super().get_queryset()
@@ -232,6 +235,18 @@ class EasyTransactionViewSet(AdminOnlyViewSet):
         if end_date:
             queryset = queryset.filter(**{f"{self.date_field}__lte": end_date})
         return queryset
+
+    def perform_destroy(self, instance):
+        from django.db import transaction
+        from rest_framework.exceptions import ValidationError
+        from .models import EasyWholesaleSale
+        from .serializers import _undo_easy_stock_movement
+
+        with transaction.atomic():
+            if isinstance(instance, EasyWholesaleSale) and instance.returns.exists():
+                raise ValidationError("Remove or update linked returns before deleting this sale.")
+            _undo_easy_stock_movement(instance, self.request.user)
+            instance.delete()
 
 
 class EasyWholesaleSaleViewSet(EasyTransactionViewSet):

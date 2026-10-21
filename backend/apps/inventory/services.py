@@ -69,3 +69,40 @@ def transfer_stock(*, product, showroom, quantity, transfer_type, date, created_
         product=product, showroom=showroom, quantity=quantity,
         transfer_type=transfer_type, date=date, notes=notes, created_by=created_by,
     )
+
+
+@transaction.atomic
+def update_transfer_quantity(*, transfer, quantity):
+    from .models import DailyStock
+    from rest_framework.exceptions import ValidationError
+
+    difference = quantity - transfer.quantity
+    if difference == 0:
+        return transfer
+    factory = _lock_stock(transfer.product, "factory")
+    store = _lock_stock(transfer.product, "showroom", transfer.showroom)
+    daily = DailyStock.objects.select_for_update().get(
+        showroom=transfer.showroom, product=transfer.product, date=transfer.date
+    )
+    if transfer.transfer_type == "receive":
+        if difference > 0 and factory.quantity < difference:
+            raise ValidationError({"quantity": f"Factory has only {factory.quantity} units available."})
+        factory.quantity -= difference
+        store.quantity += difference
+        daily.received_qty += difference
+    elif transfer.transfer_type == "sale":
+        if difference > 0 and store.quantity < difference:
+            raise ValidationError({"quantity": f"Showroom has only {store.quantity} units available."})
+        store.quantity -= difference
+        daily.sold_qty += difference
+    elif transfer.transfer_type == "return":
+        if difference < 0 and store.quantity < -difference:
+            raise ValidationError({"quantity": f"Showroom has only {store.quantity} units available to reverse this return."})
+        store.quantity += difference
+        daily.return_qty += difference
+    factory.save(update_fields=["quantity", "updated_at"])
+    store.save(update_fields=["quantity", "updated_at"])
+    daily.save()
+    transfer.quantity = quantity
+    transfer.save(update_fields=["quantity"])
+    return transfer

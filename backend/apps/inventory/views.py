@@ -79,6 +79,20 @@ class DailyBalanceViewSet(ShowroomScopedMixin, viewsets.ModelViewSet):
     def queryset_base(self):
         return DailyBalance.objects.select_related("showroom").all()
 
+    def perform_update(self, serializer):
+        from django.db import transaction
+
+        with transaction.atomic():
+            entry = serializer.save()
+            later_entries = DailyBalance.objects.select_for_update().filter(
+                showroom_id=entry.showroom_id, date__gt=entry.date
+            ).order_by("date", "id")
+            previous = entry
+            for later in later_entries:
+                later.opening_balance = previous.closing_balance
+                later.save(update_fields=["opening_balance", "total_sale", "closing_balance", "updated_at"])
+                previous = later
+
 
 class FactoryStockViewSet(viewsets.ReadOnlyModelViewSet):
     serializer_class = FactoryStockSerializer
@@ -108,7 +122,7 @@ class ShowroomStockViewSet(viewsets.ReadOnlyModelViewSet):
 class StockTransferViewSet(viewsets.ModelViewSet):
     serializer_class = StockTransferSerializer
     permission_classes = [permissions.IsAuthenticated]
-    http_method_names = ["get", "post", "head", "options"]
+    http_method_names = ["get", "post", "patch", "head", "options"]
 
     def get_queryset(self):
         queryset = StockTransfer.objects.select_related("product", "showroom", "created_by")
