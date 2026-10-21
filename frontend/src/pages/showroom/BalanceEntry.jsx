@@ -62,10 +62,9 @@ export default function BalanceEntry() {
       </div>
 
       {existing && (
-        <div className="bg-white rounded-2xl border border-gray-100 p-4 max-w-md">
+        <div className="w-full max-w-xl bg-white rounded-2xl border border-gray-100 p-4">
           <div className="text-sm font-medium text-gray-700 mb-3">Already recorded for {date}</div>
-          <div className="overflow-x-auto">
-          <table className="w-full min-w-[420px] text-sm">
+          <table className="w-full table-fixed text-sm">
             <tbody>
               {[
                 ["Opening Balance", existing.opening_balance],
@@ -78,13 +77,12 @@ export default function BalanceEntry() {
                 ["Closing Balance", existing.closing_balance],
               ].map(([label, val]) => (
                 <tr key={label} className="border-b border-gray-50">
-                  <td className="py-1 text-gray-500">{label}</td>
-                  <td className="text-right font-medium">৳ {Number(val).toLocaleString()}</td>
+                  <td className="w-1/2 py-1 text-gray-500">{label}</td>
+                  <td className="w-1/2 whitespace-nowrap text-right font-medium">৳ {Number(val).toLocaleString()}</td>
                 </tr>
               ))}
             </tbody>
           </table>
-          </div>
         </div>
       )}
       <form onSubmit={handleSubmit} className="bg-white rounded-2xl border border-gray-100 p-4 max-w-md">
