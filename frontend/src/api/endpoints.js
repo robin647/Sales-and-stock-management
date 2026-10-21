@@ -67,14 +67,20 @@ export const easyWholesaleApi = {
   sales: {
     list: (params) => api.get("/wholesale/easy/sales/", { params }),
     create: (data, idempotencyKey) => api.post("/wholesale/easy/sales/", data, { headers: idempotencyKey ? { "Idempotency-Key": idempotencyKey } : {} }),
+    update: (id, data) => api.patch(`/wholesale/easy/sales/${id}/`, data),
+    delete: (id) => api.delete(`/wholesale/easy/sales/${id}/`),
   },
   payments: {
     list: (params) => api.get("/wholesale/easy/payments/", { params }),
     create: (data, idempotencyKey) => api.post("/wholesale/easy/payments/", data, { headers: idempotencyKey ? { "Idempotency-Key": idempotencyKey } : {} }),
+    update: (id, data) => api.patch(`/wholesale/easy/payments/${id}/`, data),
+    delete: (id) => api.delete(`/wholesale/easy/payments/${id}/`),
   },
   returns: {
     list: (params) => api.get("/wholesale/easy/returns/", { params }),
     create: (data, idempotencyKey) => api.post("/wholesale/easy/returns/", data, { headers: idempotencyKey ? { "Idempotency-Key": idempotencyKey } : {} }),
+    update: (id, data) => api.patch(`/wholesale/easy/returns/${id}/`, data),
+    delete: (id) => api.delete(`/wholesale/easy/returns/${id}/`),
   },
 };
 

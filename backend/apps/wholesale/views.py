@@ -218,7 +218,7 @@ class StockAdjustmentViewSet(AdminOnlyViewSet):
 
 
 class EasyTransactionViewSet(AdminOnlyViewSet):
-    http_method_names = ["get", "post", "head", "options"]
+    http_method_names = ["get", "post", "put", "patch", "delete", "head", "options"]
 
     def get_queryset(self):
         queryset = super().get_queryset()
@@ -232,6 +232,18 @@ class EasyTransactionViewSet(AdminOnlyViewSet):
         if end_date:
             queryset = queryset.filter(**{f"{self.date_field}__lte": end_date})
         return queryset
+
+    def perform_destroy(self, instance):
+        from django.db import transaction
+        from rest_framework.exceptions import ValidationError
+        from .models import EasyWholesaleSale
+        from .serializers import _undo_easy_stock_movement
+
+        with transaction.atomic():
+            if isinstance(instance, EasyWholesaleSale) and instance.returns.exists():
+                raise ValidationError("Remove or update linked returns before deleting this sale.")
+            _undo_easy_stock_movement(instance, self.request.user)
+            instance.delete()
 
 
 class EasyWholesaleSaleViewSet(EasyTransactionViewSet):
