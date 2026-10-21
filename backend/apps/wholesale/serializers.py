@@ -469,31 +469,32 @@ class EasyWholesaleSaleSerializer(serializers.ModelSerializer):
                 raise serializers.ValidationError({"quantity": str(error)}) from error
         return sale
 
+    @transaction.atomic
     def update(self, instance, validated_data):
         from .services import record_easy_stock_movement
-        from django.db import transaction
+        user = self.context["request"].user
+        if instance.returns.exists():
+            new_quantity = validated_data.get("quantity", instance.quantity)
+            new_amount = validated_data.get("total_amount", instance.total_amount)
+            returned = instance.returns.aggregate(quantity=Sum("quantity"), amount=Sum("amount"))
+            if new_quantity < (returned["quantity"] or 0):
+                raise serializers.ValidationError({"quantity": "Sale quantity cannot be lower than its recorded returns."})
+            if new_amount < (returned["amount"] or Decimal("0")):
+                raise serializers.ValidationError({"total_amount": "Sale amount cannot be lower than its recorded returns."})
 
-        with transaction.atomic():
-            sale = validated_data.get("easy_sale", instance.easy_sale)
-            if sale:
-                other = sale.returns.exclude(pk=instance.pk).aggregate(quantity=Sum("quantity"), amount=Sum("amount"))
-                if validated_data.get("quantity", instance.quantity) > sale.quantity - (other["quantity"] or 0):
-                    raise serializers.ValidationError({"quantity": "Return quantity exceeds the eligible sale quantity."})
-                if validated_data.get("amount", instance.amount) > sale.total_amount - (other["amount"] or Decimal("0.00")):
-                    raise serializers.ValidationError({"amount": "Return amount exceeds the remaining sale value."})
-            _undo_easy_stock_movement(instance, self.context["request"].user)
-            for field, value in validated_data.items():
-                setattr(instance, field, value)
-            instance.save()
-            if instance.product and instance.stock_location:
-                try:
-                    record_easy_stock_movement(
-                        movement_type="sale", product=instance.product, stock_location=instance.stock_location,
-                        showroom=instance.showroom, quantity=instance.quantity, movement_date=instance.sale_date,
-                        user=self.context["request"].user, sale=instance, notes=instance.notes,
-                    )
-                except ValueError as error:
-                    raise serializers.ValidationError({"quantity": str(error)}) from error
+        _undo_easy_stock_movement(instance, user)
+        for field, value in validated_data.items():
+            setattr(instance, field, value)
+        instance.save()
+        if instance.product and instance.stock_location:
+            try:
+                record_easy_stock_movement(
+                    movement_type="sale", product=instance.product, stock_location=instance.stock_location,
+                    showroom=instance.showroom, quantity=instance.quantity, movement_date=instance.sale_date,
+                    user=user, sale=instance, notes=instance.notes,
+                )
+            except ValueError as error:
+                raise serializers.ValidationError({"quantity": str(error)}) from error
         return instance
 
 
