@@ -140,3 +140,9 @@ class StockTransferSerializer(serializers.ModelSerializer):
         from .services import transfer_stock
 
         return transfer_stock(created_by=self.context["request"].user, **validated_data)
+
+    def update(self, instance, validated_data):
+        if set(validated_data) != {"quantity"}:
+            raise serializers.ValidationError("Only the transfer quantity can be edited.")
+        from .services import update_transfer_quantity
+        return update_transfer_quantity(transfer=instance, quantity=validated_data["quantity"])

@@ -15,6 +15,7 @@ export default function StockEntry() {
   const [showroomStocks, setShowroomStocks] = useState({});
   const [date, setDate] = useState(todayStr());
   const [transferType, setTransferType] = useState("receive");
+  const [editingTransferId, setEditingTransferId] = useState(null);
   const [form, setForm] = useState({ product: "", quantity: "" });
   const [error, setError] = useState("");
   const [success, setSuccess] = useState("");
@@ -68,8 +69,10 @@ export default function StockEntry() {
         notes: "",
       };
 
-      await stockTransferApi.create(payload);
-      setSuccess(`${transferType.charAt(0).toUpperCase() + transferType.slice(1)} recorded successfully!`);
+      if (editingTransferId) await stockTransferApi.update(editingTransferId, { quantity });
+      else await stockTransferApi.create(payload);
+      setSuccess(editingTransferId ? "Stock transfer updated." : `${transferType.charAt(0).toUpperCase() + transferType.slice(1)} recorded successfully!`);
+      setEditingTransferId(null);
       setForm({ product: "", quantity: "" });
       await Promise.all([loadTransfers(), loadStocks()]);
     } catch (err) {
@@ -98,6 +101,7 @@ export default function StockEntry() {
           type="date"
           value={date}
           onChange={(e) => setDate(e.target.value)}
+          disabled={Boolean(editingTransferId)}
           className="w-full border border-gray-300 rounded-lg px-3 py-2 text-sm mb-4"
         />
 
@@ -105,6 +109,7 @@ export default function StockEntry() {
         <select
           value={transferType}
           onChange={(e) => setTransferType(e.target.value)}
+          disabled={Boolean(editingTransferId)}
           className="w-full mb-4 border border-gray-300 rounded-lg px-3 py-2 text-sm"
         >
           <option value="receive">Receive from Factory</option>
@@ -128,6 +133,7 @@ export default function StockEntry() {
           <select
             value={form.product}
             onChange={(e) => setForm({ ...form, product: e.target.value })}
+            disabled={Boolean(editingTransferId)}
             className="w-full mb-3 border border-gray-300 rounded-lg px-3 py-2 text-sm"
             required
           >
@@ -161,8 +167,9 @@ export default function StockEntry() {
             type="submit"
             className="w-full bg-brand-500 hover:bg-brand-600 text-white text-sm font-medium py-2 rounded-lg transition-colors"
           >
-            Record {transferType === "receive" ? "Receive" : transferType === "sale" ? "Sale" : "Customer Return"}
+            {editingTransferId ? "Update stock quantity" : `Record ${transferType === "receive" ? "Receive" : transferType === "sale" ? "Sale" : "Customer Return"}`}
           </button>
+          {editingTransferId && <button type="button" onClick={() => { setEditingTransferId(null); setForm({ product: "", quantity: "" }); }} className="mt-2 w-full rounded-lg border border-gray-300 py-2 text-sm">Cancel edit</button>}
         </form>
       </div>
 
@@ -180,6 +187,7 @@ export default function StockEntry() {
                 <th className="py-2 px-2">From</th>
                 <th className="py-2 px-2">To</th>
                 <th className="py-2 px-2">Status</th>
+                <th className="py-2 px-2">Actions</th>
               </tr>
             </thead>
             <tbody>
@@ -199,6 +207,7 @@ export default function StockEntry() {
                          "↑ Return"}
                       </span>
                     </td>
+                    <td className="py-2 px-2"><button type="button" onClick={() => { setEditingTransferId(t.id); setForm({ product: String(t.product), quantity: String(t.quantity) }); setTransferType(t.transfer_type); }} className="text-brand-700">Edit quantity</button></td>
                     <td className="py-2 px-2 text-right font-medium">{t.quantity}</td>
                     <td className="py-2 px-2">{t.from_location}</td>
                     <td className="py-2 px-2">{t.to_location}</td>
@@ -211,7 +220,7 @@ export default function StockEntry() {
                 ))
               ) : (
                 <tr>
-                  <td colSpan={7} className="text-gray-400 py-4 text-center">
+                  <td colSpan={8} className="text-gray-400 py-4 text-center">
                     No transfers yet for this date.
                   </td>
                 </tr>

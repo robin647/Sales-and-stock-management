@@ -1,5 +1,5 @@
 import { useEffect, useRef, useState } from "react";
-import { productApi, wholesaleInvoiceApi, wholesalePartyApi, wholesalePaymentApi } from "../../api/endpoints";
+import { easyWholesaleApi, productApi, wholesaleInvoiceApi, wholesalePartyApi, wholesalePaymentApi, wholesaleReturnApi } from "../../api/endpoints";
 import { localDateString } from "../../utils/date";
 import PartyCombobox from "../../components/PartyCombobox.jsx";
 
@@ -38,6 +38,58 @@ export default function WholesaleParties() {
   const [paymentBusy, setPaymentBusy] = useState(false);
   const paymentKeyRef = useRef({ payload: "", key: "" });
   const [payment, setPayment] = useState({ invoice: "", payment_date: today, bank_amount: "0", bkash_amount: "0", cash_amount: "0", reference: "", notes: "" });
+  const [transactionEdit, setTransactionEdit] = useState(null);
+  const [transactionForm, setTransactionForm] = useState({});
+  const [transactionBusy, setTransactionBusy] = useState(false);
+
+  function transactionApi(row) {
+    const type = row.type === "sale" ? "sales" : row.type === "payment" ? "payments" : "returns";
+    if (row.source === "easy") return easyWholesaleApi[type];
+    if (type === "sales") return wholesaleInvoiceApi;
+    if (type === "payments") return wholesalePaymentApi;
+    return wholesaleReturnApi;
+  }
+
+  async function editStatementRow(row) {
+    try {
+      const { data } = await transactionApi(row).get(row.id);
+      setTransactionEdit(row);
+      setTransactionForm(data);
+    } catch (error) { setMessage(apiError(error)); }
+  }
+
+  async function deleteStatementRow(row) {
+    const warning = `Warning: This will permanently delete the ${row.type} record dated ${row.date}. ${row.type === "sale" ? "Linked payment or return records must be removed first; stock will be restored." : "Related account totals and stock may change."}\n\nDo you want to continue?`;
+    if (!window.confirm(warning)) return;
+    try {
+      await transactionApi(row).delete(row.id);
+      setMessage("Transaction deleted.");
+      await loadStatement(statementPage);
+      const { data } = await wholesalePartyApi.get(selectedParty.id);
+      setSelectedParty(data);
+    } catch (error) { setMessage(apiError(error)); }
+  }
+
+  async function saveStatementRow(event) {
+    event.preventDefault();
+    setTransactionBusy(true);
+    try {
+      const row = transactionEdit;
+      const fields = row.type === "sale"
+        ? (row.source === "easy" ? ["sale_date", "bill_number", "product_name", "quantity", "total_amount", "notes"] : ["sale_date", "invoice_number", "notes"])
+        : row.type === "payment"
+          ? [row.source === "easy" ? "payment_date" : "payment_date", "bank_amount", "bkash_amount", "cash_amount", "reference", "notes"]
+          : ["return_date", "quantity", row.source === "easy" ? "amount" : "amount", "notes"];
+      const payload = Object.fromEntries(fields.filter((field) => transactionForm[field] !== undefined).map((field) => [field, transactionForm[field]]));
+      await transactionApi(row).update(row.id, payload);
+      setTransactionEdit(null);
+      setMessage("Transaction updated.");
+      await loadStatement(statementPage);
+      const { data } = await wholesalePartyApi.get(selectedParty.id);
+      setSelectedParty(data);
+    } catch (error) { setMessage(apiError(error)); }
+    finally { setTransactionBusy(false); }
+  }
 
   useEffect(() => {
     const timer = window.setTimeout(() => setPartySearch(partySearchInput.trim()), 250);
@@ -189,11 +241,18 @@ export default function WholesaleParties() {
               <div className="flex items-end gap-2"><button className="flex-1 rounded-lg bg-brand-500 px-3 py-2 text-sm font-medium text-white">Apply Filter</button><button type="button" onClick={() => { const empty = { start_date: "", end_date: "", transaction_type: "", invoice_number: "", product: "" }; setDraftFilters(empty); setAppliedFilters(empty); setStatementPage(1); }} className="rounded-lg border border-gray-300 px-3 py-2 text-sm">Reset</button></div>
             </form>
             <p className="text-xs text-gray-500">Running balance uses debit-positive convention: sales increase the balance; payments and accepted returns reduce it. Negative balances are customer credit.</p>
-            {statementLoading ? <p className="py-8 text-center text-sm text-gray-500">Loading account statement...</p> : !statement?.results?.length ? <p className="py-8 text-center text-sm text-gray-500">No transactions match this date range and filters.</p> : <div className="overflow-x-auto"><table className="w-full min-w-[1400px] text-left text-xs"><thead className="bg-gray-50 text-[11px] uppercase text-gray-500"><tr><th className="px-3 py-3">Transaction Date</th><th>Type</th><th className="min-w-[180px] whitespace-nowrap">Party</th><th>Cash Memo / Bill</th><th>Product</th><th>Product Qty</th><th>Gross Sale</th><th>Bank</th><th>bKash</th><th>Cash</th><th>Total Payment</th><th>Return Qty</th><th>Return Amount</th><th>Net Transaction</th><th>Running Balance</th><th>Payment Reference</th><th>Notes</th></tr></thead><tbody>{statement.results.map((row) => <tr key={`${row.source || "legacy"}-${row.type}-${row.id}`} className="border-t border-gray-100"><td className="whitespace-nowrap px-3 py-3">{row.date}</td><td className="capitalize">{row.type}</td><td className="min-w-[180px] whitespace-nowrap">{selectedParty.name}</td><td>{row.invoice_number || "—"}</td><td>{row.product_name || "—"}</td><td>{row.quantity || "—"}</td><td>{Number(row.gross_sale) ? money(row.gross_sale) : "—"}</td><td>{Number(row.bank_payment) ? money(row.bank_payment) : "—"}</td><td>{Number(row.bkash_payment) ? money(row.bkash_payment) : "—"}</td><td>{Number(row.cash_payment) ? money(row.cash_payment) : "—"}</td><td>{Number(row.total_payment) ? money(row.total_payment) : "—"}</td><td>{row.return_quantity || "—"}</td><td>{Number(row.return_amount) ? money(row.return_amount) : "—"}</td><td>{money(row.net_amount)}</td><td className="font-semibold">{money(row.running_balance)}</td><td>{row.reference || "—"}</td><td>{row.notes || "—"}</td></tr>)}</tbody></table></div>}
+            {statementLoading ? <p className="py-8 text-center text-sm text-gray-500">Loading account statement...</p> : !statement?.results?.length ? <p className="py-8 text-center text-sm text-gray-500">No transactions match this date range and filters.</p> : <div className="overflow-x-auto"><table className="w-full min-w-[1500px] text-left text-xs"><thead className="bg-gray-50 text-[11px] uppercase text-gray-500"><tr><th className="px-3 py-3">Transaction Date</th><th>Type</th><th className="min-w-[180px] whitespace-nowrap">Party</th><th>Cash Memo / Bill</th><th>Product</th><th>Product Qty</th><th>Gross Sale</th><th>Bank</th><th>bKash</th><th>Cash</th><th>Total Payment</th><th>Return Qty</th><th>Return Amount</th><th>Net Transaction</th><th>Running Balance</th><th>Payment Reference</th><th>Notes</th></tr></thead><tbody>{statement.results.map((row) => <tr key={`${row.source || "legacy"}-${row.type}-${row.id}`} className="border-t border-gray-100"><td className="whitespace-nowrap px-3 py-3">{row.date}<div className="mt-1"><button onClick={() => editStatementRow(row)} className="mr-2 text-brand-700 hover:underline">Update</button><button onClick={() => deleteStatementRow(row)} className="text-red-700 hover:underline">Delete</button></div></td><td className="capitalize">{row.type}</td><td className="min-w-[180px] whitespace-nowrap">{selectedParty.name}</td><td>{row.invoice_number || "—"}</td><td>{row.product_name || "—"}</td><td>{row.quantity || row.return_quantity || "—"}</td><td>{Number(row.gross_sale) ? money(row.gross_sale) : "—"}</td><td>{Number(row.bank_payment) ? money(row.bank_payment) : "—"}</td><td>{Number(row.bkash_payment) ? money(row.bkash_payment) : "—"}</td><td>{Number(row.cash_payment) ? money(row.cash_payment) : "—"}</td><td>{Number(row.total_payment) ? money(row.total_payment) : "—"}</td><td>{row.return_quantity || "—"}</td><td>{Number(row.return_amount) ? money(row.return_amount) : "—"}</td><td>{money(row.net_amount)}</td><td className="font-semibold">{money(row.running_balance)}</td><td>{row.reference || "—"}</td><td>{row.notes || "—"}</td><td className="whitespace-nowrap"><button onClick={() => editStatementRow(row)} className="mr-2 text-brand-700 hover:underline">Update</button><button onClick={() => deleteStatementRow(row)} className="text-red-700 hover:underline">Delete</button></td></tr>)}</tbody></table></div>}
             <div className="flex items-center justify-between text-sm text-gray-600"><span>{statement?.count || 0} transactions · Opening {money(statement?.opening_balance)} · Closing {money(statement?.closing_balance)}</span><div className="flex gap-2"><button disabled={statementPage <= 1 || statementLoading} onClick={() => loadStatement(statementPage - 1)} className="rounded border border-gray-300 px-3 py-1 disabled:opacity-40">Previous</button><button disabled={statementPage >= totalPages || statementLoading} onClick={() => loadStatement(statementPage + 1)} className="rounded border border-gray-300 px-3 py-1 disabled:opacity-40">Next</button></div></div>
           </>}
         </div>
       </section>
+
+      {transactionEdit && <div className="fixed inset-0 z-50 flex items-center justify-center bg-black/40 p-4"><form onSubmit={saveStatementRow} className="max-h-[90vh] w-full max-w-lg space-y-3 overflow-y-auto rounded-xl bg-white p-5 shadow-xl" role="dialog" aria-modal="true" aria-labelledby="transaction-edit-title"><div className="flex items-start justify-between"><div><h2 id="transaction-edit-title" className="text-base font-semibold">Update {transactionEdit.type}</h2><p className="mt-1 text-sm text-gray-500">{selectedParty?.name} · {transactionEdit.date}</p></div><button type="button" onClick={() => setTransactionEdit(null)} className="px-2 text-lg text-gray-500">×</button></div>
+        {transactionEdit.type === "sale" && <><label className="block text-xs text-gray-500">Sale Date<input type="date" required value={transactionForm.sale_date || ""} onChange={(e) => setTransactionForm({ ...transactionForm, sale_date: e.target.value })} className="mt-1 w-full rounded-lg border px-3 py-2 text-sm" /></label><label className="block text-xs text-gray-500">Bill / Memo Number<input value={transactionForm.invoice_number ?? transactionForm.bill_number ?? ""} onChange={(e) => setTransactionForm({ ...transactionForm, [transactionEdit.source === "easy" ? "bill_number" : "invoice_number"]: e.target.value })} className="mt-1 w-full rounded-lg border px-3 py-2 text-sm" /></label>{transactionEdit.source === "easy" && <><label className="block text-xs text-gray-500">Quantity<input type="number" min="1" value={transactionForm.quantity || ""} onChange={(e) => setTransactionForm({ ...transactionForm, quantity: e.target.value })} className="mt-1 w-full rounded-lg border px-3 py-2 text-sm" /></label><label className="block text-xs text-gray-500">Sale Amount<input type="number" min="0" step="0.01" value={transactionForm.total_amount || ""} onChange={(e) => setTransactionForm({ ...transactionForm, total_amount: e.target.value })} className="mt-1 w-full rounded-lg border px-3 py-2 text-sm" /></label></>}</>}
+        {transactionEdit.type === "payment" && <><label className="block text-xs text-gray-500">Payment Date<input type="date" required value={transactionForm.payment_date || ""} onChange={(e) => setTransactionForm({ ...transactionForm, payment_date: e.target.value })} className="mt-1 w-full rounded-lg border px-3 py-2 text-sm" /></label><div className="grid grid-cols-3 gap-2">{[["bank_amount", "Bank"], ["bkash_amount", "bKash"], ["cash_amount", "Cash"]].map(([key, label]) => <label key={key} className="text-xs text-gray-500">{label}<input type="number" min="0" step="0.01" value={transactionForm[key] ?? 0} onChange={(e) => setTransactionForm({ ...transactionForm, [key]: e.target.value })} className="mt-1 w-full rounded-lg border px-2 py-2 text-sm" /></label>)}</div><label className="block text-xs text-gray-500">Reference<input value={transactionForm.reference || ""} onChange={(e) => setTransactionForm({ ...transactionForm, reference: e.target.value })} className="mt-1 w-full rounded-lg border px-3 py-2 text-sm" /></label></>}
+        {transactionEdit.type === "return" && <><label className="block text-xs text-gray-500">Return Date<input type="date" required value={transactionForm.return_date || ""} onChange={(e) => setTransactionForm({ ...transactionForm, return_date: e.target.value })} className="mt-1 w-full rounded-lg border px-3 py-2 text-sm" /></label><div className="grid grid-cols-2 gap-2"><label className="text-xs text-gray-500">Quantity<input type="number" min="1" value={transactionForm.quantity || ""} onChange={(e) => setTransactionForm({ ...transactionForm, quantity: e.target.value })} className="mt-1 w-full rounded-lg border px-3 py-2 text-sm" /></label><label className="text-xs text-gray-500">Return Amount<input type="number" min="0" step="0.01" value={transactionForm.amount || ""} onChange={(e) => setTransactionForm({ ...transactionForm, amount: e.target.value })} className="mt-1 w-full rounded-lg border px-3 py-2 text-sm" /></label></div></>}
+        <label className="block text-xs text-gray-500">Notes<textarea value={transactionForm.notes || ""} onChange={(e) => setTransactionForm({ ...transactionForm, notes: e.target.value })} rows="3" className="mt-1 w-full rounded-lg border px-3 py-2 text-sm" /></label><div className="flex justify-end gap-2"><button type="button" onClick={() => setTransactionEdit(null)} className="rounded-lg border px-4 py-2 text-sm">Cancel</button><button disabled={transactionBusy} className="rounded-lg bg-brand-500 px-4 py-2 text-sm font-medium text-white">{transactionBusy ? "Updating..." : "Save Changes"}</button></div>
+      </form></div>}
 
       {paymentOpen && selectedParty && <div className="fixed inset-0 z-50 flex items-center justify-center bg-black/40 p-4" role="presentation"><form onSubmit={savePayment} className="max-h-[90vh] w-full max-w-lg space-y-3 overflow-y-auto rounded-xl bg-white p-5 shadow-xl" role="dialog" aria-modal="true" aria-labelledby="payment-title"><div className="flex items-start justify-between"><div><h2 id="payment-title" className="text-base font-semibold">Add Payment</h2><p className="mt-1 text-sm text-gray-500">{selectedParty.name}. Allocate to one invoice with an outstanding balance.</p></div><button type="button" aria-label="Close payment form" onClick={() => setPaymentOpen(false)} className="px-2 text-lg text-gray-500">×</button></div>
         <label className="block text-xs text-gray-500">Invoice<select required value={payment.invoice} onChange={(event) => setPayment({ ...payment, invoice: event.target.value })} className="mt-1 w-full rounded-lg border border-gray-300 px-3 py-2 text-sm text-gray-900"><option value="">Select invoice</option>{invoiceOptions.map((invoice) => <option key={invoice.id} value={invoice.id}>{invoice.invoice_number} · {invoice.sale_date} · due {money(invoice.due_amount)}</option>)}</select></label>

@@ -25,7 +25,10 @@ export default function BalanceEntry() {
     setError("");
     balanceApi.list({ date }).then((res) => {
       const results = res.data.results || res.data;
-      setExisting(results[0] || null);
+      const entry = results[0] || null;
+      setExisting(entry);
+      if (entry) setForm({ cash_sale: entry.cash_sale, card_sale: entry.card_sale, expense: entry.expense, salary: entry.salary, deposit: entry.deposit });
+      else setForm({ cash_sale: 0, card_sale: 0, expense: 0, salary: 0, deposit: 0 });
     }).catch((err) => {
       setExisting(null);
       setError(err.response?.data?.detail || "Could not load the balance entry for this date.");
@@ -39,9 +42,10 @@ export default function BalanceEntry() {
     setError("");
     setSuccess("");
     try {
-      await balanceApi.create({ ...form, date });
-      setSuccess("Balance entry saved.");
-      setForm({ cash_sale: 0, card_sale: 0, expense: 0, salary: 0, deposit: 0 });
+      const payload = { ...form, date };
+      if (existing) await balanceApi.update(existing.id, payload);
+      else await balanceApi.create(payload);
+      setSuccess(existing ? "Sales statement updated." : "Balance entry saved.");
       loadEntry();
     } catch (err) {
       setError(errorMessage(err));
@@ -57,7 +61,7 @@ export default function BalanceEntry() {
         <input type="date" value={date} onChange={(e) => setDate(e.target.value)} className="border border-gray-300 rounded-lg px-3 py-2 text-sm mb-4" />
       </div>
 
-      {existing ? (
+      {existing && (
         <div className="bg-white rounded-2xl border border-gray-100 p-4 max-w-md">
           <div className="text-sm font-medium text-gray-700 mb-3">Already recorded for {date}</div>
           <div className="overflow-x-auto">
@@ -82,8 +86,8 @@ export default function BalanceEntry() {
           </table>
           </div>
         </div>
-      ) : (
-        <form onSubmit={handleSubmit} className="bg-white rounded-2xl border border-gray-100 p-4 max-w-md">
+      )}
+      <form onSubmit={handleSubmit} className="bg-white rounded-2xl border border-gray-100 p-4 max-w-md">
           {error && <div className="text-xs text-red-600 mb-2">{error}</div>}
           {success && <div className="text-xs text-green-700 mb-2">{success}</div>}
 
@@ -112,10 +116,9 @@ export default function BalanceEntry() {
           </p>
 
           <button className="w-full bg-brand-500 hover:bg-brand-600 text-white text-sm font-medium py-2 rounded-lg">
-            Save entry
+            {existing ? "Update statement" : "Save entry"}
           </button>
-        </form>
-      )}
+      </form>
     </div>
   );
 }

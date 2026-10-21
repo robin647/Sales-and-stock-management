@@ -28,6 +28,7 @@ function errorMessage(error, endpoint = "API request") {
 
 export default function EasyWholesaleManagement() {
   const [tab, setTab] = useState("sales");
+  const [editingId, setEditingId] = useState(null);
   const [products, setProducts] = useState([]);
   const [showrooms, setShowrooms] = useState([]);
   const [sales, setSales] = useState([]);
@@ -112,6 +113,25 @@ export default function EasyWholesaleManagement() {
     if (key === "returns") setReturnForm((current) => ({ ...current, party: id, easy_sale: "" }));
   }
 
+  function editTransaction(section, row) {
+    setTab(section);
+    setEditingId(row.id);
+    setSelectedPartyIds((current) => ({ ...current, [section]: String(row.party) }));
+    if (section === "sales") setSale({ party: String(row.party), sale_date: row.sale_date, bill_number: row.bill_number || "", product: row.product ? String(row.product) : "", product_name: row.product_name || "", quantity: String(row.quantity), total_amount: String(row.total_amount), stock_location: row.stock_location || "", showroom: row.showroom ? String(row.showroom) : "", notes: row.notes || "" });
+    if (section === "payments") setPayment({ party: String(row.party), payment_date: row.payment_date, bank_amount: String(row.bank_amount), bkash_amount: String(row.bkash_amount), cash_amount: String(row.cash_amount), reference: row.reference || "", notes: row.notes || "" });
+    if (section === "returns") setReturnForm({ party: String(row.party), return_date: row.return_date, original_bill_number: row.original_bill_number || "", easy_sale: row.easy_sale ? String(row.easy_sale) : "", product: row.product ? String(row.product) : "", product_name: row.product_name || "", quantity: String(row.quantity), amount: String(row.amount), stock_location: row.stock_location || "", showroom: row.showroom ? String(row.showroom) : "", notes: row.notes || "" });
+    window.scrollTo({ top: 0, behavior: "smooth" });
+  }
+
+  async function deleteTransaction(section, row) {
+    if (!window.confirm(`Delete this ${section.slice(0, -1)} record?`)) return;
+    try {
+      await easyWholesaleApi[section].delete(row.id);
+      setStatus((current) => ({ ...current, message: "Record deleted.", error: "" }));
+      await loadLists();
+    } catch (error) { setStatus((current) => ({ ...current, error: errorMessage(error) })); }
+  }
+
   function updateReturnQuantity(quantity) {
     const linkedSale = sales.find((row) => String(row.id) === returnForm.easy_sale);
     const amount = linkedSale && Number(linkedSale.quantity) > 0
@@ -142,7 +162,9 @@ export default function EasyWholesaleManagement() {
         stock_location: sale.product && sale.stock_location ? sale.stock_location : null,
         showroom: sale.product && sale.stock_location === "showroom" ? Number(sale.showroom) : null,
       };
-      await easyWholesaleApi.sales.create(payload, requestKey(payload));
+      if (editingId) await easyWholesaleApi.sales.update(editingId, payload);
+      else await easyWholesaleApi.sales.create(payload, requestKey(payload));
+      setEditingId(null);
       submissionRef.current = { fingerprint: "", key: "" };
       setSale((current) => ({ ...current, bill_number: "", product: "", product_name: "", quantity: "1", total_amount: "", notes: "" }));
       setStatus({ loading: false, saving: false, message: "Sale saved successfully.", error: "" });
@@ -159,7 +181,9 @@ export default function EasyWholesaleManagement() {
     try {
       const payload = { ...payment, party: Number(payment.party) };
       const key = requestKey(payload);
-      await easyWholesaleApi.payments.create(payload, key);
+      if (editingId) await easyWholesaleApi.payments.update(editingId, payload);
+      else await easyWholesaleApi.payments.create(payload, key);
+      setEditingId(null);
       submissionRef.current = { fingerprint: "", key: "" };
       setPayment((current) => ({ ...current, bank_amount: "0", bkash_amount: "0", cash_amount: "0", reference: "", notes: "" }));
       setStatus({ loading: false, saving: false, message: "Payment saved successfully.", error: "" });
@@ -184,7 +208,9 @@ export default function EasyWholesaleManagement() {
         stock_location: returnForm.easy_sale ? null : returnForm.stock_location || null,
         showroom: !returnForm.easy_sale && returnForm.stock_location === "showroom" ? Number(returnForm.showroom) : null,
       };
-      await easyWholesaleApi.returns.create(payload, requestKey(payload));
+      if (editingId) await easyWholesaleApi.returns.update(editingId, payload);
+      else await easyWholesaleApi.returns.create(payload, requestKey(payload));
+      setEditingId(null);
       submissionRef.current = { fingerprint: "", key: "" };
       setReturnForm((current) => ({ ...current, original_bill_number: "", easy_sale: "", product: "", product_name: "", quantity: "1", amount: "", stock_location: "", showroom: "", notes: "" }));
       setStatus({ loading: false, saving: false, message: "Return saved successfully.", error: "" });
@@ -200,7 +226,7 @@ export default function EasyWholesaleManagement() {
   return (
     <div className="space-y-5">
       <header><h1 className="text-lg font-semibold">Easy Wholesale Sales Management</h1><p className="mt-1 text-sm text-gray-500">Quick party sales, separate dated payments, and returns. Existing Wholesale Sales remains a separate workflow.</p></header>
-      <nav className="flex gap-2 border-b border-gray-200" aria-label="Easy wholesale transaction types">{tabOptions.map((option) => <button key={option} onClick={() => { setTab(option); setStatus((current) => ({ ...current, message: "", error: "" })); }} className={`border-b-2 px-4 py-2 text-sm capitalize ${tab === option ? "border-brand-500 font-semibold text-brand-700" : "border-transparent text-gray-600"}`}>{option}</button>)}</nav>
+      <nav className="flex gap-2 border-b border-gray-200" aria-label="Easy wholesale transaction types">{tabOptions.map((option) => <button key={option} onClick={() => { setTab(option); setEditingId(null); setStatus((current) => ({ ...current, message: "", error: "" })); }} className={`border-b-2 px-4 py-2 text-sm capitalize ${tab === option ? "border-brand-500 font-semibold text-brand-700" : "border-transparent text-gray-600"}`}>{option}</button>)}</nav>
       {status.message && <div role="status" className="rounded-lg border border-green-200 bg-green-50 px-4 py-3 text-sm text-green-800">{status.message}</div>}
       {status.error && <div role="alert" className="whitespace-pre-line rounded-lg border border-red-200 bg-red-50 px-4 py-3 text-sm text-red-700">{status.error}</div>}
       {status.loading ? <p className="py-10 text-center text-sm text-gray-500">Loading easy wholesale records...</p> : <>
@@ -216,9 +242,9 @@ export default function EasyWholesaleManagement() {
             <label className="text-xs text-gray-500">Product Quantity<input required min="1" type="number" value={sale.quantity} onChange={(event) => setSale({ ...sale, quantity: event.target.value })} className="mt-1 w-full rounded-lg border border-gray-300 px-3 py-2 text-sm text-gray-900" /></label>
             <label className="text-xs text-gray-500">Total Sales Amount<input required min="0" step="0.01" type="number" value={sale.total_amount} onChange={(event) => setSale({ ...sale, total_amount: event.target.value })} className="mt-1 w-full rounded-lg border border-gray-300 px-3 py-2 text-sm text-gray-900" /></label>
             <label className="text-xs text-gray-500 sm:col-span-2 lg:col-span-4">Notes<input value={sale.notes} onChange={(event) => setSale({ ...sale, notes: event.target.value })} className="mt-1 w-full rounded-lg border border-gray-300 px-3 py-2 text-sm text-gray-900" /></label>
-            <button disabled={status.saving || !sale.party} className="rounded-lg bg-brand-500 px-4 py-2 text-sm font-medium text-white disabled:opacity-50">{status.saving ? "Saving..." : "Save Easy Sale"}</button>
+            <button disabled={status.saving || !sale.party} className="rounded-lg bg-brand-500 px-4 py-2 text-sm font-medium text-white disabled:opacity-50">{status.saving ? "Saving..." : editingId ? "Update Easy Sale" : "Save Easy Sale"}</button>{editingId && <button type="button" onClick={() => setEditingId(null)} className="rounded-lg border px-4 py-2 text-sm">Cancel edit</button>}
           </form>
-          <TransactionHistory title="Sales History" empty="No easy sales saved yet." rows={sales} pageInfo={historyPages.sales} onPageChange={(page) => loadHistory("sales", page)} columns={[["Sale Date", (row) => row.sale_date], ["Party", (row) => row.party_name], ["Bill No", (row) => row.bill_number || "—"], ["Product", (row) => row.product_label || "—"], ["Quantity", (row) => `${row.quantity} pcs`], ["Sales Amount", (row) => money(row.total_amount)], ["Inventory", (row) => row.stock_location === "factory" ? "Factory" : row.stock_location === "showroom" ? "Showroom" : "No movement"]]} />
+          <TransactionHistory title="Sales History" empty="No easy sales saved yet." rows={sales} pageInfo={historyPages.sales} onPageChange={(page) => loadHistory("sales", page)} onEdit={(row) => editTransaction("sales", row)} onDelete={(row) => deleteTransaction("sales", row)} columns={[["Sale Date", (row) => row.sale_date], ["Party", (row) => row.party_name], ["Bill No", (row) => row.bill_number || "—"], ["Product", (row) => row.product_label || "—"], ["Quantity", (row) => `${row.quantity} pcs`], ["Sales Amount", (row) => money(row.total_amount)], ["Inventory", (row) => row.stock_location === "factory" ? "Factory" : row.stock_location === "showroom" ? "Showroom" : "No movement"]]} />
         </>}
         {tab === "payments" && <>
           <form onSubmit={submitPayment} className="grid gap-3 rounded-xl border border-gray-200 bg-white p-4 sm:grid-cols-2 lg:grid-cols-4">
@@ -228,9 +254,9 @@ export default function EasyWholesaleManagement() {
             <label className="text-xs text-gray-500">Total Payment<input readOnly value={money(paymentTotal)} className="mt-1 w-full rounded-lg border border-gray-300 bg-gray-50 px-3 py-2 text-sm font-semibold text-gray-900" /></label>
             <label className="text-xs text-gray-500">Payment Reference<input value={payment.reference} onChange={(event) => setPayment({ ...payment, reference: event.target.value })} className="mt-1 w-full rounded-lg border border-gray-300 px-3 py-2 text-sm text-gray-900" /></label>
             <label className="text-xs text-gray-500 sm:col-span-2">Notes<input value={payment.notes} onChange={(event) => setPayment({ ...payment, notes: event.target.value })} className="mt-1 w-full rounded-lg border border-gray-300 px-3 py-2 text-sm text-gray-900" /></label>
-            <button disabled={status.saving || !payment.party || paymentTotal <= 0} className="rounded-lg bg-brand-500 px-4 py-2 text-sm font-medium text-white disabled:opacity-50">{status.saving ? "Saving..." : "Save Payment"}</button>
+            <button disabled={status.saving || !payment.party || paymentTotal <= 0} className="rounded-lg bg-brand-500 px-4 py-2 text-sm font-medium text-white disabled:opacity-50">{status.saving ? "Saving..." : editingId ? "Update Payment" : "Save Payment"}</button>{editingId && <button type="button" onClick={() => setEditingId(null)} className="rounded-lg border px-4 py-2 text-sm">Cancel edit</button>}
           </form>
-          <TransactionHistory title="Payment History" empty="No easy payments saved yet." rows={payments} pageInfo={historyPages.payments} onPageChange={(page) => loadHistory("payments", page)} columns={[["Payment Date", (row) => row.payment_date], ["Party", (row) => row.party_name], ["Bank", (row) => money(row.bank_amount)], ["bKash", (row) => money(row.bkash_amount)], ["Cash", (row) => money(row.cash_amount)], ["Total Payment", (row) => money(row.total_amount)], ["Reference", (row) => row.reference || "—"]]} />
+          <TransactionHistory title="Payment History" empty="No easy payments saved yet." rows={payments} pageInfo={historyPages.payments} onPageChange={(page) => loadHistory("payments", page)} onEdit={(row) => editTransaction("payments", row)} onDelete={(row) => deleteTransaction("payments", row)} columns={[["Payment Date", (row) => row.payment_date], ["Party", (row) => row.party_name], ["Bank", (row) => money(row.bank_amount)], ["bKash", (row) => money(row.bkash_amount)], ["Cash", (row) => money(row.cash_amount)], ["Total Payment", (row) => money(row.total_amount)], ["Reference", (row) => row.reference || "—"]]} />
         </>}
         {tab === "returns" && <>
           <form onSubmit={submitReturn} className="grid gap-3 rounded-xl border border-gray-200 bg-white p-4 sm:grid-cols-2 lg:grid-cols-4">
@@ -245,15 +271,19 @@ export default function EasyWholesaleManagement() {
             {returnForm.stock_location === "showroom" && !returnForm.easy_sale && <label className="text-xs text-gray-500">Showroom<select required value={returnForm.showroom} onChange={(event) => setReturnForm({ ...returnForm, showroom: event.target.value })} className="mt-1 w-full rounded-lg border border-gray-300 px-3 py-2 text-sm text-gray-900"><option value="">Select showroom</option>{showrooms.map((showroom) => <option key={showroom.id} value={showroom.id}>{showroom.name}</option>)}</select></label>}
             <label className="text-xs text-gray-500">Return Amount<input required min="0" step="0.01" type="number" value={returnForm.amount} onChange={(event) => setReturnForm({ ...returnForm, amount: event.target.value })} className="mt-1 w-full rounded-lg border border-gray-300 px-3 py-2 text-sm text-gray-900" /></label>
             <label className="text-xs text-gray-500 sm:col-span-2">Return Reason / Notes<input value={returnForm.notes} onChange={(event) => setReturnForm({ ...returnForm, notes: event.target.value })} className="mt-1 w-full rounded-lg border border-gray-300 px-3 py-2 text-sm text-gray-900" /></label>
-            <button disabled={status.saving || !returnForm.party} className="rounded-lg bg-brand-500 px-4 py-2 text-sm font-medium text-white disabled:opacity-50">{status.saving ? "Saving..." : "Save Return"}</button>
+            <button disabled={status.saving || !returnForm.party} className="rounded-lg bg-brand-500 px-4 py-2 text-sm font-medium text-white disabled:opacity-50">{status.saving ? "Saving..." : editingId ? "Update Return" : "Save Return"}</button>{editingId && <button type="button" onClick={() => setEditingId(null)} className="rounded-lg border px-4 py-2 text-sm">Cancel edit</button>}
           </form>
-          <TransactionHistory title="Return History" empty="No easy returns saved yet." rows={returns} pageInfo={historyPages.returns} onPageChange={(page) => loadHistory("returns", page)} columns={[["Return Date", (row) => row.return_date], ["Party", (row) => row.party_name], ["Bill No", (row) => row.original_bill_number || "—"], ["Product", (row) => row.product_label || "—"], ["Quantity", (row) => `${row.quantity} pcs`], ["Return Amount", (row) => money(row.amount)], ["Notes", (row) => row.notes || "—"]]} />
+          <TransactionHistory title="Return History" empty="No easy returns saved yet." rows={returns} pageInfo={historyPages.returns} onPageChange={(page) => loadHistory("returns", page)} onEdit={(row) => editTransaction("returns", row)} onDelete={(row) => deleteTransaction("returns", row)} columns={[["Return Date", (row) => row.return_date], ["Party", (row) => row.party_name], ["Bill No", (row) => row.original_bill_number || "—"], ["Product", (row) => row.product_label || "—"], ["Quantity", (row) => `${row.quantity} pcs`], ["Return Amount", (row) => money(row.amount)], ["Notes", (row) => row.notes || "—"]]} />
         </>}
       </>}
     </div>
   );
 }
 
-function TransactionHistory({ title, empty, rows, columns, pageInfo, onPageChange }) {
-  return <section className="overflow-hidden rounded-xl border border-gray-200 bg-white"><h2 className="border-b border-gray-100 px-4 py-3 text-sm font-semibold">{title}</h2>{!rows.length ? <p className="px-4 py-7 text-center text-sm text-gray-500">{empty}</p> : <div className="overflow-x-auto"><table className="w-full min-w-[760px] text-left text-sm"><thead className="bg-gray-50 text-xs uppercase text-gray-500"><tr>{columns.map(([label]) => <th key={label} className="px-4 py-3">{label}</th>)}</tr></thead><tbody>{rows.map((row) => <tr key={row.id} className="border-t border-gray-100">{columns.map(([label, render], index) => <td key={label} className={index === 0 ? "whitespace-nowrap px-4 py-3" : "py-3"}>{render(row)}</td>)}</tr>)}</tbody></table></div>}<div className="flex items-center justify-between border-t border-gray-100 px-4 py-3 text-sm text-gray-600"><span>{pageInfo.count} records · Page {pageInfo.page} of {Math.max(1, Math.ceil(pageInfo.count / 20))}</span><div className="flex gap-2"><button disabled={!pageInfo.previous} onClick={() => onPageChange(pageInfo.page - 1)} className="rounded border border-gray-300 px-3 py-1 disabled:opacity-40">Previous</button><button disabled={!pageInfo.next} onClick={() => onPageChange(pageInfo.page + 1)} className="rounded border border-gray-300 px-3 py-1 disabled:opacity-40">Next</button></div></div></section>;
+function TransactionHistory({ title, empty, rows, columns, pageInfo, onPageChange, onEdit, onDelete }) {
+  return <section className="overflow-hidden rounded-xl border border-gray-200 bg-white">
+    <h2 className="border-b border-gray-100 px-4 py-3 text-sm font-semibold">{title}</h2>
+    {!rows.length ? <p className="px-4 py-7 text-center text-sm text-gray-500">{empty}</p> : <div className="overflow-x-auto"><table className="w-full min-w-[760px] text-left text-sm"><thead className="bg-gray-50 text-xs uppercase text-gray-500"><tr>{columns.map(([label]) => <th key={label} className="px-4 py-3">{label}</th>)}<th className="px-4 py-3">Actions</th></tr></thead><tbody>{rows.map((row) => <tr key={row.id} className="border-t border-gray-100">{columns.map(([label, render], index) => <td key={label} className={index === 0 ? "whitespace-nowrap px-4 py-3" : "py-3"}>{render(row)}</td>)}<td className="whitespace-nowrap px-4 py-3"><button onClick={() => onEdit(row)} className="mr-3 text-brand-700">Edit</button><button onClick={() => onDelete(row)} className="text-red-700">Delete</button></td></tr>)}</tbody></table></div>}
+    <div className="flex items-center justify-between border-t border-gray-100 px-4 py-3 text-sm text-gray-600"><span>{pageInfo.count} records ? Page {pageInfo.page} of {Math.max(1, Math.ceil(pageInfo.count / 20))}</span><div className="flex gap-2"><button disabled={!pageInfo.previous} onClick={() => onPageChange(pageInfo.page - 1)} className="rounded border border-gray-300 px-3 py-1 disabled:opacity-40">Previous</button><button disabled={!pageInfo.next} onClick={() => onPageChange(pageInfo.page + 1)} className="rounded border border-gray-300 px-3 py-1 disabled:opacity-40">Next</button></div></div>
+  </section>;
 }
