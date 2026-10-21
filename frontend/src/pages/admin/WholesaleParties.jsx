@@ -8,9 +8,13 @@ const today = localDateString();
 const money = (amount) => `৳ ${Number(amount || 0).toLocaleString()}`;
 const apiError = (error) => {
   const data = error.response?.data;
+  const status = error.response?.status;
   if (!data) return "Request failed. Check your connection and try again.";
   if (data.errors) return Object.values(data.errors).flat().join(" ");
-  return data.detail || Object.values(data).flat().join(" ") || "Could not record payment.";
+  const detail = data.detail || Object.values(data).flat().join(" ") || "Could not complete the request.";
+  return status && detail === "An unexpected error occurred. Please try again."
+    ? `${detail} (HTTP ${status})`
+    : detail;
 };
 
 export default function WholesaleParties() {
@@ -55,7 +59,7 @@ export default function WholesaleParties() {
       const { data } = await transactionApi(row).get(row.id);
       setTransactionEdit(row);
       setTransactionForm(data);
-    } catch (error) { setMessage(apiError(error)); }
+    } catch (error) { console.error("Statement transaction update failed", error.response?.status, error.response?.data); setMessage(apiError(error)); }
   }
 
   async function deleteStatementRow(row) {
@@ -67,7 +71,7 @@ export default function WholesaleParties() {
       await loadStatement(statementPage);
       const { data } = await wholesalePartyApi.get(selectedParty.id);
       setSelectedParty(data);
-    } catch (error) { setMessage(apiError(error)); }
+    } catch (error) { console.error("Statement transaction delete failed", error.response?.status, error.response?.data); setMessage(apiError(error)); }
   }
 
   async function saveStatementRow(event) {
