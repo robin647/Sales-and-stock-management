@@ -152,6 +152,8 @@ class ReturnSerializer(serializers.ModelSerializer):
         read_only_fields = ["id", "created_at", "invoice_number", "product_name"]
 
     def validate(self, attrs):
+        if self.instance and "invoice_item" in attrs and attrs["invoice_item"].pk != self.instance.invoice_item_id:
+            raise serializers.ValidationError({"invoice_item": "Move this return by deleting it and recording it against the correct invoice item."})
         request = self.context.get("request")
         idempotency_key = request.headers.get("Idempotency-Key") if request else None
         if idempotency_key:
@@ -169,10 +171,10 @@ class ReturnSerializer(serializers.ModelSerializer):
                     raise serializers.ValidationError({"detail": "Idempotency-Key was already used for a different return."})
                 self.context["existing_return"] = existing
                 return attrs
-        item = attrs["invoice_item"]
-        quantity = attrs["quantity"]
-        amount = attrs["amount"]
-        previous_returns = item.returns.aggregate(quantity=Sum("quantity"), amount=Sum("amount"))
+        item = attrs.get("invoice_item") or getattr(self.instance, "invoice_item", None)
+        quantity = attrs.get("quantity", getattr(self.instance, "quantity", None))
+        amount = attrs.get("amount", getattr(self.instance, "amount", None))
+        previous_returns = item.returns.exclude(pk=getattr(self.instance, "pk", None)).aggregate(quantity=Sum("quantity"), amount=Sum("amount"))
         remaining_quantity = item.quantity - (previous_returns["quantity"] or 0)
         remaining_value = item.line_total - (previous_returns["amount"] or Decimal("0.00"))
         if quantity > remaining_quantity:
@@ -182,6 +184,22 @@ class ReturnSerializer(serializers.ModelSerializer):
         if amount != item.unit_price * quantity:
             raise serializers.ValidationError({"amount": "Return amount must use the original sale unit price."})
         return attrs
+
+    @transaction.atomic
+    def update(self, instance, validated_data):
+        item = WholesaleSaleItem.objects.select_for_update().select_related("invoice").get(pk=instance.invoice_item_id)
+        invoice = item.invoice
+        stock = _get_location_stock(item.product, invoice.stock_location, invoice.showroom, lock=True)
+        if stock.quantity < instance.quantity:
+            raise serializers.ValidationError({"quantity": "Returned stock has already been used and cannot be reversed."})
+        stock.quantity -= instance.quantity
+        stock.save(update_fields=["quantity", "updated_at"])
+        for field, value in validated_data.items():
+            setattr(instance, field, value)
+        instance.save()
+        stock.quantity += instance.quantity
+        stock.save(update_fields=["quantity", "updated_at"])
+        return instance
 
     @transaction.atomic
     def create(self, validated_data):
@@ -262,7 +280,7 @@ class InvoiceSerializer(serializers.ModelSerializer):
         if location == "factory" and showroom:
             raise serializers.ValidationError({"showroom": "Factory invoices cannot select a showroom."})
         items = attrs.get("items")
-        if not items:
+        if not self.instance and not items:
             raise serializers.ValidationError({"items": "Add at least one product to the invoice."})
         return attrs
 
@@ -302,7 +320,12 @@ class InvoiceSerializer(serializers.ModelSerializer):
         return invoice
 
     def update(self, instance, validated_data):
-        raise serializers.ValidationError("Invoices are immutable. Record a return or a new payment instead.")
+        if "items" in validated_data:
+            raise serializers.ValidationError({"items": "Product quantities and prices cannot be edited here."})
+        for field, value in validated_data.items():
+            setattr(instance, field, value)
+        instance.save()
+        return instance
 
     def to_representation(self, instance):
         data = super().to_representation(instance)
@@ -328,9 +351,20 @@ class PaymentCreateSerializer(serializers.ModelSerializer):
         read_only_fields = ["id", "total_amount", "created_at"]
 
     def validate(self, attrs):
-        if not (attrs["bank_amount"] + attrs["bkash_amount"] + attrs["cash_amount"]):
+        amounts = [attrs.get(key, getattr(self.instance, key, Decimal("0.00"))) for key in ("bank_amount", "bkash_amount", "cash_amount")]
+        if not sum(amounts):
             raise serializers.ValidationError("A payment must have a positive amount.")
         return attrs
+
+    def update(self, instance, validated_data):
+        invoice = WholesaleInvoice.objects.select_for_update().get(pk=instance.invoice_id)
+        next_total = sum(validated_data.get(field, getattr(instance, field)) for field in ("bank_amount", "bkash_amount", "cash_amount"))
+        if next_total > invoice.due_amount + instance.total_amount:
+            raise serializers.ValidationError({"detail": "Payment exceeds the remaining invoice due."})
+        for field, value in validated_data.items():
+            setattr(instance, field, value)
+        instance.save()
+        return instance
 
     @transaction.atomic
     def create(self, validated_data):
@@ -436,6 +470,13 @@ class EasyWholesaleSaleSerializer(serializers.ModelSerializer):
         from django.db import transaction
 
         with transaction.atomic():
+            sale = validated_data.get("easy_sale", instance.easy_sale)
+            if sale:
+                other = sale.returns.exclude(pk=instance.pk).aggregate(quantity=Sum("quantity"), amount=Sum("amount"))
+                if validated_data.get("quantity", instance.quantity) > sale.quantity - (other["quantity"] or 0):
+                    raise serializers.ValidationError({"quantity": "Return quantity exceeds the eligible sale quantity."})
+                if validated_data.get("amount", instance.amount) > sale.total_amount - (other["amount"] or Decimal("0.00")):
+                    raise serializers.ValidationError({"amount": "Return amount exceeds the remaining sale value."})
             _undo_easy_stock_movement(instance, self.context["request"].user)
             for field, value in validated_data.items():
                 setattr(instance, field, value)

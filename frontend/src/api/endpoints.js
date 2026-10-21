@@ -60,24 +60,30 @@ export const wholesalePartyApi = {
 
 export const wholesaleInvoiceApi = {
   list: (params) => api.get("/wholesale/invoices/", { params }),
+  get: (id) => api.get(`/wholesale/invoices/${id}/`),
   create: (data) => api.post("/wholesale/invoices/", data),
+  update: (id, data) => api.patch(`/wholesale/invoices/${id}/`, data),
+  delete: (id) => api.delete(`/wholesale/invoices/${id}/`),
 };
 
 export const easyWholesaleApi = {
   sales: {
     list: (params) => api.get("/wholesale/easy/sales/", { params }),
+    get: (id) => api.get(`/wholesale/easy/sales/${id}/`),
     create: (data, idempotencyKey) => api.post("/wholesale/easy/sales/", data, { headers: idempotencyKey ? { "Idempotency-Key": idempotencyKey } : {} }),
     update: (id, data) => api.patch(`/wholesale/easy/sales/${id}/`, data),
     delete: (id) => api.delete(`/wholesale/easy/sales/${id}/`),
   },
   payments: {
     list: (params) => api.get("/wholesale/easy/payments/", { params }),
+    get: (id) => api.get(`/wholesale/easy/payments/${id}/`),
     create: (data, idempotencyKey) => api.post("/wholesale/easy/payments/", data, { headers: idempotencyKey ? { "Idempotency-Key": idempotencyKey } : {} }),
     update: (id, data) => api.patch(`/wholesale/easy/payments/${id}/`, data),
     delete: (id) => api.delete(`/wholesale/easy/payments/${id}/`),
   },
   returns: {
     list: (params) => api.get("/wholesale/easy/returns/", { params }),
+    get: (id) => api.get(`/wholesale/easy/returns/${id}/`),
     create: (data, idempotencyKey) => api.post("/wholesale/easy/returns/", data, { headers: idempotencyKey ? { "Idempotency-Key": idempotencyKey } : {} }),
     update: (id, data) => api.patch(`/wholesale/easy/returns/${id}/`, data),
     delete: (id) => api.delete(`/wholesale/easy/returns/${id}/`),
@@ -86,12 +92,18 @@ export const easyWholesaleApi = {
 
 export const wholesalePaymentApi = {
   list: (params) => api.get("/wholesale/payments/", { params }),
+  get: (id) => api.get(`/wholesale/payments/${id}/`),
   create: (data, idempotencyKey) => api.post("/wholesale/payments/", data, { headers: idempotencyKey ? { "Idempotency-Key": idempotencyKey } : {} }),
+  update: (id, data) => api.patch(`/wholesale/payments/${id}/`, data),
+  delete: (id) => api.delete(`/wholesale/payments/${id}/`),
 };
 
 export const wholesaleReturnApi = {
   list: (params) => api.get("/wholesale/returns/", { params }),
+  get: (id) => api.get(`/wholesale/returns/${id}/`),
   create: (data, idempotencyKey) => api.post("/wholesale/returns/", data, { headers: idempotencyKey ? { "Idempotency-Key": idempotencyKey } : {} }),
+  update: (id, data) => api.patch(`/wholesale/returns/${id}/`, data),
+  delete: (id) => api.delete(`/wholesale/returns/${id}/`),
 };
 
 export const wholesaleReportApi = {
