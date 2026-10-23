@@ -117,6 +117,7 @@ export const stockTransferApi = {
   list: (params) => api.get("/inventory/transfers/", { params }),
   create: (data) => api.post("/inventory/transfers/", data),
   update: (id, data) => api.patch(`/inventory/transfers/${id}/`, data),
+  delete: (id) => api.delete(`/inventory/transfers/${id}/`),
   summary: (params) => api.get("/inventory/transfers/summary/", { params }),
 
   receive: (data) => api.post("/inventory/transfers/", { ...data, transfer_type: "receive" }),

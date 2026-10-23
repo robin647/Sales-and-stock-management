@@ -21,6 +21,7 @@ export default function StockEntry() {
   const [date, setDate] = useState(todayStr());
   const [transferType, setTransferType] = useState("sale");
   const [editingTransferId, setEditingTransferId] = useState(null);
+  const [deletingTransferId, setDeletingTransferId] = useState(null);
   const [form, setForm] = useState({ product: "", quantity: "" });
   const [error, setError] = useState("");
   const [success, setSuccess] = useState("");
@@ -74,7 +75,7 @@ export default function StockEntry() {
         notes: "",
       };
 
-      if (editingTransferId) await stockTransferApi.update(editingTransferId, { quantity });
+      if (editingTransferId) await stockTransferApi.update(editingTransferId, { quantity, transfer_type: transferType });
       else await stockTransferApi.create(payload);
       setSuccess(editingTransferId ? "Stock transfer updated." : `${transferLabels[transferType]} recorded successfully!`);
       setEditingTransferId(null);
@@ -94,6 +95,30 @@ export default function StockEntry() {
         "Could not save stock transfer. Check the quantities and try again.";
       setError(errorMsg);
       console.error("Transfer error:", err.response?.data);
+    }
+  }
+
+  async function handleDelete(transfer) {
+    if (!window.confirm("Delete this transfer? Stock quantities will be adjusted.")) return;
+    setError("");
+    setSuccess("");
+    setDeletingTransferId(transfer.id);
+    try {
+      await stockTransferApi.delete(transfer.id);
+      if (editingTransferId === transfer.id) {
+        setEditingTransferId(null);
+        setForm({ product: "", quantity: "" });
+      }
+      setSuccess("Stock transfer deleted.");
+      await Promise.all([loadTransfers(), loadStocks()]);
+    } catch (err) {
+      const response = err.response?.data;
+      const messages = response && typeof response === "object"
+        ? Object.values(response).flatMap((value) => Array.isArray(value) ? value : [value]).filter((value) => typeof value === "string")
+        : [];
+      setError(messages.join(" ") || response?.detail || "Could not delete this transfer. Check the stock balance and try again.");
+    } finally {
+      setDeletingTransferId(null);
     }
   }
 
@@ -119,7 +144,6 @@ export default function StockEntry() {
         <select
           value={transferType}
           onChange={(e) => setTransferType(e.target.value)}
-          disabled={Boolean(editingTransferId)}
           className="w-full mb-4 border border-gray-300 rounded-lg px-3 py-2 text-sm"
         >
           <option value="sale">Sale to Customer</option>
@@ -178,7 +202,7 @@ export default function StockEntry() {
             type="submit"
             className="w-full bg-brand-500 hover:bg-brand-600 text-white text-sm font-medium py-2 rounded-lg transition-colors"
           >
-            {editingTransferId ? "Update stock quantity" : `Record ${transferLabels[transferType]}`}
+            {editingTransferId ? "Update stock transfer" : `Record ${transferLabels[transferType]}`}
           </button>
           {editingTransferId && <button type="button" onClick={() => { setEditingTransferId(null); setForm({ product: "", quantity: "" }); }} className="mt-2 w-full rounded-lg border border-gray-300 py-2 text-sm">Cancel edit</button>}
         </form>
@@ -226,20 +250,30 @@ export default function StockEntry() {
                       </span>
                     </td>
                     <td className="py-2 px-2">
-                      <button
-                        type="button"
-                        onClick={() => {
-                          setEditingTransferId(t.id);
-                          setForm({ product: String(t.product), quantity: String(t.quantity) });
-                          setTransferType(t.transfer_type);
-                          setError("");
-                          setSuccess("");
-                          document.getElementById("stock-transfer-form")?.scrollIntoView({ behavior: "smooth", block: "start" });
-                        }}
-                        className="font-medium text-brand-700 hover:text-brand-900"
-                      >
-                        Edit
-                      </button>
+                      <div className="flex items-center gap-3">
+                        <button
+                          type="button"
+                          onClick={() => {
+                            setEditingTransferId(t.id);
+                            setForm({ product: String(t.product), quantity: String(t.quantity) });
+                            setTransferType(t.transfer_type);
+                            setError("");
+                            setSuccess("");
+                            document.getElementById("stock-transfer-form")?.scrollIntoView({ behavior: "smooth", block: "start" });
+                          }}
+                          className="font-medium text-brand-700 hover:text-brand-900"
+                        >
+                          Edit
+                        </button>
+                        <button
+                          type="button"
+                          onClick={() => handleDelete(t)}
+                          disabled={deletingTransferId === t.id}
+                          className="font-medium text-red-600 hover:text-red-800 disabled:opacity-50"
+                        >
+                          {deletingTransferId === t.id ? "Deleting…" : "Delete"}
+                        </button>
+                      </div>
                     </td>
                   </tr>
                 ))
