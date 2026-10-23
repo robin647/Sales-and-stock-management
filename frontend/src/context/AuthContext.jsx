@@ -17,7 +17,7 @@ function userFromToken(token) {
   if (!decoded) return null;
   return {
     id: decoded.user_id,
-    role: decoded.role, // "admin" | "showroom_user"
+    role: decoded.role,
     showroomId: decoded.showroom_id,
     showroomName: decoded.showroom_name,
     fullName: decoded.full_name,
@@ -34,9 +34,7 @@ export function AuthProvider({ children }) {
     setLoading(false);
   }, []);
 
-  // Single login path for both Admin and Showroom accounts — both are
-  // `User` rows authenticated the same way, differing only by `role`.
-  async function login(username, password) {
+async function login(username, password) {
     const { data } = await authApi.login(username, password);
     return saveSession(data);
   }

@@ -1,7 +1,6 @@
 from django.contrib.auth.hashers import make_password, check_password
 from django.db import models
 
-
 class Showroom(models.Model):
     name = models.CharField(max_length=100, unique=True)
     address = models.CharField(max_length=255, blank=True)

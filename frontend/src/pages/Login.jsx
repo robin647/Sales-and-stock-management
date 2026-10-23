@@ -77,7 +77,7 @@ export default function Login() {
         </div>
 
         <div className="login-card rounded-2xl border p-6 sm:p-8">
-          {/* Login mode switch */}
+          {                       }
           <div className="login-mode-switch mb-7 grid grid-cols-2 gap-1.5 rounded-xl p-1.5">
             {Object.entries(MODES).map(([key, m]) => (
               <button

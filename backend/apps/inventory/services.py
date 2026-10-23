@@ -3,7 +3,6 @@ from rest_framework.exceptions import ValidationError
 
 from .models import FactoryStock, ShowroomStock, StockAdjustment
 
-
 def _lock_stock(product, location, showroom=None):
     if location == "factory":
         row, _ = FactoryStock.objects.get_or_create(product=product, defaults={"quantity": 0})
@@ -14,7 +13,6 @@ def _lock_stock(product, location, showroom=None):
         )
         return ShowroomStock.objects.select_for_update().get(pk=row.pk)
     raise ValidationError({"showroom": "A valid showroom is required for showroom stock."})
-
 
 @transaction.atomic
 def adjust_stock(*, product, location, showroom=None, new_quantity, reason, created_by):
@@ -33,7 +31,6 @@ def adjust_stock(*, product, location, showroom=None, new_quantity, reason, crea
         previous_quantity=previous, new_quantity=new_quantity,
         difference=new_quantity - previous, reason=reason.strip(), created_by=created_by,
     )
-
 
 @transaction.atomic
 def transfer_stock(*, product, showroom, quantity, transfer_type, date, created_by, notes=""):
@@ -57,7 +54,7 @@ def transfer_stock(*, product, showroom, quantity, transfer_type, date, created_
         store.quantity -= quantity
         daily.sold_qty += quantity
     elif transfer_type == "return":
-        # Customer returns go back into this showroom's stock.
+
         store.quantity += quantity
         daily.return_qty += quantity
     else:
@@ -69,7 +66,6 @@ def transfer_stock(*, product, showroom, quantity, transfer_type, date, created_
         product=product, showroom=showroom, quantity=quantity,
         transfer_type=transfer_type, date=date, notes=notes, created_by=created_by,
     )
-
 
 @transaction.atomic
 def update_transfer_quantity(*, transfer, quantity):

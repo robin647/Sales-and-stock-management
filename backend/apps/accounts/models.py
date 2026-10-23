@@ -1,14 +1,11 @@
 from django.contrib.auth.models import AbstractUser, UserManager
 from django.db import models
 
-
 class CustomUserManager(UserManager):
     def create_superuser(self, username, email=None, password=None, **extra_fields):
-        # Anyone created via `createsuperuser` / create_superuser() is always
-        # an Admin — role can't accidentally default to showroom_user here.
+
         extra_fields.setdefault("role", "admin")
         return super().create_superuser(username, email, password, **extra_fields)
-
 
 class User(AbstractUser):
     class Role(models.TextChoices):
@@ -19,8 +16,6 @@ class User(AbstractUser):
 
     objects = CustomUserManager()
 
-    # A showroom_user is tied to exactly one showroom. Admin leaves this null.
-    # Using a string reference avoids a circular import with the showrooms app.
     showroom = models.ForeignKey(
         "showrooms.Showroom",
         on_delete=models.PROTECT,

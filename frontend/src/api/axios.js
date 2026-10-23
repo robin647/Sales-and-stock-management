@@ -2,8 +2,7 @@ import axios from "axios";
 
 const configuredApiUrl = import.meta.env.VITE_API_URL?.trim();
 const configuredBaseUrl = (configuredApiUrl || "http://localhost:8000/api").replace(/\/+$/, "");
-// Vercel environment variables are often entered as the host only. Django
-// routes live under /api/, so normalize the base URL before building requests.
+
 const API_URL = /\/api$/i.test(configuredBaseUrl)
   ? configuredBaseUrl
   : `${configuredBaseUrl}/api`;

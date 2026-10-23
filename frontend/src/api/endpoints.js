@@ -1,8 +1,5 @@
 import api from "./axios";
 
-// A single login endpoint is used for both Admin and Showroom accounts —
-// the account's role (embedded in the returned JWT) determines what it can
-// do, not which endpoint was called.
 export const authApi = {
   login: (username, password) => api.post("/auth/login/", { username, password }),
   showroomLogin: (username, password) => api.post("/auth/login/showroom/", { username, password }),
@@ -18,9 +15,8 @@ export const showroomApi = {
 export const showroomUserApi = {
   list: () => api.get("/accounts/showroom-users/"),
   create: (data) => api.post("/accounts/showroom-users/", data),
-  // `data` may include `password` to reset it, or just `is_active` to
-  // activate/deactivate the login — both go through the same PATCH.
-  update: (id, data) => api.patch(`/accounts/showroom-users/${id}/`, data),
+
+update: (id, data) => api.patch(`/accounts/showroom-users/${id}/`, data),
 };
 
 export const categoryApi = {
@@ -122,7 +118,7 @@ export const stockTransferApi = {
   create: (data) => api.post("/inventory/transfers/", data),
   update: (id, data) => api.patch(`/inventory/transfers/${id}/`, data),
   summary: (params) => api.get("/inventory/transfers/summary/", { params }),
-  // Helper methods for specific transfer types
+
   receive: (data) => api.post("/inventory/transfers/", { ...data, transfer_type: "receive" }),
   sell: (data) => api.post("/inventory/transfers/", { ...data, transfer_type: "sale" }),
   return: (data) => api.post("/inventory/transfers/", { ...data, transfer_type: "return" }),
@@ -142,9 +138,6 @@ export const reportApi = {
   exportMonthly: (params, filename) => downloadFile("/reports/export/monthly/", params, filename),
 };
 
-// Excel export endpoints require the JWT header, so a plain <a href> link
-// won't work — we fetch as a blob (auth header attached automatically by
-// the axios interceptor) and then trigger the browser download manually.
 async function downloadFile(path, params, filename) {
   const response = await api.get(path, { params, responseType: "blob" });
   const url = window.URL.createObjectURL(new Blob([response.data]));

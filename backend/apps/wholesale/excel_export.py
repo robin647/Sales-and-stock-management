@@ -9,7 +9,6 @@ from rest_framework.views import APIView
 from .services import all_party_summary, party_account_statement
 from .models import EasyWholesalePayment, EasyWholesaleReturn, EasyWholesaleSale, WholesaleInvoice
 
-
 class WholesaleExcelExportView(APIView):
     permission_classes = [IsAuthenticated]
 
@@ -115,7 +114,6 @@ class WholesaleExcelExportView(APIView):
         workbook.save(response)
         return response
 
-
 class WholesaleSummaryExcelExportView(APIView):
     permission_classes = [IsAuthenticated]
 
@@ -137,7 +135,6 @@ class WholesaleSummaryExcelExportView(APIView):
         _apply_formats(sheet, 1)
         _criteria_sheet(workbook, request.query_params)
         return _workbook_response(workbook, "wholesale-all-parties-summary.xlsx")
-
 
 def party_statement_excel(party, query_params):
     statement = party_account_statement(
@@ -177,7 +174,6 @@ def party_statement_excel(party, query_params):
     _criteria_sheet(workbook, criteria)
     return _workbook_response(workbook, f"party-{party.pk}-account-statement.xlsx")
 
-
 def _header(sheet, labels):
     sheet.append(labels)
     header_row = sheet.max_row
@@ -187,7 +183,6 @@ def _header(sheet, labels):
     sheet.freeze_panes = f"A{header_row + 1}"
     sheet.auto_filter.ref = f"A{header_row}:{get_column_letter(sheet.max_column)}{sheet.max_row}"
 
-
 def _criteria_sheet(workbook, query_params):
     sheet = workbook.create_sheet("Filters")
     _header(sheet, ["Filter", "Value"])
@@ -195,13 +190,11 @@ def _criteria_sheet(workbook, query_params):
         if query_params.get(key):
             sheet.append([key.replace("_", " ").title(), query_params[key]])
 
-
 def _workbook_response(workbook, filename):
     response = HttpResponse(content_type="application/vnd.openxmlformats-officedocument.spreadsheetml.sheet")
     response["Content-Disposition"] = f'attachment; filename="{filename}"'
     workbook.save(response)
     return response
-
 
 def _apply_formats(sheet, header_row):
     for column in range(1, sheet.max_column + 1):

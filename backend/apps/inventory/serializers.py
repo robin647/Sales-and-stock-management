@@ -3,7 +3,6 @@ from rest_framework import serializers
 from apps.showrooms.models import Showroom
 from .models import DailyBalance, DailyStock, FactoryStock, ShowroomStock, StockTransfer
 
-
 class DailyStockSerializer(serializers.ModelSerializer):
     product_name = serializers.CharField(source="product.name", read_only=True)
     showroom_name = serializers.CharField(source="showroom.name", read_only=True)
@@ -44,10 +43,8 @@ class DailyStockSerializer(serializers.ModelSerializer):
         validated_data["created_by"] = self.context["request"].user
         return super().create(validated_data)
 
-
 class DailyBalanceSerializer(serializers.ModelSerializer):
-    # Showroom accounts inherit their showroom from the authenticated user in
-    # ShowroomScopedMixin.perform_create; admin accounts must still provide it.
+
     showroom = serializers.PrimaryKeyRelatedField(
         queryset=Showroom.objects.all(), required=False
     )
@@ -65,11 +62,8 @@ class DailyBalanceSerializer(serializers.ModelSerializer):
             "id", "opening_balance", "total_sale", "closing_balance",
             "created_by", "created_at", "updated_at",
         ]
-        # DRF's generated UniqueTogetherValidator requires every field in the
-        # constraint, even though showroom is assigned from the logged-in
-        # showroom user after validation. The explicit validate() below checks
-        # uniqueness with that server-resolved showroom instead.
-        validators = []
+
+    validators = []
 
     def validate(self, attrs):
         showroom = attrs.get("showroom") or getattr(self.instance, "showroom", None)
@@ -97,14 +91,12 @@ class DailyBalanceSerializer(serializers.ModelSerializer):
         validated_data["created_by"] = self.context["request"].user
         return super().create(validated_data)
 
-
 class FactoryStockSerializer(serializers.ModelSerializer):
     product_name = serializers.CharField(source="product.name", read_only=True)
 
     class Meta:
         model = FactoryStock
         fields = ["id", "product", "product_name", "quantity", "updated_at"]
-
 
 class ShowroomStockSerializer(serializers.ModelSerializer):
     product_name = serializers.CharField(source="product.name", read_only=True)
@@ -113,7 +105,6 @@ class ShowroomStockSerializer(serializers.ModelSerializer):
     class Meta:
         model = ShowroomStock
         fields = ["id", "product", "product_name", "showroom", "showroom_name", "quantity", "updated_at"]
-
 
 class StockTransferSerializer(serializers.ModelSerializer):
     product_name = serializers.CharField(source="product.name", read_only=True)

@@ -2,7 +2,6 @@ from django.contrib import admin
 
 from .models import Showroom
 
-
 @admin.register(Showroom)
 class ShowroomAdmin(admin.ModelAdmin):
     list_display = ("name", "phone", "is_active", "created_at")

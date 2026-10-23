@@ -5,12 +5,10 @@ from django.db import models
 from apps.products.models import Product
 from apps.showrooms.models import Showroom
 
-
 class FactoryStock(models.Model):
     product = models.OneToOneField(Product, on_delete=models.PROTECT, related_name="factory_stock")
     quantity = models.PositiveIntegerField(default=0)
     updated_at = models.DateTimeField(auto_now=True)
-
 
 class ShowroomStock(models.Model):
     showroom = models.ForeignKey(Showroom, on_delete=models.PROTECT, related_name="product_stocks")
@@ -21,7 +19,6 @@ class ShowroomStock(models.Model):
     class Meta:
         ordering = ["showroom_id", "product_id"]
         constraints = [models.UniqueConstraint(fields=["showroom", "product"], name="unique_showroom_product_stock")]
-
 
 class StockAdjustment(models.Model):
     LOCATION_CHOICES = [("factory", "Factory"), ("showroom", "Showroom")]
@@ -38,7 +35,6 @@ class StockAdjustment(models.Model):
     class Meta:
         ordering = ["-created_at", "-id"]
 
-
 class StockTransfer(models.Model):
     TRANSFER_TYPES = [("receive", "Receive"), ("sale", "Sale"), ("return", "Return")]
     product = models.ForeignKey(Product, on_delete=models.PROTECT, related_name="stock_transfers")
@@ -52,7 +48,6 @@ class StockTransfer(models.Model):
 
     class Meta:
         ordering = ["-date", "-created_at"]
-
 
 class DailyStock(models.Model):
     """
@@ -101,7 +96,6 @@ class DailyStock(models.Model):
         self.closing_qty = self.compute_closing()
         self.full_clean()
         super().save(*args, **kwargs)
-
 
 class DailyBalance(models.Model):
     """

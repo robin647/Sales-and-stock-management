@@ -5,7 +5,6 @@ from django.db import models
 from apps.products.models import Product
 from apps.showrooms.models import Showroom
 
-
 class WholesaleParty(models.Model):
     name = models.CharField(max_length=180)
     contact_person = models.CharField(max_length=120, blank=True)
@@ -22,7 +21,6 @@ class WholesaleParty(models.Model):
 
     def __str__(self):
         return self.name
-
 
 class WholesaleInvoice(models.Model):
     LOCATION_CHOICES = [("factory", "Factory"), ("showroom", "Showroom")]
@@ -73,7 +71,6 @@ class WholesaleInvoice(models.Model):
     def credit_amount(self):
         return max(0, self.payment_total - (self.gross_amount - self.return_total))
 
-
 class WholesaleSaleItem(models.Model):
     invoice = models.ForeignKey(WholesaleInvoice, on_delete=models.PROTECT, related_name="items")
     product = models.ForeignKey(Product, on_delete=models.PROTECT, related_name="wholesale_sale_items")
@@ -83,7 +80,6 @@ class WholesaleSaleItem(models.Model):
     @property
     def line_total(self):
         return self.quantity * self.unit_price
-
 
 class WholesalePayment(models.Model):
     invoice = models.ForeignKey(WholesaleInvoice, on_delete=models.PROTECT, related_name="payments")
@@ -104,7 +100,6 @@ class WholesalePayment(models.Model):
     def total_amount(self):
         return self.bank_amount + self.bkash_amount + self.cash_amount
 
-
 class WholesaleReturn(models.Model):
     invoice_item = models.ForeignKey(WholesaleSaleItem, on_delete=models.PROTECT, related_name="returns")
     quantity = models.PositiveIntegerField(validators=[MinValueValidator(1)])
@@ -117,7 +112,6 @@ class WholesaleReturn(models.Model):
 
     class Meta:
         indexes = [models.Index(fields=["return_date", "invoice_item"])]
-
 
 class EasyWholesaleSale(models.Model):
     STOCK_LOCATION_CHOICES = [("factory", "Factory"), ("showroom", "Showroom")]
@@ -152,7 +146,6 @@ class EasyWholesaleSale(models.Model):
     def __str__(self):
         return self.bill_number or f"Easy sale {self.pk}"
 
-
 class EasyWholesalePayment(models.Model):
     party = models.ForeignKey(WholesaleParty, on_delete=models.PROTECT, related_name="easy_payments")
     payment_date = models.DateField()
@@ -172,7 +165,6 @@ class EasyWholesalePayment(models.Model):
     @property
     def total_amount(self):
         return self.bank_amount + self.bkash_amount + self.cash_amount
-
 
 class EasyWholesaleReturn(models.Model):
     party = models.ForeignKey(WholesaleParty, on_delete=models.PROTECT, related_name="easy_returns")
@@ -199,7 +191,6 @@ class EasyWholesaleReturn(models.Model):
     class Meta:
         ordering = ["-return_date", "-created_at", "-id"]
         indexes = [models.Index(fields=["party", "return_date"]), models.Index(fields=["original_bill_number"])]
-
 
 class EasyWholesaleStockMovement(models.Model):
     MOVEMENT_CHOICES = [("sale", "Easy wholesale sale"), ("return", "Easy wholesale return")]

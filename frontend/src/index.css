@@ -2,11 +2,6 @@
 @tailwind components;
 @tailwind utilities;
 
-/* =====================================================
-   MAHIR SHERWANI — LUXURY FOREST & CHAMPAGNE UI
-   Modern premium clothing business dashboard
-   ===================================================== */
-
 :root {
   color-scheme: light;
 
@@ -45,8 +40,6 @@
   --shadow-lg:
     0 16px 40px rgba(30, 50, 39, 0.10);
 }
-
-/* ================= BASE ================= */
 
 *,
 *::before,
@@ -168,11 +161,6 @@ p {
   outline-offset: 3px;
 }
 
-/* ================= PAGE BACKGROUND ================= */
-
-/* Override existing Tailwind background utilities
-   used by common page and layout wrappers. */
-
 .bg-gray-50 {
   background-color: #f1efe7 !important;
 }
@@ -189,8 +177,6 @@ p {
   background-color: #eeece4 !important;
 }
 
-/* Main white surfaces */
-
 .bg-white {
   background-color: var(--surface);
 }
@@ -201,8 +187,6 @@ p {
   border: 1px solid var(--border);
   box-shadow: var(--shadow-sm);
 }
-
-/* ================= TYPOGRAPHY ================= */
 
 .text-gray-900,
 .text-slate-900,
@@ -251,10 +235,6 @@ p {
 .tracking-wide {
   letter-spacing: 0.045em;
 }
-
-/* ================= PRIMARY BRAND COLORS ================= */
-
-/* Existing blue/indigo brand utility classes become emerald. */
 
 .bg-brand-500,
 .bg-brand-600,
@@ -307,8 +287,6 @@ p {
   color: #14543f !important;
 }
 
-/* ================= BUTTON SYSTEM ================= */
-
 button,
 [role="button"] {
   transition:
@@ -318,8 +296,6 @@ button,
     box-shadow 180ms ease,
     transform 180ms ease;
 }
-
-/* Primary actions */
 
 button.bg-brand-500,
 button.bg-brand-600,
@@ -365,8 +341,6 @@ button.bg-indigo-600:active {
   transform: translateY(0);
 }
 
-/* Success buttons */
-
 button.bg-green-500,
 button.bg-green-600,
 button.bg-emerald-500,
@@ -385,8 +359,6 @@ button.bg-emerald-600:hover {
   transform: translateY(-1px);
 }
 
-/* Danger buttons */
-
 button.bg-red-500,
 button.bg-red-600,
 button.bg-red-700 {
@@ -400,8 +372,6 @@ button.bg-red-600:hover,
 button.bg-red-700:hover {
   filter: brightness(0.91);
 }
-
-/* Secondary / neutral buttons */
 
 button.bg-gray-100,
 button.bg-gray-200,
@@ -426,8 +396,6 @@ button.border-gray-300 {
   border-radius: 10px;
 }
 
-/* ================= ACCENT / CHAMPAGNE ================= */
-
 .bg-amber-50,
 .bg-yellow-50 {
   background-color: #fbf4e6 !important;
@@ -447,8 +415,6 @@ button.border-gray-300 {
 .border-yellow-200 {
   border-color: #e8d3a9 !important;
 }
-
-/* ================= CARDS ================= */
 
 .rounded-xl {
   border-radius: 13px;
@@ -474,8 +440,6 @@ button.border-gray-300 {
   box-shadow: var(--shadow-lg);
 }
 
-/* Keep cards clean and understated. */
-
 .bg-white.rounded-xl,
 .bg-white.rounded-2xl,
 .bg-white.rounded-lg {
@@ -488,8 +452,6 @@ button.border-gray-300 {
 .bg-white.rounded-2xl:hover {
   border-color: #dedfd2;
 }
-
-/* ================= FORMS ================= */
 
 input,
 select,
@@ -539,8 +501,6 @@ textarea {
   min-height: 90px;
   resize: vertical;
 }
-
-/* ================= TABLES ================= */
 
 table {
   width: 100%;
@@ -592,11 +552,6 @@ table tbody tr:last-child td {
   border-bottom: none;
 }
 
-/* ================= SIDEBAR / NAVIGATION ================= */
-
-/* These styles apply when your existing elements use
-   common Tailwind sidebar/nav classes. */
-
 aside,
 .sidebar {
   scrollbar-width: thin;
@@ -620,8 +575,6 @@ aside a:hover,
   border-radius: 9px;
 }
 
-/* Existing dark sidebar utilities become forest green. */
-
 .bg-gray-900,
 .bg-slate-900 {
   background-color: #163b2f !important;
@@ -631,8 +584,6 @@ aside a:hover,
 .bg-slate-800 {
   background-color: #204b3b !important;
 }
-
-/* ================= SCROLLBAR ================= */
 
 ::-webkit-scrollbar {
   width: 8px;
@@ -656,8 +607,6 @@ aside a:hover,
   background-clip: padding-box;
 }
 
-/* ================= SUBTLE ANIMATIONS ================= */
-
 @keyframes ms-fade-up {
   from {
     opacity: 0;
@@ -673,8 +622,6 @@ aside a:hover,
 .animate-fade-in {
   animation: ms-fade-up 260ms ease-out both;
 }
-
-/* ================= DARK MODE ================= */
 
 .dark {
   color-scheme: dark;
@@ -837,8 +784,6 @@ aside a:hover,
   color: #ffffff;
 }
 
-/* ================= RESPONSIVE ================= */
-
 @media (max-width: 768px) {
   body {
     font-size: 13px;
@@ -872,8 +817,6 @@ aside a:hover,
     transition-duration: 0.01ms !important;
   }
 }
-
-/* ================= READABLE BUSINESS SCREENS ================= */
 
 main > .mx-auto {
   width: 100%;
@@ -960,7 +903,6 @@ main .overflow-x-auto table td {
   padding-left: 1rem;
 }
 
-/* Keep every table's column labels visible while scrolling through rows. */
 main .overflow-x-auto table thead th,
 .wholesale-statement-table thead th {
   position: sticky;
@@ -1002,7 +944,6 @@ main a:focus-visible {
   }
 }
 
-/* Light theme chrome: warm surfaces keep the whole app from feeling washed out. */
 :root:not(.dark) body {
   background-color: #f1efe7;
   color: #202923;

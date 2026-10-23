@@ -14,16 +14,14 @@ from .serializers import (
     UserSerializer,
 )
 
-
 class CustomTokenObtainPairView(TokenObtainPairView):
     serializer_class = CustomTokenObtainPairSerializer
     throttle_classes = [ScopedRateThrottle]
     throttle_scope = "login"
 
-
 class ShowroomLoginView(APIView):
     """Authenticate a showroom by username and password, return JWT tokens."""
-    
+
     permission_classes = [permissions.AllowAny]
     throttle_classes = [ScopedRateThrottle]
     throttle_scope = "login"
@@ -34,7 +32,6 @@ class ShowroomLoginView(APIView):
             return Response(serializer.validated_data, status=status.HTTP_200_OK)
         return Response(serializer.errors, status=status.HTTP_401_UNAUTHORIZED)
 
-
 class MeView(APIView):
     """Returns the logged-in user's own profile (role, showroom, etc)."""
 
@@ -42,7 +39,6 @@ class MeView(APIView):
 
     def get(self, request):
         return Response(UserSerializer(request.user).data)
-
 
 class ShowroomUserListCreateView(generics.ListCreateAPIView):
     """Admin-only: list all showroom users, or create a new one."""
@@ -54,7 +50,6 @@ class ShowroomUserListCreateView(generics.ListCreateAPIView):
         if self.request.method == "POST":
             return ShowroomUserCreateSerializer
         return UserSerializer
-
 
 class ShowroomUserDetailView(generics.RetrieveUpdateAPIView):
     """Admin-only: view or activate/deactivate a showroom user."""

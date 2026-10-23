@@ -6,7 +6,6 @@ from core.permissions import IsAdmin
 from .models import Showroom
 from .serializers import ShowroomSerializer
 
-
 class ShowroomViewSet(viewsets.ModelViewSet):
     """
     Admin: full CRUD over all showrooms.

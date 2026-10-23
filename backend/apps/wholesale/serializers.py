@@ -13,7 +13,6 @@ from .models import (
     WholesaleInvoice, WholesaleParty, WholesalePayment, WholesaleReturn, WholesaleSaleItem,
 )
 
-
 def _undo_easy_stock_movement(record, user):
     """Reverse the inventory effect before correcting or removing a transaction."""
     from apps.inventory.models import FactoryStock, ShowroomStock
@@ -45,7 +44,6 @@ def _undo_easy_stock_movement(record, user):
     stock.save(update_fields=["quantity", "updated_at"])
     movement.delete()
 from .services import record_easy_stock_movement
-
 
 class PartySerializer(serializers.ModelSerializer):
     total_sales = serializers.SerializerMethodField()
@@ -116,7 +114,6 @@ class PartySerializer(serializers.ModelSerializer):
     def get_total_credit(self, party):
         return self._totals(party)[4]
 
-
 class WholesaleSaleItemSerializer(serializers.ModelSerializer):
     product_name = serializers.CharField(source="product.name", read_only=True)
     product_code = serializers.CharField(source="product.code", read_only=True)
@@ -136,7 +133,6 @@ class WholesaleSaleItemSerializer(serializers.ModelSerializer):
     def get_returned_amount(self, item):
         return item.returns.aggregate(value=Sum("amount"))["value"] or Decimal("0.00")
 
-
 class PaymentSerializer(serializers.ModelSerializer):
     total_amount = serializers.DecimalField(max_digits=14, decimal_places=2, read_only=True)
 
@@ -144,7 +140,6 @@ class PaymentSerializer(serializers.ModelSerializer):
         model = WholesalePayment
         fields = ["id", "payment_date", "bank_amount", "bkash_amount", "cash_amount", "total_amount", "reference", "notes", "created_at"]
         read_only_fields = ["id", "created_at", "total_amount"]
-
 
 class ReturnSerializer(serializers.ModelSerializer):
     invoice_number = serializers.CharField(source="invoice_item.invoice.invoice_number", read_only=True)
@@ -232,7 +227,6 @@ class ReturnSerializer(serializers.ModelSerializer):
         validated_data["created_by"] = self.context["request"].user
         validated_data["idempotency_key"] = idempotency_key or None
         return super().create(validated_data)
-
 
 class InvoiceSerializer(serializers.ModelSerializer):
     items = WholesaleSaleItemSerializer(many=True)
@@ -344,7 +338,6 @@ class InvoiceSerializer(serializers.ModelSerializer):
         })
         return data
 
-
 class PaymentCreateSerializer(serializers.ModelSerializer):
     total_amount = serializers.DecimalField(max_digits=14, decimal_places=2, read_only=True)
 
@@ -395,7 +388,6 @@ class PaymentCreateSerializer(serializers.ModelSerializer):
         validated_data["created_by"] = self.context["request"].user
         validated_data["idempotency_key"] = idempotency_key or None
         return super().create(validated_data)
-
 
 class EasyWholesaleSaleSerializer(serializers.ModelSerializer):
     party_name = serializers.CharField(source="party.name", read_only=True)
@@ -497,7 +489,6 @@ class EasyWholesaleSaleSerializer(serializers.ModelSerializer):
                 raise serializers.ValidationError({"quantity": str(error)}) from error
         return instance
 
-
 class EasyWholesalePaymentSerializer(serializers.ModelSerializer):
     party_name = serializers.CharField(source="party.name", read_only=True)
     total_amount = serializers.DecimalField(max_digits=14, decimal_places=2, read_only=True)
@@ -538,7 +529,6 @@ class EasyWholesalePaymentSerializer(serializers.ModelSerializer):
             setattr(instance, field, value)
         instance.save()
         return instance
-
 
 class EasyWholesaleReturnSerializer(serializers.ModelSerializer):
     party_name = serializers.CharField(source="party.name", read_only=True)
@@ -650,7 +640,6 @@ class EasyWholesaleReturnSerializer(serializers.ModelSerializer):
                     raise serializers.ValidationError({"quantity": str(error)}) from error
         return instance
 
-
 class StockAdjustmentSerializer(serializers.ModelSerializer):
     product_name = serializers.CharField(source="product.name", read_only=True)
     showroom_name = serializers.CharField(source="showroom.name", read_only=True)
@@ -674,7 +663,6 @@ class StockAdjustmentSerializer(serializers.ModelSerializer):
     def create(self, validated_data):
         validated_data["created_by"] = self.context["request"].user
         return adjust_stock(**validated_data)
-
 
 def _get_location_stock(product, location, showroom=None, lock=False):
     if location == "factory":

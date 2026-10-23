@@ -5,7 +5,6 @@ from .models import DailyBalance, DailyStock, FactoryStock, ShowroomStock, Stock
 from .serializers import (DailyBalanceSerializer, DailyStockSerializer, FactoryStockSerializer,
                           ShowroomStockSerializer, StockTransferSerializer)
 
-
 class ShowroomScopedMixin:
     """
     Shared scoping rule used by both DailyStock and DailyBalance viewsets:
@@ -50,8 +49,7 @@ class ShowroomScopedMixin:
         else:
             if not user.showroom_id:
                 raise PermissionDenied("Your account is not assigned to a showroom.")
-            # Showroom user's own showroom is forced here — any showroom_id
-            # sent from the client for this field is silently overridden.
+
             serializer.save(showroom=user.showroom)
 
     def perform_update(self, serializer):
@@ -63,14 +61,12 @@ class ShowroomScopedMixin:
                 raise PermissionDenied("Your account is not assigned to a showroom.")
             serializer.save(showroom=user.showroom)
 
-
 class DailyStockViewSet(ShowroomScopedMixin, viewsets.ModelViewSet):
     serializer_class = DailyStockSerializer
     permission_classes = [permissions.IsAuthenticated]
 
     def queryset_base(self):
         return DailyStock.objects.select_related("showroom", "product").all()
-
 
 class DailyBalanceViewSet(ShowroomScopedMixin, viewsets.ModelViewSet):
     serializer_class = DailyBalanceSerializer
@@ -93,7 +89,6 @@ class DailyBalanceViewSet(ShowroomScopedMixin, viewsets.ModelViewSet):
                 later.save(update_fields=["opening_balance", "total_sale", "closing_balance", "updated_at"])
                 previous = later
 
-
 class FactoryStockViewSet(viewsets.ReadOnlyModelViewSet):
     serializer_class = FactoryStockSerializer
     permission_classes = [permissions.IsAuthenticated]
@@ -103,7 +98,6 @@ class FactoryStockViewSet(viewsets.ReadOnlyModelViewSet):
         super().check_permissions(request)
         if request.user.role != "admin":
             raise PermissionDenied("Only Admin can view factory inventory.")
-
 
 class ShowroomStockViewSet(viewsets.ReadOnlyModelViewSet):
     serializer_class = ShowroomStockSerializer
@@ -117,7 +111,6 @@ class ShowroomStockViewSet(viewsets.ReadOnlyModelViewSet):
                 queryset = queryset.filter(showroom_id=showroom_id)
             return queryset
         return queryset.filter(showroom_id=self.request.user.showroom_id)
-
 
 class StockTransferViewSet(viewsets.ModelViewSet):
     serializer_class = StockTransferSerializer

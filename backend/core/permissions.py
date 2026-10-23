@@ -1,6 +1,5 @@
 from rest_framework.permissions import BasePermission
 
-
 class IsAdmin(BasePermission):
     """Allows access only to Admin role users."""
 
@@ -11,7 +10,6 @@ class IsAdmin(BasePermission):
             and request.user.role == "admin"
         )
 
-
 class IsShowroomUser(BasePermission):
     """Allows access only to Showroom User role users."""
 
@@ -21,7 +19,6 @@ class IsShowroomUser(BasePermission):
             and request.user.is_authenticated
             and request.user.role == "showroom_user"
         )
-
 
 class IsAdminOrOwnShowroom(BasePermission):
     """
