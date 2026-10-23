@@ -1,4 +1,6 @@
+from django.core.exceptions import ValidationError as DjangoValidationError
 from django.db import transaction
+from django.utils import timezone
 from rest_framework.exceptions import ValidationError
 
 from .models import FactoryStock, ShowroomStock, StockAdjustment
@@ -42,6 +44,11 @@ def transfer_stock(*, product, showroom, quantity, transfer_type, date, created_
         showroom=showroom, product=product, date=date,
         defaults={"created_by": created_by},
     )
+    if date == timezone.localdate():
+        recorded_quantity = daily.compute_closing()
+        if store.quantity > recorded_quantity:
+            daily.opening_qty += store.quantity - recorded_quantity
+
     if transfer_type == "receive":
         if factory.quantity < quantity:
             raise ValidationError({"quantity": f"Factory has only {factory.quantity} units available."})
@@ -61,7 +68,11 @@ def transfer_stock(*, product, showroom, quantity, transfer_type, date, created_
         raise ValidationError({"transfer_type": "Choose receive, sale, or return."})
     factory.save(update_fields=["quantity", "updated_at"])
     store.save(update_fields=["quantity", "updated_at"])
-    daily.save()
+    try:
+        daily.save()
+    except DjangoValidationError as exc:
+        detail = getattr(exc, "message_dict", None) or exc.messages
+        raise ValidationError(detail) from exc
     return StockTransfer.objects.create(
         product=product, showroom=showroom, quantity=quantity,
         transfer_type=transfer_type, date=date, notes=notes, created_by=created_by,
