@@ -105,7 +105,7 @@ export default function StockEntry() {
       <h1 className="text-lg font-semibold">Stock Management</h1>
 
       {                         }
-      <div className="bg-white rounded-2xl border border-gray-100 p-4 max-w-md">
+      <div id="stock-transfer-form" className="bg-white rounded-2xl border border-gray-100 p-4 max-w-md">
         <label className="block text-xs text-gray-500 mb-1">Date</label>
         <input
           type="date"
@@ -217,7 +217,6 @@ export default function StockEntry() {
                         {transferLabels[t.transfer_type] || transferLabels.return}
                       </span>
                     </td>
-                    <td className="py-2 px-2"><button type="button" onClick={() => { setEditingTransferId(t.id); setForm({ product: String(t.product), quantity: String(t.quantity) }); setTransferType(t.transfer_type); }} className="text-brand-700">Edit quantity</button></td>
                     <td className="py-2 px-2 text-right font-medium">{t.quantity}</td>
                     <td className="py-2 px-2">{t.from_location}</td>
                     <td className="py-2 px-2">{t.to_location}</td>
@@ -225,6 +224,22 @@ export default function StockEntry() {
                       <span className="text-xs font-semibold px-2 py-1 rounded bg-green-100 text-green-700">
                         {t.status}
                       </span>
+                    </td>
+                    <td className="py-2 px-2">
+                      <button
+                        type="button"
+                        onClick={() => {
+                          setEditingTransferId(t.id);
+                          setForm({ product: String(t.product), quantity: String(t.quantity) });
+                          setTransferType(t.transfer_type);
+                          setError("");
+                          setSuccess("");
+                          document.getElementById("stock-transfer-form")?.scrollIntoView({ behavior: "smooth", block: "start" });
+                        }}
+                        className="font-medium text-brand-700 hover:text-brand-900"
+                      >
+                        Edit
+                      </button>
                     </td>
                   </tr>
                 ))
