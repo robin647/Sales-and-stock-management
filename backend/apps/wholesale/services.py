@@ -58,7 +58,7 @@ def record_easy_stock_movement(*, movement_type, product, stock_location, showro
 
 def party_account_statement(*, party, start_date=None, end_date=None, transaction_type=None,
                             invoice_number=None, product_id=None, limit=20, offset=0):
-    """Return a paginated chronological ledger and date-range balances for one party."""
+    """Return newest-entered ledger rows with date-range balances for one party."""
     sales = WholesaleInvoice.objects.filter(party=party).prefetch_related("items__product")
     payments = WholesalePayment.objects.filter(invoice__party=party).select_related("invoice")
     returns = WholesaleReturn.objects.filter(invoice_item__invoice__party=party).select_related(
@@ -124,16 +124,23 @@ def party_account_statement(*, party, start_date=None, end_date=None, transactio
         period_easy_returns = period_easy_returns.filter(Q(product_id=product_id) | Q(easy_sale__product_id=product_id))
 
     fetch_count = offset + limit + 1
-    all_events = _statement_events(period_sales, period_payments, period_returns, fetch_count, product_id)
+    all_events = _statement_events(
+        period_sales, period_payments, period_returns, fetch_count, product_id, newest_first=True
+    )
     all_events.extend(_easy_statement_events(
-        period_easy_sales, period_easy_payments, period_easy_returns, fetch_count
+        period_easy_sales, period_easy_payments, period_easy_returns, fetch_count, newest_first=True
     ))
-    all_events.sort(key=lambda row: (row["date"], row["created_at"], row["type"], row["id"], row.get("source", "legacy")))
+    all_events.sort(
+        key=lambda row: (row["created_at"], row["id"], row.get("source", "legacy"), row["type"]),
+        reverse=True,
+    )
+    # Running balances remain chronological, even though the visible history is
+    # sorted by when each transaction was entered.
     balance_events = _statement_events(
-        balance_sales, balance_payments, balance_returns, fetch_count
+        balance_sales, balance_payments, balance_returns, None
     )
     balance_events.extend(_easy_statement_events(
-        balance_easy_sales, balance_easy_payments, balance_easy_returns, fetch_count
+        balance_easy_sales, balance_easy_payments, balance_easy_returns, None
     ))
     balance_events.sort(key=lambda row: (row["date"], row["created_at"], row["type"], row["id"], row.get("source", "legacy")))
     selected_type = (transaction_type or "").lower()
@@ -189,9 +196,12 @@ def party_account_statement(*, party, start_date=None, end_date=None, transactio
     }
 
 
-def _statement_events(sales, payments, returns, fetch_count, product_id=None):
+def _statement_events(sales, payments, returns, fetch_count, product_id=None, newest_first=False):
     events = []
-    for invoice in sales.order_by("sale_date", "created_at", "id")[:fetch_count]:
+    sale_order = ("-created_at", "-id") if newest_first else ("sale_date", "created_at", "id")
+    payment_order = ("-created_at", "-id") if newest_first else ("payment_date", "created_at", "id")
+    return_order = ("-created_at", "-id") if newest_first else ("return_date", "created_at", "id")
+    for invoice in sales.order_by(*sale_order)[:fetch_count]:
         items = [item for item in invoice.items.all() if not product_id or item.product_id == int(product_id)]
         gross = sum((item.line_total for item in items), ZERO)
         events.append({
@@ -204,7 +214,7 @@ def _statement_events(sales, payments, returns, fetch_count, product_id=None):
             "total_payment": ZERO, "return_quantity": 0, "return_amount": ZERO,
             "net_amount": gross, "reference": "", "notes": invoice.notes,
         })
-    for payment in payments.order_by("payment_date", "created_at", "id")[:fetch_count]:
+    for payment in payments.order_by(*payment_order)[:fetch_count]:
         events.append({
             "date": payment.payment_date, "created_at": payment.created_at, "id": payment.id,
             "source": "legacy",
@@ -215,7 +225,7 @@ def _statement_events(sales, payments, returns, fetch_count, product_id=None):
             "total_payment": payment.total_amount, "return_quantity": 0, "return_amount": ZERO,
             "net_amount": -payment.total_amount, "reference": payment.reference, "notes": payment.notes,
         })
-    for entry in returns.order_by("return_date", "created_at", "id")[:fetch_count]:
+    for entry in returns.order_by(*return_order)[:fetch_count]:
         events.append({
             "date": entry.return_date, "created_at": entry.created_at, "id": entry.id,
             "source": "legacy",
@@ -230,9 +240,12 @@ def _statement_events(sales, payments, returns, fetch_count, product_id=None):
     return events
 
 
-def _easy_statement_events(sales, payments, returns, fetch_count):
+def _easy_statement_events(sales, payments, returns, fetch_count, newest_first=False):
     events = []
-    for sale in sales.order_by("sale_date", "created_at", "id")[:fetch_count]:
+    sale_order = ("-created_at", "-id") if newest_first else ("sale_date", "created_at", "id")
+    payment_order = ("-created_at", "-id") if newest_first else ("payment_date", "created_at", "id")
+    return_order = ("-created_at", "-id") if newest_first else ("return_date", "created_at", "id")
+    for sale in sales.order_by(*sale_order)[:fetch_count]:
         if sale.product and sale.product_id:
             product_label = sale.product.name
         else:
@@ -245,7 +258,7 @@ def _easy_statement_events(sales, payments, returns, fetch_count):
             "cash_payment": ZERO, "total_payment": ZERO, "return_quantity": 0,
             "return_amount": ZERO, "net_amount": sale.total_amount, "reference": "", "notes": sale.notes,
         })
-    for payment in payments.order_by("payment_date", "created_at", "id")[:fetch_count]:
+    for payment in payments.order_by(*payment_order)[:fetch_count]:
         events.append({
             "date": payment.payment_date, "created_at": payment.created_at, "id": payment.id,
             "source": "easy", "type": "payment", "invoice_number": "", "quantity": 0,
@@ -254,7 +267,7 @@ def _easy_statement_events(sales, payments, returns, fetch_count):
             "total_payment": payment.total_amount, "return_quantity": 0, "return_amount": ZERO,
             "net_amount": -payment.total_amount, "reference": payment.reference, "notes": payment.notes,
         })
-    for entry in returns.order_by("return_date", "created_at", "id")[:fetch_count]:
+    for entry in returns.order_by(*return_order)[:fetch_count]:
         events.append({
             "date": entry.return_date, "created_at": entry.created_at, "id": entry.id,
             "source": "easy", "type": "return", "invoice_number": entry.original_bill_number,

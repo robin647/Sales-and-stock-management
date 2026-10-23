@@ -113,10 +113,10 @@ class InvoiceViewSet(AdminOnlyViewSet):
     serializer_class = InvoiceSerializer
     queryset = WholesaleInvoice.objects.select_related("party", "showroom").prefetch_related(
         "items__product", "items__returns", "payments"
-    )
+    ).order_by("-created_at", "-id")
     filterset_fields = ["party", "invoice_number", "stock_location"]
     ordering_fields = ["sale_date", "invoice_number", "created_at"]
-    ordering = ["-sale_date", "-id"]
+    ordering = ["-created_at", "-id"]
 
     def get_queryset(self):
         queryset = super().get_queryset()
@@ -153,7 +153,9 @@ class InvoiceViewSet(AdminOnlyViewSet):
 
 
 class PaymentViewSet(AdminOnlyViewSet):
-    queryset = WholesalePayment.objects.select_related("invoice", "invoice__party", "created_by")
+    queryset = WholesalePayment.objects.select_related(
+        "invoice", "invoice__party", "created_by"
+    ).order_by("-created_at", "-id")
     serializer_class = PaymentCreateSerializer
 
     def get_serializer_class(self):
@@ -172,7 +174,9 @@ class PaymentViewSet(AdminOnlyViewSet):
 
 
 class ReturnViewSet(AdminOnlyViewSet):
-    queryset = WholesaleReturn.objects.select_related("invoice_item__invoice", "invoice_item__product", "created_by")
+    queryset = WholesaleReturn.objects.select_related(
+        "invoice_item__invoice", "invoice_item__product", "created_by"
+    ).order_by("-created_at", "-id")
     serializer_class = ReturnSerializer
 
     def get_queryset(self):
@@ -250,19 +254,25 @@ class EasyTransactionViewSet(AdminOnlyViewSet):
 
 
 class EasyWholesaleSaleViewSet(EasyTransactionViewSet):
-    queryset = EasyWholesaleSale.objects.select_related("party", "product", "showroom", "created_by")
+    queryset = EasyWholesaleSale.objects.select_related(
+        "party", "product", "showroom", "created_by"
+    ).order_by("-created_at", "-id")
     serializer_class = EasyWholesaleSaleSerializer
     date_field = "sale_date"
 
 
 class EasyWholesalePaymentViewSet(EasyTransactionViewSet):
-    queryset = EasyWholesalePayment.objects.select_related("party", "created_by")
+    queryset = EasyWholesalePayment.objects.select_related(
+        "party", "created_by"
+    ).order_by("-created_at", "-id")
     serializer_class = EasyWholesalePaymentSerializer
     date_field = "payment_date"
 
 
 class EasyWholesaleReturnViewSet(EasyTransactionViewSet):
-    queryset = EasyWholesaleReturn.objects.select_related("party", "product", "easy_sale", "showroom", "created_by")
+    queryset = EasyWholesaleReturn.objects.select_related(
+        "party", "product", "easy_sale", "showroom", "created_by"
+    ).order_by("-created_at", "-id")
     serializer_class = EasyWholesaleReturnSerializer
     date_field = "return_date"
 

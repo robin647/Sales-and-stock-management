@@ -1,7 +1,17 @@
 from .base import *  # noqa
+from django.core.exceptions import ImproperlyConfigured
 
 DEBUG = env.bool("DEBUG", default=False)
 ALLOWED_HOSTS = env.list("ALLOWED_HOSTS", default=[])
+
+if len(SECRET_KEY) < 50 or len(set(SECRET_KEY)) < 5:
+    raise ImproperlyConfigured(
+        "Production SECRET_KEY must be at least 50 characters and use at least 5 distinct characters."
+    )
+if DEBUG:
+    raise ImproperlyConfigured("DEBUG must be False in production.")
+if not ALLOWED_HOSTS or "*" in ALLOWED_HOSTS:
+    raise ImproperlyConfigured("Production ALLOWED_HOSTS must list the API host and cannot contain '*'.")
 
 # --- Security hardening for production ---
 SECURE_SSL_REDIRECT = env.bool("SECURE_SSL_REDIRECT", default=True)

@@ -1,4 +1,6 @@
 from django.contrib.auth.hashers import make_password
+from django.contrib.auth.password_validation import validate_password
+from django.core.exceptions import ValidationError as DjangoValidationError
 from django.db import transaction
 from rest_framework import serializers
 
@@ -37,6 +39,13 @@ class ShowroomSerializer(serializers.ModelSerializer):
             raise serializers.ValidationError({
                 "credentials": "Provide both a username and password when setting showroom login credentials."
             })
+        if username and password:
+            user = (self._login_user(self.instance) if self.instance else None) or User(username=username)
+            user.username = username
+            try:
+                validate_password(password, user=user)
+            except DjangoValidationError as error:
+                raise serializers.ValidationError({"password": list(error.messages)}) from error
         if username:
             duplicates = User.objects.filter(username=username)
             if self.instance:

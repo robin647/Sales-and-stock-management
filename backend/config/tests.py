@@ -1,7 +1,7 @@
 from types import SimpleNamespace
 from unittest.mock import patch
 
-from django.test import SimpleTestCase
+from django.test import SimpleTestCase, TestCase
 from django.urls import resolve, reverse
 from rest_framework.test import APIClient
 
@@ -135,8 +135,8 @@ class CorsPreflightTests(SimpleTestCase):
                 self.assertIn(header, allowed_headers)
 
 
-class AdminLoginTests(SimpleTestCase):
-    """Exercise the real SimpleJWT/Django password validation without a DB."""
+class AdminLoginTests(TestCase):
+    """Exercise SimpleJWT login with the blacklist app's database writes enabled."""
 
     def setUp(self):
         self.client = APIClient()
@@ -150,6 +150,7 @@ class AdminLoginTests(SimpleTestCase):
             is_active=active,
         )
         user.set_password("correct-horse-battery")
+        user.save()
         return user
 
     def test_valid_credentials_return_tokens_and_admin_claims(self):

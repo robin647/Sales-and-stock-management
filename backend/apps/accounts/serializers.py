@@ -1,6 +1,8 @@
 from rest_framework import serializers
 from rest_framework_simplejwt.serializers import TokenObtainPairSerializer
 from rest_framework_simplejwt.tokens import Token
+from django.contrib.auth.password_validation import validate_password
+from django.core.exceptions import ValidationError as DjangoValidationError
 
 from .models import User
 
@@ -102,7 +104,7 @@ class UserSerializer(serializers.ModelSerializer):
 class ShowroomUserCreateSerializer(serializers.ModelSerializer):
     """Used by Admin to create a new showroom user account."""
 
-    password = serializers.CharField(write_only=True, min_length=6)
+    password = serializers.CharField(write_only=True, min_length=8)
 
     class Meta:
         model = User
@@ -111,6 +113,17 @@ class ShowroomUserCreateSerializer(serializers.ModelSerializer):
     def validate(self, attrs):
         if not attrs.get("showroom"):
             raise serializers.ValidationError({"showroom": "Showroom is required for a showroom user."})
+        user = User(
+            username=attrs["username"],
+            first_name=attrs.get("first_name", ""),
+            last_name=attrs.get("last_name", ""),
+            email=attrs.get("email", ""),
+            showroom=attrs["showroom"],
+        )
+        try:
+            validate_password(attrs["password"], user=user)
+        except DjangoValidationError as error:
+            raise serializers.ValidationError({"password": list(error.messages)}) from error
         return attrs
 
     def create(self, validated_data):
