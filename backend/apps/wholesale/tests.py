@@ -386,6 +386,26 @@ class WholesaleApiTests(TestCase):
         self.assertEqual(filtered.data["results"][0]["date"], date(2026, 10, 12))
         self.assertEqual(filtered.data["results"][0]["reference"], "EASY-REF")
 
+    def test_party_history_orders_by_entry_time_instead_of_transaction_date(self):
+        sale = self.client.post("/api/wholesale/easy/sales/", {
+            "party": self.party_id, "sale_date": "2026-10-15", "bill_number": "NEWER-SALE",
+            "quantity": 1, "total_amount": "500.00",
+        }, format="json")
+        payment = self.client.post("/api/wholesale/easy/payments/", {
+            "party": self.party_id, "payment_date": "2026-10-12", "bank_amount": "50.00",
+            "bkash_amount": "0", "cash_amount": "0",
+        }, format="json", HTTP_IDEMPOTENCY_KEY="newer-entry-payment")
+        self.assertEqual(sale.status_code, 201, sale.data)
+        self.assertEqual(payment.status_code, 201, payment.data)
+
+        statement = self.client.get(f"/api/wholesale/parties/{self.party_id}/history/")
+        self.assertEqual(statement.status_code, 200, statement.data)
+        self.assertEqual([row["type"] for row in statement.data["results"]], ["payment", "sale"])
+        self.assertEqual(
+            [row["date"] for row in statement.data["results"]],
+            [date(2026, 10, 12), date(2026, 10, 15)],
+        )
+
     def test_easy_standalone_return_is_financial_only_and_linked_return_restores_selected_stock(self):
         standalone = self.client.post("/api/wholesale/easy/returns/", {
             "party": self.party_id, "return_date": "2026-10-11", "quantity": 1,
@@ -501,7 +521,7 @@ class WholesaleApiTests(TestCase):
         rows = [row for row in statement.data["results"] if row["type"] == "sale"]
         self.assertEqual(len(rows), 2)
         self.assertEqual({row["source"] for row in rows}, {"legacy", "easy"})
-        self.assertEqual([row["running_balance"] for row in rows], [Decimal("100.00"), Decimal("350.00")])
+        self.assertEqual([row["running_balance"] for row in rows], [Decimal("350.00"), Decimal("100.00")])
 
 
 class InventoryApiTests(TestCase):

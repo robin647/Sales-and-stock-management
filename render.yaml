@@ -3,7 +3,7 @@ services:
     name: mahir-showroom-api
     runtime: python
     rootDir: backend
-    buildCommand: pip install -r requirements.txt && python manage.py collectstatic --noinput
+    buildCommand: python -m pip install --upgrade 'pip>=26.2.2' && pip install -r requirements.txt && python manage.py collectstatic --noinput
     startCommand: python manage.py migrate --noinput && gunicorn config.wsgi:application --bind 0.0.0.0:$PORT --worker-class gthread --workers 3 --threads 4 --timeout 60 --max-requests 1000 --max-requests-jitter 100
     healthCheckPath: /api/health/
     envVars:
