@@ -40,9 +40,15 @@ def transfer_stock(*, product, showroom, quantity, transfer_type, date, created_
 
     factory = _lock_stock(product, "factory")
     store = _lock_stock(product, "showroom", showroom)
+    previous_daily = DailyStock.objects.filter(
+        showroom=showroom, product=product, date__lt=date
+    ).order_by("-date").first()
     daily, _ = DailyStock.objects.select_for_update().get_or_create(
         showroom=showroom, product=product, date=date,
-        defaults={"created_by": created_by},
+        defaults={
+            "created_by": created_by,
+            "opening_qty": previous_daily.closing_qty if previous_daily else store.quantity,
+        },
     )
     if date == timezone.localdate():
         recorded_quantity = daily.compute_closing()

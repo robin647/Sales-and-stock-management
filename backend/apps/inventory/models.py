@@ -95,7 +95,8 @@ class DailyStock(models.Model):
         if closing < 0:
             raise ValidationError(
                 "Closing stock cannot be negative. Stock movements exceed available quantity "
-                f"(opening {self.opening_qty} + received {self.received_qty} + return {self.return_qty} - factory return {self.returned_to_factory_qty})."
+                f"(opening {self.opening_qty} + received {self.received_qty} + return {self.return_qty} "
+                f"- sold {self.sold_qty} - factory return {self.returned_to_factory_qty} = {closing})."
             )
 
     def save(self, *args, **kwargs):
