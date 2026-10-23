@@ -1,5 +1,6 @@
 from rest_framework import viewsets, permissions
-from rest_framework.exceptions import MethodNotAllowed, PermissionDenied
+from rest_framework.exceptions import PermissionDenied
+from rest_framework.response import Response
 
 from .models import DailyBalance, DailyStock, FactoryStock, ShowroomStock, StockTransfer
 from .serializers import (DailyBalanceSerializer, DailyStockSerializer, FactoryStockSerializer,
@@ -115,7 +116,7 @@ class ShowroomStockViewSet(viewsets.ReadOnlyModelViewSet):
 class StockTransferViewSet(viewsets.ModelViewSet):
     serializer_class = StockTransferSerializer
     permission_classes = [permissions.IsAuthenticated]
-    http_method_names = ["get", "post", "patch", "head", "options"]
+    http_method_names = ["get", "post", "patch", "delete", "head", "options"]
 
     def get_queryset(self):
         queryset = StockTransfer.objects.select_related("product", "showroom", "created_by")
@@ -138,3 +139,9 @@ class StockTransferViewSet(viewsets.ModelViewSet):
             serializer.save(showroom=user.showroom)
             return
         serializer.save()
+
+    def destroy(self, request, *args, **kwargs):
+        from .services import delete_transfer
+
+        delete_transfer(transfer=self.get_object())
+        return Response(status=204)

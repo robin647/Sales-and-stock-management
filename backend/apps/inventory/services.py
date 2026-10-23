@@ -85,45 +85,80 @@ def transfer_stock(*, product, showroom, quantity, transfer_type, date, created_
     )
 
 @transaction.atomic
-def update_transfer_quantity(*, transfer, quantity):
+def update_transfer(*, transfer, quantity, transfer_type):
     from .models import DailyStock
-    from rest_framework.exceptions import ValidationError
 
-    difference = quantity - transfer.quantity
-    if difference == 0:
-        return transfer
+    transfer = transfer.__class__.objects.select_for_update().get(pk=transfer.pk)
     factory = _lock_stock(transfer.product, "factory")
     store = _lock_stock(transfer.product, "showroom", transfer.showroom)
     daily = DailyStock.objects.select_for_update().get(
         showroom=transfer.showroom, product=transfer.product, date=transfer.date
     )
-    if transfer.transfer_type == "receive":
-        if difference > 0 and factory.quantity < difference:
-            raise ValidationError({"quantity": f"Factory has only {factory.quantity} units available."})
-        factory.quantity -= difference
-        store.quantity += difference
-        daily.received_qty += difference
-    elif transfer.transfer_type == "sale":
-        if difference > 0 and store.quantity < difference:
-            raise ValidationError({"quantity": f"Showroom has only {store.quantity} units available."})
-        store.quantity -= difference
-        daily.sold_qty += difference
-    elif transfer.transfer_type == "factory_return":
-        if difference > 0 and store.quantity < difference:
-            raise ValidationError({"quantity": f"Showroom has only {store.quantity} units available."})
-        if difference < 0 and factory.quantity < -difference:
-            raise ValidationError({"quantity": f"Factory has only {factory.quantity} units available to reverse this return."})
-        store.quantity -= difference
-        factory.quantity += difference
-        daily.returned_to_factory_qty += difference
-    elif transfer.transfer_type == "return":
-        if difference < 0 and store.quantity < -difference:
-            raise ValidationError({"quantity": f"Showroom has only {store.quantity} units available to reverse this return."})
-        store.quantity += difference
-        daily.return_qty += difference
+    _apply_transfer_change(
+        transfer, factory, store, daily, quantity=quantity, transfer_type=transfer_type
+    )
+    return transfer
+
+@transaction.atomic
+def delete_transfer(*, transfer):
+    from .models import DailyStock
+
+    transfer = transfer.__class__.objects.select_for_update().get(pk=transfer.pk)
+    factory = _lock_stock(transfer.product, "factory")
+    store = _lock_stock(transfer.product, "showroom", transfer.showroom)
+    daily = DailyStock.objects.select_for_update().get(
+        showroom=transfer.showroom, product=transfer.product, date=transfer.date
+    )
+    _apply_transfer_change(
+        transfer, factory, store, daily, quantity=0, transfer_type=None
+    )
+    transfer.delete()
+
+def _apply_transfer_change(transfer, factory, store, daily, *, quantity, transfer_type):
+    from rest_framework.exceptions import ValidationError
+
+    daily_fields = {
+        "receive": "received_qty",
+        "sale": "sold_qty",
+        "factory_return": "returned_to_factory_qty",
+        "return": "return_qty",
+    }
+    old_type = transfer.transfer_type
+    new_type = transfer_type
+    old_quantity = transfer.quantity
+    new_quantity = quantity
+    if old_type not in daily_fields or (new_type is not None and new_type not in daily_fields):
+        raise ValidationError({"transfer_type": "Choose a valid stock transfer type."})
+
+    def deltas(kind, amount):
+        if kind == "receive":
+            return -amount, amount
+        if kind == "sale":
+            return 0, -amount
+        if kind == "factory_return":
+            return amount, -amount
+        return 0, amount
+
+    old_factory, old_store = deltas(old_type, old_quantity)
+    new_factory, new_store = deltas(new_type, new_quantity) if new_type else (0, 0)
+    factory.quantity += new_factory - old_factory
+    store.quantity += new_store - old_store
+    if factory.quantity < 0:
+        raise ValidationError({"quantity": f"Factory stock would become negative ({factory.quantity})."})
+    if store.quantity < 0:
+        raise ValidationError({"quantity": f"Showroom stock would become negative ({store.quantity})."})
+
+    setattr(daily, daily_fields[old_type], getattr(daily, daily_fields[old_type]) - old_quantity)
+    if new_type:
+        setattr(daily, daily_fields[new_type], getattr(daily, daily_fields[new_type]) + new_quantity)
+    try:
+        daily.save()
+    except DjangoValidationError as exc:
+        detail = getattr(exc, "message_dict", None) or exc.messages
+        raise ValidationError(detail) from exc
     factory.save(update_fields=["quantity", "updated_at"])
     store.save(update_fields=["quantity", "updated_at"])
-    daily.save()
-    transfer.quantity = quantity
-    transfer.save(update_fields=["quantity"])
-    return transfer
+    if new_type:
+        transfer.quantity = new_quantity
+        transfer.transfer_type = new_type
+        transfer.save(update_fields=["quantity", "transfer_type"])
