@@ -33,7 +33,7 @@ class DailyExcelExportView(APIView):
 
         ws_stock = wb.active
         ws_stock.title = "Stock"
-        _styled_header(ws_stock, ["Product", "Opening", "Received", "Sold", "Return", "Adjustment", "Closing"])
+        _styled_header(ws_stock, ["Product", "Opening", "Received", "Sold", "Customer Return", "Return to Factory", "Adjustment", "Closing"])
         stocks = DailyStock.objects.filter(showroom_id=showroom_id, date=target_date).select_related("product")
         adjustments = StockAdjustment.objects.filter(
             location="showroom", showroom_id=showroom_id, created_at__date=target_date,
@@ -46,10 +46,11 @@ class DailyExcelExportView(APIView):
         for s in stocks:
             adjustment = adjustment_by_product.pop(s.product_id, {"difference": 0})
             ws_stock.append([s.product.name, s.opening_qty, s.received_qty, s.sold_qty, s.return_qty,
+                             s.returned_to_factory_qty,
                              adjustment["difference"], s.closing_qty + adjustment["difference"]])
         for product_id, adjustment in adjustment_by_product.items():
             product = next(entry.product for entry in adjustments if entry.product_id == product_id)
-            ws_stock.append([product.name, 0, 0, 0, 0, adjustment["difference"], adjustment["new_quantity"]])
+            ws_stock.append([product.name, 0, 0, 0, 0, 0, adjustment["difference"], adjustment["new_quantity"]])
 
         ws_balance = wb.create_sheet("Balance")
         _styled_header(ws_balance, ["Item", "Amount"])
@@ -112,9 +113,10 @@ class MonthlyExcelExportView(APIView):
             ])
 
         ws_stock = wb.create_sheet("Stock Summary")
-        _styled_header(ws_stock, ["Product", "Received", "Sold", "Return", "Adjustment"])
+        _styled_header(ws_stock, ["Product", "Received", "Sold", "Customer Return", "Return to Factory", "Adjustment"])
         stock_summary = stocks.values("product__name").annotate(
             received=Sum("received_qty"), sold=Sum("sold_qty"), returned=Sum("return_qty"),
+            returned_to_factory=Sum("returned_to_factory_qty"),
         )
         adjustment_summary = StockAdjustment.objects.filter(
             location="showroom", showroom__in=showrooms_qs,
@@ -130,9 +132,9 @@ class MonthlyExcelExportView(APIView):
         for row in stock_summary:
             name = row["product__name"]
             seen_products.add(name)
-            ws_stock.append([name, row["received"], row["sold"], row["returned"], adjustment_by_name.pop(name, 0)])
+            ws_stock.append([name, row["received"], row["sold"], row["returned"], row["returned_to_factory"], adjustment_by_name.pop(name, 0)])
         for name, difference in adjustment_by_name.items():
-            ws_stock.append([name, 0, 0, 0, difference])
+            ws_stock.append([name, 0, 0, 0, 0, difference])
 
         response = HttpResponse(
             content_type="application/vnd.openxmlformats-officedocument.spreadsheetml.sheet"

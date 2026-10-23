@@ -36,11 +36,16 @@ class StockAdjustment(models.Model):
         ordering = ["-created_at", "-id"]
 
 class StockTransfer(models.Model):
-    TRANSFER_TYPES = [("receive", "Receive"), ("sale", "Sale"), ("return", "Return")]
+    TRANSFER_TYPES = [
+        ("receive", "Receive from Factory"),
+        ("sale", "Sale to Customer"),
+        ("factory_return", "Return to Factory"),
+        ("return", "Return from Customer"),
+    ]
     product = models.ForeignKey(Product, on_delete=models.PROTECT, related_name="stock_transfers")
     showroom = models.ForeignKey(Showroom, on_delete=models.PROTECT, related_name="stock_transfers")
     quantity = models.PositiveIntegerField(validators=[MinValueValidator(1)])
-    transfer_type = models.CharField(max_length=12, choices=TRANSFER_TYPES)
+    transfer_type = models.CharField(max_length=16, choices=TRANSFER_TYPES)
     date = models.DateField()
     notes = models.CharField(max_length=255, blank=True)
     created_by = models.ForeignKey(settings.AUTH_USER_MODEL, on_delete=models.PROTECT, related_name="stock_transfers")
@@ -52,7 +57,7 @@ class StockTransfer(models.Model):
 class DailyStock(models.Model):
     """
     One row per (showroom, product, date).
-    closing_qty = opening_qty + received_qty - sold_qty + return_qty
+    closing_qty = opening_qty + received_qty - sold_qty - returned_to_factory_qty + return_qty
     Enforced by full_clean() before every save — see clean().
     """
 
@@ -64,6 +69,7 @@ class DailyStock(models.Model):
     received_qty = models.PositiveIntegerField(default=0)
     sold_qty = models.PositiveIntegerField(default=0)
     return_qty = models.PositiveIntegerField(default=0)
+    returned_to_factory_qty = models.PositiveIntegerField(default=0)
     closing_qty = models.IntegerField(default=0, validators=[MinValueValidator(0)])
 
     created_by = models.ForeignKey(settings.AUTH_USER_MODEL, on_delete=models.PROTECT, related_name="+")
@@ -80,7 +86,7 @@ class DailyStock(models.Model):
         return f"{self.showroom} / {self.product} / {self.date}"
 
     def compute_closing(self):
-        return self.opening_qty + self.received_qty - self.sold_qty + self.return_qty
+        return self.opening_qty + self.received_qty - self.sold_qty - self.returned_to_factory_qty + self.return_qty
 
     def clean(self):
         from django.core.exceptions import ValidationError
@@ -88,8 +94,8 @@ class DailyStock(models.Model):
         closing = self.compute_closing()
         if closing < 0:
             raise ValidationError(
-                "Closing stock cannot be negative. Sold quantity exceeds available stock "
-                f"(opening {self.opening_qty} + received {self.received_qty} + return {self.return_qty})."
+                "Closing stock cannot be negative. Stock movements exceed available quantity "
+                f"(opening {self.opening_qty} + received {self.received_qty} + return {self.return_qty} - factory return {self.returned_to_factory_qty})."
             )
 
     def save(self, *args, **kwargs):

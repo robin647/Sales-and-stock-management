@@ -11,7 +11,7 @@ class DailyStockSerializer(serializers.ModelSerializer):
         model = DailyStock
         fields = [
             "id", "showroom", "showroom_name", "product", "product_name", "date",
-            "opening_qty", "received_qty", "sold_qty", "return_qty", "closing_qty",
+            "opening_qty", "received_qty", "sold_qty", "return_qty", "returned_to_factory_qty", "closing_qty",
             "created_by", "created_at", "updated_at",
         ]
         read_only_fields = ["id", "opening_qty", "closing_qty", "created_by", "created_at", "updated_at"]
@@ -119,10 +119,20 @@ class StockTransferSerializer(serializers.ModelSerializer):
         read_only_fields = ["id", "created_at"]
 
     def get_from_location(self, obj):
-        return {"receive": "Factory", "sale": obj.showroom.name, "return": "Customer"}[obj.transfer_type]
+        return {
+            "receive": "Factory",
+            "sale": obj.showroom.name,
+            "factory_return": obj.showroom.name,
+            "return": "Customer",
+        }[obj.transfer_type]
 
     def get_to_location(self, obj):
-        return {"receive": obj.showroom.name, "sale": "Customer", "return": obj.showroom.name}[obj.transfer_type]
+        return {
+            "receive": obj.showroom.name,
+            "sale": "Customer",
+            "factory_return": "Factory",
+            "return": obj.showroom.name,
+        }[obj.transfer_type]
 
     def get_status(self, obj):
         return "Completed"

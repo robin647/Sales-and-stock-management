@@ -73,6 +73,7 @@ class DashboardView(APIView):
 
         stock_totals = DailyStock.objects.filter(**balances_filter, showroom__in=showrooms_qs).aggregate(
             received=Sum("received_qty"), sold=Sum("sold_qty"), returned=Sum("return_qty"),
+            returned_to_factory=Sum("returned_to_factory_qty"),
         )
         adjustment_total = StockAdjustment.objects.filter(
             location="showroom", showroom__in=showrooms_qs, **adjustment_filter,
@@ -86,6 +87,7 @@ class DashboardView(APIView):
                 "received": stock_totals["received"] or 0,
                 "sold": stock_totals["sold"] or 0,
                 "returned": stock_totals["returned"] or 0,
+                "returned_to_factory": stock_totals["returned_to_factory"] or 0,
                 "adjustment": adjustment_total,
             },
             "showroom_wise": list(
@@ -146,7 +148,8 @@ class DailyStatementView(APIView):
         for adjustment in adjustments_qs:
             row = adjustment_by_product.setdefault(adjustment.product_id, {
                 "product": adjustment.product.name, "opening": 0, "received": 0,
-                "sold": 0, "return": 0, "adjustment": 0, "closing": 0,
+                "sold": 0, "return": 0, "returned_to_factory": 0,
+                "adjustment": 0, "closing": 0,
             })
             row["adjustment"] += adjustment.difference
             row["closing"] = adjustment.new_quantity
@@ -159,6 +162,7 @@ class DailyStatementView(APIView):
                 "product": stock.product.name, "opening": stock.opening_qty,
                 "received": stock.received_qty, "sold": stock.sold_qty,
                 "return": stock.return_qty, "adjustment": adjustment_amount,
+                "returned_to_factory": stock.returned_to_factory_qty,
                 "closing": stock.closing_qty + adjustment_amount,
             })
         for row in adjustment_by_product.values():
@@ -223,6 +227,7 @@ class MonthlyReportView(APIView):
             received=Sum("received_qty"),
             sold=Sum("sold_qty"),
             returned=Sum("return_qty"),
+            returned_to_factory=Sum("returned_to_factory_qty"),
         )
         for row in stock_summary:
             row["adjustment"] = 0
@@ -246,7 +251,8 @@ class MonthlyReportView(APIView):
             else:
                 stock_rows[row["product_id"]] = {
                     "product__id": row["product_id"], "product__name": row["product__name"],
-                    "received": 0, "sold": 0, "returned": 0, "adjustment": row["adjustment"] or 0,
+                    "received": 0, "sold": 0, "returned": 0, "returned_to_factory": 0,
+                    "adjustment": row["adjustment"] or 0,
                 }
 
         return Response({
