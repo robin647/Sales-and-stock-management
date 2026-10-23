@@ -26,6 +26,16 @@ export const categoryApi = {
 
 export const productApi = {
   list: (params) => api.get("/products/", { params }),
+  listAll: async (params = {}) => {
+    const rows = [];
+    let response = await api.get("/products/", { params: { ...params, page_size: 100, page: 1 } });
+    while (response) {
+      const data = response.data;
+      rows.push(...(data.results || data));
+      response = data.next ? await api.get(data.next) : null;
+    }
+    return rows;
+  },
   create: (data) => api.post("/products/", data),
   update: (id, data) => api.patch(`/products/${id}/`, data),
 };

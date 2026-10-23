@@ -27,12 +27,12 @@ export default function WholesaleSales() {
   const paymentKeyRef = useRef({ payload: "", key: "" });
 
   async function load() {
-    const [partyRes, productRes, showroomRes, invoiceRes] = await Promise.all([
-      wholesalePartyApi.list({ is_active: true, page_size: 200 }), productApi.list({ is_active: true, page_size: 200 }), showroomApi.list({ page_size: 200 }), wholesaleInvoiceApi.list({ page_size: 200 }),
+    const [partyRes, products, showroomRes, invoiceRes] = await Promise.all([
+      wholesalePartyApi.list({ is_active: true, page_size: 200 }), productApi.listAll({ is_active: true }), showroomApi.list({ page_size: 200 }), wholesaleInvoiceApi.list({ page_size: 200 }),
     ]);
     const partyRows = listOf(partyRes);
     setParties(partyRows);
-    setProducts(listOf(productRes));
+    setProducts(products);
     setShowrooms(listOf(showroomRes));
     setInvoices(listOf(invoiceRes));
     if (!form.party && partyRows[0]) setForm((current) => ({ ...current, party: String(partyRows[0].id) }));

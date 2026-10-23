@@ -27,7 +27,7 @@ export default function StockEntry() {
   const [success, setSuccess] = useState("");
 
   useEffect(() => {
-    productApi.list({ is_active: true }).then((res) => setProducts(res.data.results || res.data));
+    productApi.listAll({ is_active: true }).then(setProducts);
   }, []);
 
   function loadTransfers() {

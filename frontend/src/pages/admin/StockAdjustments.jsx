@@ -13,9 +13,9 @@ export default function StockAdjustments() {
 
   async function load() {
     const [productRes, factoryRes, showroomRes, showroomStockRes, historyRes] = await Promise.all([
-      productApi.list({ page_size: 200 }), factoryStockApi.list({ page_size: 200 }), showroomApi.list({ page_size: 200 }), showroomStockApi.list({ page_size: 200 }), stockAdjustmentApi.list({ page_size: 200 }),
+      productApi.listAll(), factoryStockApi.list({ page_size: 200 }), showroomApi.list({ page_size: 200 }), showroomStockApi.list({ page_size: 200 }), stockAdjustmentApi.list({ page_size: 200 }),
     ]);
-    const productRows = listData(productRes);
+    const productRows = productRes;
     const showroomRows = listData(showroomRes);
     const stockRows = {};
     listData(factoryRes).forEach((row) => { stockRows[`factory-${row.product}`] = row.quantity; });

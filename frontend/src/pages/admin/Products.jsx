@@ -13,7 +13,7 @@ export default function Products() {
 
   function loadAll() {
     categoryApi.list().then((res) => setCategories(res.data.results || res.data));
-    productApi.list().then((res) => setProducts(res.data.results || res.data));
+    productApi.listAll().then(setProducts);
     factoryStockApi.list().then((res) => {
       const stocks = {};
       (res.data.results || res.data).forEach((stock) => { stocks[stock.product] = stock.quantity; });
