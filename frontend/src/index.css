@@ -943,7 +943,10 @@ main table tbody td {
 
 main .overflow-x-auto {
   max-width: 100%;
+  max-height: max(180px, min(64dvh, 620px));
+  overflow: auto;
   overscroll-behavior-x: contain;
+  overscroll-behavior-y: contain;
   scrollbar-width: thin;
 }
 
@@ -957,14 +960,8 @@ main .overflow-x-auto table td {
   padding-left: 1rem;
 }
 
-/* Keep wide ledger headings visible while scrolling rows inside a viewport-
-   sized box, so each amount can still be matched to its column. */
-.wholesale-statement-scroll {
-  max-height: max(180px, min(64dvh, 620px));
-  overflow: auto;
-  overscroll-behavior: contain;
-}
-
+/* Keep every table's column labels visible while scrolling through rows. */
+main .overflow-x-auto table thead th,
 .wholesale-statement-table thead th {
   position: sticky;
   top: 0;
