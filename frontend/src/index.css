@@ -957,49 +957,20 @@ main .overflow-x-auto table td {
   padding-left: 1rem;
 }
 
-/* Keep the current screen's page heading visible while its content scrolls. */
-main > .mx-auto h1 {
+/* Keep wide ledger headings visible while scrolling rows inside a viewport-
+   sized box, so each amount can still be matched to its column. */
+.wholesale-statement-scroll {
+  max-height: max(180px, min(64dvh, 620px));
+  overflow: auto;
+  overscroll-behavior: contain;
+}
+
+.wholesale-statement-table thead th {
   position: sticky;
   top: 0;
-  z-index: 15;
-  background: var(--page);
-  padding-block: 0.4rem;
-}
-
-/* The wholesale statement is very wide, so retain its date, type, and party
-   context while the user pans across the financial columns. */
-.wholesale-statement-table th:nth-child(-n + 3),
-.wholesale-statement-table td:nth-child(-n + 3) {
-  position: sticky;
-  z-index: 2;
-  background: var(--surface);
-}
-
-.wholesale-statement-table th:nth-child(-n + 3) {
-  z-index: 4;
+  z-index: 5;
   background: var(--surface-soft);
-}
-
-.wholesale-statement-table th:first-child,
-.wholesale-statement-table td:first-child {
-  left: 0;
-  width: 180px;
-  min-width: 180px;
-}
-
-.wholesale-statement-table th:nth-child(2),
-.wholesale-statement-table td:nth-child(2) {
-  left: 180px;
-  width: 75px;
-  min-width: 75px;
-}
-
-.wholesale-statement-table th:nth-child(3),
-.wholesale-statement-table td:nth-child(3) {
-  left: 255px;
-  width: 180px;
-  min-width: 180px;
-  box-shadow: 5px 0 8px -7px rgba(15, 23, 42, 0.6);
+  box-shadow: 0 1px 0 var(--border);
 }
 
 main button:focus-visible,
