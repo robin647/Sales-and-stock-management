@@ -116,7 +116,7 @@ export default function WholesaleParties() {
   }, [partySearch, activeFilter, partyPageNumber]);
 
   useEffect(() => {
-    productApi.list({ is_active: true, page_size: 200 }).then(({ data }) => setProducts(data.results || data)).catch(() => {});
+    productApi.listAll({ is_active: true }).then(setProducts).catch(() => {});
   }, []);
 
   async function loadStatement(page = 1) {
