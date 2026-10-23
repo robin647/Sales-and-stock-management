@@ -4,7 +4,6 @@ from rest_framework.exceptions import PermissionDenied
 from .models import Product, ProductCategory
 from .serializers import ProductCategorySerializer, ProductSerializer
 
-
 class ProductCategoryViewSet(viewsets.ModelViewSet):
     serializer_class = ProductCategorySerializer
     queryset = ProductCategory.objects.all()
@@ -14,7 +13,6 @@ class ProductCategoryViewSet(viewsets.ModelViewSet):
         super().check_permissions(request)
         if request.method not in permissions.SAFE_METHODS and request.user.role != "admin":
             raise PermissionDenied("Only Admin can manage product categories.")
-
 
 class ProductViewSet(viewsets.ModelViewSet):
     """

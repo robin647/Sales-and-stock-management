@@ -25,7 +25,6 @@ from .serializers import (
 )
 from .services import all_party_summary
 
-
 class AdminOnlyViewSet(viewsets.ModelViewSet):
     permission_classes = [permissions.IsAuthenticated]
 
@@ -33,7 +32,6 @@ class AdminOnlyViewSet(viewsets.ModelViewSet):
         super().check_permissions(request)
         if request.user.role != "admin":
             raise PermissionDenied("Only Admin can access wholesale management.")
-
 
 class PartyViewSet(AdminOnlyViewSet):
     serializer_class = PartySerializer
@@ -108,7 +106,6 @@ class PartyViewSet(AdminOnlyViewSet):
 
         return party_statement_excel(self.get_object(), _validate_statement_filters(request.query_params))
 
-
 class InvoiceViewSet(AdminOnlyViewSet):
     serializer_class = InvoiceSerializer
     queryset = WholesaleInvoice.objects.select_related("party", "showroom").prefetch_related(
@@ -151,7 +148,6 @@ class InvoiceViewSet(AdminOnlyViewSet):
                 item.delete()
             instance.delete()
 
-
 class PaymentViewSet(AdminOnlyViewSet):
     queryset = WholesalePayment.objects.select_related(
         "invoice", "invoice__party", "created_by"
@@ -170,8 +166,6 @@ class PaymentViewSet(AdminOnlyViewSet):
         if party_id:
             queryset = queryset.filter(invoice__party_id=party_id)
         return queryset
-
-
 
 class ReturnViewSet(AdminOnlyViewSet):
     queryset = WholesaleReturn.objects.select_related(
@@ -209,7 +203,6 @@ class ReturnViewSet(AdminOnlyViewSet):
             stock.save(update_fields=["quantity", "updated_at"])
             instance.delete()
 
-
 class StockAdjustmentViewSet(AdminOnlyViewSet):
     queryset = StockAdjustment.objects.select_related("product", "showroom", "created_by")
     serializer_class = StockAdjustmentSerializer
@@ -222,7 +215,6 @@ class StockAdjustmentViewSet(AdminOnlyViewSet):
 
     def destroy(self, request, *args, **kwargs):
         raise MethodNotAllowed(request.method, detail="Stock adjustment history is immutable.")
-
 
 class EasyTransactionViewSet(AdminOnlyViewSet):
     http_method_names = ["get", "post", "put", "patch", "delete", "head", "options"]
@@ -252,14 +244,12 @@ class EasyTransactionViewSet(AdminOnlyViewSet):
             _undo_easy_stock_movement(instance, self.request.user)
             instance.delete()
 
-
 class EasyWholesaleSaleViewSet(EasyTransactionViewSet):
     queryset = EasyWholesaleSale.objects.select_related(
         "party", "product", "showroom", "created_by"
     ).order_by("-created_at", "-id")
     serializer_class = EasyWholesaleSaleSerializer
     date_field = "sale_date"
-
 
 class EasyWholesalePaymentViewSet(EasyTransactionViewSet):
     queryset = EasyWholesalePayment.objects.select_related(
@@ -268,14 +258,12 @@ class EasyWholesalePaymentViewSet(EasyTransactionViewSet):
     serializer_class = EasyWholesalePaymentSerializer
     date_field = "payment_date"
 
-
 class EasyWholesaleReturnViewSet(EasyTransactionViewSet):
     queryset = EasyWholesaleReturn.objects.select_related(
         "party", "product", "easy_sale", "showroom", "created_by"
     ).order_by("-created_at", "-id")
     serializer_class = EasyWholesaleReturnSerializer
     date_field = "return_date"
-
 
 class PartySummaryView(APIView):
     permission_classes = [permissions.IsAuthenticated]
@@ -289,7 +277,6 @@ class PartySummaryView(APIView):
         response = paginator.get_paginated_response(page)
         response.data["grand_totals"] = totals
         return response
-
 
 class WholesaleReportView(PartySummaryView):
     def get(self, request):
@@ -363,14 +350,12 @@ class WholesaleReportView(PartySummaryView):
         } for row in summary_rows]
         return response
 
-
 def _payment_status(invoice):
     if invoice.due_amount <= 0:
         return "paid"
     if invoice.payment_total > 0:
         return "partial"
     return "due"
-
 
 def _validate_statement_filters(params):
     start_date = params.get("start_date") or None

@@ -6,7 +6,6 @@ const todayStr = () => {
   return new Date(now.getTime() - now.getTimezoneOffset() * 60_000).toISOString().slice(0, 10);
 };
 
-// DRF returns paginated results in production and arrays in some local setups.
 const listResults = (data) => data?.results ?? data ?? [];
 
 export default function StockEntry() {
@@ -99,7 +98,7 @@ export default function StockEntry() {
     <div className="space-y-6">
       <h1 className="text-lg font-semibold">Stock Management</h1>
 
-      {/* Stock Transfer Form */}
+      {                         }
       <div className="bg-white rounded-2xl border border-gray-100 p-4 max-w-md">
         <label className="block text-xs text-gray-500 mb-1">Date</label>
         <input
@@ -178,7 +177,7 @@ export default function StockEntry() {
         </form>
       </div>
 
-      {/* Transfers Table */}
+      {                     }
       <div className="bg-white rounded-2xl border border-gray-100 p-4">
         <div className="text-sm font-medium text-gray-700 mb-3">Transfers for {date}</div>
         <div className="overflow-x-auto">

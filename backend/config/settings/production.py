@@ -13,7 +13,6 @@ if DEBUG:
 if not ALLOWED_HOSTS or "*" in ALLOWED_HOSTS:
     raise ImproperlyConfigured("Production ALLOWED_HOSTS must list the API host and cannot contain '*'.")
 
-# --- Security hardening for production ---
 SECURE_SSL_REDIRECT = env.bool("SECURE_SSL_REDIRECT", default=True)
 SESSION_COOKIE_SECURE = True
 CSRF_COOKIE_SECURE = True

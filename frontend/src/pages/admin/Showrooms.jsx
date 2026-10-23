@@ -10,8 +10,7 @@ export default function Showrooms() {
   const [formError, setFormError] = useState("");
   const [creating, setCreating] = useState(false);
 
-  // Which showroom row is currently showing its inline "reset login" form.
-  const [credentialsRowId, setCredentialsRowId] = useState(null);
+const [credentialsRowId, setCredentialsRowId] = useState(null);
   const [credentialsForm, setCredentialsForm] = useState({ username: "", password: "" });
   const [credentialsError, setCredentialsError] = useState("");
   const [credentialsSuccess, setCredentialsSuccess] = useState("");

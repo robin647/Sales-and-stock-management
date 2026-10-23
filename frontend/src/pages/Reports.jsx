@@ -50,7 +50,7 @@ export default function Reports() {
   useEffect(() => {
     if (tab === "daily") loadDaily();
     else loadMonthly();
-    // eslint-disable-next-line react-hooks/exhaustive-deps
+
   }, [tab]);
 
   return (

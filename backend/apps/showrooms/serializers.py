@@ -7,7 +7,6 @@ from rest_framework import serializers
 from apps.accounts.models import User
 from .models import Showroom
 
-
 class ShowroomSerializer(serializers.ModelSerializer):
     username = serializers.CharField(write_only=True, required=False, allow_blank=False, max_length=150)
     password = serializers.CharField(write_only=True, required=False, allow_blank=False, min_length=8)

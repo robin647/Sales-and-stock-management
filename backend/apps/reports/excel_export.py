@@ -10,12 +10,10 @@ from apps.inventory.models import DailyBalance, DailyStock, StockAdjustment
 
 from .helpers import resolve_showroom_scope
 
-
 def _styled_header(ws, headers):
     ws.append(headers)
     for cell in ws[ws.max_row]:
         cell.font = Font(bold=True)
-
 
 class DailyExcelExportView(APIView):
     """
@@ -77,7 +75,6 @@ class DailyExcelExportView(APIView):
         response["Content-Disposition"] = f'attachment; filename="{filename}"'
         wb.save(response)
         return response
-
 
 class MonthlyExcelExportView(APIView):
     """

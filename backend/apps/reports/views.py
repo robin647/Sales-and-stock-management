@@ -9,7 +9,6 @@ from apps.showrooms.models import Showroom
 
 from .helpers import resolve_showroom_scope
 
-
 class DashboardView(APIView):
     """
     Admin: totals across all showrooms for today + showroom-wise breakdown.
@@ -79,7 +78,6 @@ class DashboardView(APIView):
 
         return Response(data)
 
-
 class DailyStatementView(APIView):
     """Returns the full daily statement (stock table + balance row) for one showroom + date."""
 
@@ -146,7 +144,6 @@ class DailyStatementView(APIView):
                 "closing_balance": balance.closing_balance,
             } if balance else None,
         })
-
 
 class MonthlyReportView(APIView):
     """Aggregated monthly totals for a showroom (or all showrooms for admin)."""

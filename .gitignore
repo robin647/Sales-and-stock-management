@@ -1,4 +1,4 @@
-# Python
+
 __pycache__/
 *.py[cod]
 *.egg-info/
@@ -6,7 +6,6 @@ __pycache__/
 venv/
 env/
 
-# Django
 *.log
 db.sqlite3
 staticfiles/
@@ -15,18 +14,15 @@ media/
 .env.*
 !.env.example
 
-# Node / React
 node_modules/
 frontend/dist/
 frontend/build/
 .env.local
 .env.production
 
-# IDE
 .vscode/
 .idea/
 
-# OS
 .DS_Store
 Thumbs.db
 .neon

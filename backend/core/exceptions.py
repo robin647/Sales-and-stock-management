@@ -7,7 +7,6 @@ from rest_framework import status
 
 logger = logging.getLogger("django")
 
-
 def custom_exception_handler(exc, context):
     """
     Wraps DRF's default exception handler so every error response has a

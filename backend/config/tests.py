@@ -7,7 +7,6 @@ from rest_framework.test import APIClient
 
 from apps.accounts.models import User
 
-
 class RootStatusTests(SimpleTestCase):
     def setUp(self):
         self.client = APIClient()
@@ -95,7 +94,6 @@ class RootStatusTests(SimpleTestCase):
 
         self.assertEqual(response.status_code, 404)
 
-
 class CorsPreflightTests(SimpleTestCase):
     def test_login_preflight_allows_vercel_frontend(self):
         response = APIClient().options(
@@ -133,7 +131,6 @@ class CorsPreflightTests(SimpleTestCase):
         for header in ("authorization", "content-type", "idempotency-key"):
             with self.subTest(header=header):
                 self.assertIn(header, allowed_headers)
-
 
 class AdminLoginTests(TestCase):
     """Exercise SimpleJWT login with the blacklist app's database writes enabled."""

@@ -14,9 +14,7 @@ from corsheaders.defaults import default_headers
 BASE_DIR = Path(__file__).resolve().parent.parent.parent
 
 env = environ.Env()
-# Neon CLI writes pulled variables at the repository root, while local Django
-# settings historically read backend/.env. Load root env files first so
-# DATABASE_URL from Neon is available to Django, then fall back to backend/.env.
+
 for env_file in (BASE_DIR.parent / ".env.local", BASE_DIR.parent / ".env", BASE_DIR / ".env"):
     if env_file.is_file():
         environ.Env.read_env(env_file)
@@ -30,13 +28,13 @@ INSTALLED_APPS = [
     "django.contrib.sessions",
     "django.contrib.messages",
     "django.contrib.staticfiles",
-    # third party
+
     "rest_framework",
     "rest_framework_simplejwt",
     "rest_framework_simplejwt.token_blacklist",
     "corsheaders",
     "django_filters",
-    # local apps
+
     "apps.accounts",
     "apps.showrooms",
     "apps.products",
@@ -79,11 +77,6 @@ WSGI_APPLICATION = "config.wsgi.application"
 
 AUTH_USER_MODEL = "accounts.User"
 
-# --- Database ---
-# DATABASE_URL should always be set via environment variables at runtime.
-# The placeholder default below only exists so `collectstatic` can run at
-# Docker build time (it loads settings but never opens a DB connection).
-# PostgreSQL is used in both local and production — never SQLite.
 DATABASES = {
     "default": env.db(
         "DATABASE_URL", default="postgres://placeholder:placeholder@localhost:5432/placeholder"
@@ -111,7 +104,6 @@ STATICFILES_STORAGE = "whitenoise.storage.CompressedManifestStaticFilesStorage"
 
 DEFAULT_AUTO_FIELD = "django.db.models.BigAutoField"
 
-# --- DRF ---
 REST_FRAMEWORK = {
     "DEFAULT_AUTHENTICATION_CLASSES": (
         "rest_framework_simplejwt.authentication.JWTAuthentication",
@@ -136,7 +128,6 @@ REST_FRAMEWORK = {
     "EXCEPTION_HANDLER": "core.exceptions.custom_exception_handler",
 }
 
-# --- JWT ---
 SIMPLE_JWT = {
     "ACCESS_TOKEN_LIFETIME": timedelta(
         minutes=env.int("ACCESS_TOKEN_LIFETIME_MINUTES", default=15)
@@ -148,14 +139,12 @@ SIMPLE_JWT = {
     "BLACKLIST_AFTER_ROTATION": True,
 }
 
-# --- CORS ---
 CORS_ALLOWED_ORIGINS = env.list("CORS_ALLOWED_ORIGINS", default=[])
 VERCEL_FRONTEND_ORIGIN = "https://sales-and-stock-management-s7d7.vercel.app"
 if VERCEL_FRONTEND_ORIGIN not in CORS_ALLOWED_ORIGINS:
     CORS_ALLOWED_ORIGINS.append(VERCEL_FRONTEND_ORIGIN)
 CORS_ALLOW_HEADERS = (*default_headers, "idempotency-key")
 
-# --- Logging ---
 LOGGING = {
     "version": 1,
     "disable_existing_loggers": False,

@@ -6,7 +6,6 @@ from django.core.exceptions import ValidationError as DjangoValidationError
 
 from .models import User
 
-
 class CustomTokenObtainPairSerializer(TokenObtainPairSerializer):
     """
     Adds role and showroom info directly into the JWT payload so the
@@ -23,7 +22,6 @@ class CustomTokenObtainPairSerializer(TokenObtainPairSerializer):
         token["full_name"] = user.get_full_name() or user.username
         return token
 
-
 class ShowroomTokenObtainPairSerializer(serializers.Serializer):
     """
     Authenticates a showroom by username and password.
@@ -36,7 +34,7 @@ class ShowroomTokenObtainPairSerializer(serializers.Serializer):
         from django.contrib.auth import authenticate
         from django.db import IntegrityError, transaction
         from rest_framework_simplejwt.tokens import RefreshToken
-        
+
         username = attrs.get("username")
         password = attrs.get("password")
         from apps.showrooms.models import Showroom
@@ -51,10 +49,7 @@ class ShowroomTokenObtainPairSerializer(serializers.Serializer):
                 raise serializers.ValidationError({"detail": "Invalid username or password."})
             user = authenticated
         else:
-            # Older deployments stored showroom credentials directly on the
-            # Showroom row. Verify that stored hash, then create the normal
-            # role-scoped account so JWTAuthentication can resolve every API
-            # request to an actual User record.
+
             showroom = next((
                 row for row in Showroom.objects.filter(username=username, is_active=True).order_by("id")
                 if row.check_password(password)
@@ -88,7 +83,6 @@ class ShowroomTokenObtainPairSerializer(serializers.Serializer):
             "access": str(refresh.access_token),
         }
 
-
 class UserSerializer(serializers.ModelSerializer):
     showroom_name = serializers.CharField(source="showroom.name", read_only=True)
 
@@ -99,7 +93,6 @@ class UserSerializer(serializers.ModelSerializer):
             "role", "showroom", "showroom_name", "is_active",
         ]
         read_only_fields = ["id"]
-
 
 class ShowroomUserCreateSerializer(serializers.ModelSerializer):
     """Used by Admin to create a new showroom user account."""

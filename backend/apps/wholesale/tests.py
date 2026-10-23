@@ -15,7 +15,6 @@ from apps.products.models import Product, ProductCategory
 from apps.showrooms.models import Showroom
 from .models import EasyWholesaleStockMovement
 
-
 class WholesaleApiTests(TestCase):
     def setUp(self):
         category = ProductCategory.objects.create(name="Panjabi")
@@ -336,7 +335,6 @@ class WholesaleApiTests(TestCase):
         self.assertIn("Easy Wholesale", workbook.sheetnames)
         self.assertIn("REPORT-EASY-1", [cell for row in workbook["Easy Wholesale"].iter_rows(values_only=True) for cell in row])
 
-
     def test_easy_sale_without_product_saves_without_stock_movement_and_appears_in_statement(self):
         response = self.client.post("/api/wholesale/easy/sales/", {
             "party": self.party_id, "sale_date": "2026-10-10", "bill_number": "EASY-100",
@@ -523,7 +521,6 @@ class WholesaleApiTests(TestCase):
         self.assertEqual({row["source"] for row in rows}, {"legacy", "easy"})
         self.assertEqual([row["running_balance"] for row in rows], [Decimal("350.00"), Decimal("100.00")])
 
-
 class InventoryApiTests(TestCase):
     def setUp(self):
         category = ProductCategory.objects.create(name="Stock test")
@@ -612,7 +609,6 @@ class InventoryApiTests(TestCase):
         self.assertEqual(monthly.status_code, 200, monthly.data)
         monthly_row = next(item for item in monthly.data["stock_summary"] if item["product__name"] == self.product.name)
         self.assertEqual(monthly_row["adjustment"], 3)
-
 
 class ShowroomLoginManagementTests(TestCase):
     def setUp(self):

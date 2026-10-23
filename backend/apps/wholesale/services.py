@@ -15,7 +15,6 @@ from .models import (
 
 ZERO = Decimal("0.00")
 
-
 def record_easy_stock_movement(*, movement_type, product, stock_location, showroom, quantity,
                                movement_date, user, sale=None, return_record=None, notes=""):
     """Atomically move Easy wholesale stock and record the unique movement audit row."""
@@ -54,7 +53,6 @@ def record_easy_stock_movement(*, movement_type, product, stock_location, showro
         notes=notes,
         created_by=user,
     )
-
 
 def party_account_statement(*, party, start_date=None, end_date=None, transaction_type=None,
                             invoice_number=None, product_id=None, limit=20, offset=0):
@@ -134,8 +132,7 @@ def party_account_statement(*, party, start_date=None, end_date=None, transactio
         key=lambda row: (row["created_at"], row["id"], row.get("source", "legacy"), row["type"]),
         reverse=True,
     )
-    # Running balances remain chronological, even though the visible history is
-    # sorted by when each transaction was entered.
+
     balance_events = _statement_events(
         balance_sales, balance_payments, balance_returns, None
     )
@@ -195,7 +192,6 @@ def party_account_statement(*, party, start_date=None, end_date=None, transactio
         "results": page,
     }
 
-
 def _statement_events(sales, payments, returns, fetch_count, product_id=None, newest_first=False):
     events = []
     sale_order = ("-created_at", "-id") if newest_first else ("sale_date", "created_at", "id")
@@ -239,7 +235,6 @@ def _statement_events(sales, payments, returns, fetch_count, product_id=None, ne
     events.sort(key=lambda row: (row["date"], row["created_at"], row["type"], row["id"]))
     return events
 
-
 def _easy_statement_events(sales, payments, returns, fetch_count, newest_first=False):
     events = []
     sale_order = ("-created_at", "-id") if newest_first else ("sale_date", "created_at", "id")
@@ -278,10 +273,8 @@ def _easy_statement_events(sales, payments, returns, fetch_count, newest_first=F
         })
     return events
 
-
 def _sales_amount(queryset):
     return _sales_totals(queryset)["gross"]
-
 
 def _sales_totals(queryset):
     totals = queryset.aggregate(
@@ -290,26 +283,21 @@ def _sales_totals(queryset):
     )
     return {"gross": totals["gross"] or ZERO, "quantity": totals["quantity"] or 0}
 
-
 def _payment_amount(payments, field=None):
     if field:
         return payments.aggregate(value=Sum(field))["value"] or ZERO
     rows = payments.aggregate(bank=Sum("bank_amount"), bkash=Sum("bkash_amount"), cash=Sum("cash_amount"))
     return (rows["bank"] or ZERO) + (rows["bkash"] or ZERO) + (rows["cash"] or ZERO)
 
-
 def _return_amount(queryset):
     return queryset.aggregate(value=Sum("amount"))["value"] or ZERO
-
 
 def _easy_sales_totals(queryset):
     totals = queryset.aggregate(gross=Sum("total_amount"), quantity=Sum("quantity"))
     return {"gross": totals["gross"] or ZERO, "quantity": totals["quantity"] or 0}
 
-
 def _easy_sales_amount(queryset):
     return _easy_sales_totals(queryset)["gross"]
-
 
 def _easy_payment_amount(queryset, field=None):
     if field:
@@ -317,10 +305,8 @@ def _easy_payment_amount(queryset, field=None):
     totals = queryset.aggregate(bank=Sum("bank_amount"), bkash=Sum("bkash_amount"), cash=Sum("cash_amount"))
     return (totals["bank"] or ZERO) + (totals["bkash"] or ZERO) + (totals["cash"] or ZERO)
 
-
 def _easy_return_amount(queryset):
     return queryset.aggregate(value=Sum("amount"))["value"] or ZERO
-
 
 def all_party_summary(query_params):
     money_field = DecimalField(max_digits=18, decimal_places=2)
