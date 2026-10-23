@@ -60,12 +60,18 @@ def transfer_stock(*, product, showroom, quantity, transfer_type, date, created_
             raise ValidationError({"quantity": f"Showroom has only {store.quantity} units available."})
         store.quantity -= quantity
         daily.sold_qty += quantity
+    elif transfer_type == "factory_return":
+        if store.quantity < quantity:
+            raise ValidationError({"quantity": f"Showroom has only {store.quantity} units available."})
+        store.quantity -= quantity
+        factory.quantity += quantity
+        daily.returned_to_factory_qty += quantity
     elif transfer_type == "return":
 
         store.quantity += quantity
         daily.return_qty += quantity
     else:
-        raise ValidationError({"transfer_type": "Choose receive, sale, or return."})
+        raise ValidationError({"transfer_type": "Choose a valid stock transfer type."})
     factory.save(update_fields=["quantity", "updated_at"])
     store.save(update_fields=["quantity", "updated_at"])
     try:
@@ -102,6 +108,14 @@ def update_transfer_quantity(*, transfer, quantity):
             raise ValidationError({"quantity": f"Showroom has only {store.quantity} units available."})
         store.quantity -= difference
         daily.sold_qty += difference
+    elif transfer.transfer_type == "factory_return":
+        if difference > 0 and store.quantity < difference:
+            raise ValidationError({"quantity": f"Showroom has only {store.quantity} units available."})
+        if difference < 0 and factory.quantity < -difference:
+            raise ValidationError({"quantity": f"Factory has only {factory.quantity} units available to reverse this return."})
+        store.quantity -= difference
+        factory.quantity += difference
+        daily.returned_to_factory_qty += difference
     elif transfer.transfer_type == "return":
         if difference < 0 and store.quantity < -difference:
             raise ValidationError({"quantity": f"Showroom has only {store.quantity} units available to reverse this return."})

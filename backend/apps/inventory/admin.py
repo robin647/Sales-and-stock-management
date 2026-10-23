@@ -4,7 +4,7 @@ from .models import DailyBalance, DailyStock
 
 @admin.register(DailyStock)
 class DailyStockAdmin(admin.ModelAdmin):
-    list_display = ("showroom", "product", "date", "opening_qty", "received_qty", "sold_qty", "return_qty", "closing_qty")
+    list_display = ("showroom", "product", "date", "opening_qty", "received_qty", "sold_qty", "return_qty", "returned_to_factory_qty", "closing_qty")
     list_filter = ("showroom", "date")
     search_fields = ("product__name",)
 

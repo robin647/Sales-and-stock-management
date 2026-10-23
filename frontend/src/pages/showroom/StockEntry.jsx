@@ -7,13 +7,19 @@ const todayStr = () => {
 };
 
 const listResults = (data) => data?.results ?? data ?? [];
+const transferLabels = {
+  sale: "Sale to Customer",
+  receive: "Receive from Factory",
+  factory_return: "Return to Factory",
+  return: "Return from Customer",
+};
 
 export default function StockEntry() {
   const [products, setProducts] = useState([]);
   const [transfers, setTransfers] = useState([]);
   const [showroomStocks, setShowroomStocks] = useState({});
   const [date, setDate] = useState(todayStr());
-  const [transferType, setTransferType] = useState("receive");
+  const [transferType, setTransferType] = useState("sale");
   const [editingTransferId, setEditingTransferId] = useState(null);
   const [form, setForm] = useState({ product: "", quantity: "" });
   const [error, setError] = useState("");
@@ -70,7 +76,7 @@ export default function StockEntry() {
 
       if (editingTransferId) await stockTransferApi.update(editingTransferId, { quantity });
       else await stockTransferApi.create(payload);
-      setSuccess(editingTransferId ? "Stock transfer updated." : `${transferType.charAt(0).toUpperCase() + transferType.slice(1)} recorded successfully!`);
+      setSuccess(editingTransferId ? "Stock transfer updated." : `${transferLabels[transferType]} recorded successfully!`);
       setEditingTransferId(null);
       setForm({ product: "", quantity: "" });
       await Promise.all([loadTransfers(), loadStocks()]);
@@ -116,9 +122,10 @@ export default function StockEntry() {
           disabled={Boolean(editingTransferId)}
           className="w-full mb-4 border border-gray-300 rounded-lg px-3 py-2 text-sm"
         >
-          <option value="receive">Receive from Factory</option>
           <option value="sale">Sale to Customer</option>
-          <option value="return">Customer Return</option>
+          <option value="receive">Receive from Factory</option>
+          <option value="factory_return">Return to Factory</option>
+          <option value="return">Return from Customer</option>
         </select>
 
         <form onSubmit={handleSubmit}>
@@ -171,7 +178,7 @@ export default function StockEntry() {
             type="submit"
             className="w-full bg-brand-500 hover:bg-brand-600 text-white text-sm font-medium py-2 rounded-lg transition-colors"
           >
-            {editingTransferId ? "Update stock quantity" : `Record ${transferType === "receive" ? "Receive" : transferType === "sale" ? "Sale" : "Customer Return"}`}
+            {editingTransferId ? "Update stock quantity" : `Record ${transferLabels[transferType]}`}
           </button>
           {editingTransferId && <button type="button" onClick={() => { setEditingTransferId(null); setForm({ product: "", quantity: "" }); }} className="mt-2 w-full rounded-lg border border-gray-300 py-2 text-sm">Cancel edit</button>}
         </form>
@@ -204,11 +211,10 @@ export default function StockEntry() {
                       <span className={`text-xs font-semibold px-2 py-1 rounded ${
                         t.transfer_type === "receive" ? "bg-green-100 text-green-700" :
                         t.transfer_type === "sale" ? "bg-blue-100 text-blue-700" :
+                        t.transfer_type === "factory_return" ? "bg-purple-100 text-purple-700" :
                         "bg-orange-100 text-orange-700"
                       }`}>
-                        {t.transfer_type === "receive" ? "↓ Receive" :
-                         t.transfer_type === "sale" ? "→ Sale" :
-                         "↑ Return"}
+                        {transferLabels[t.transfer_type] || transferLabels.return}
                       </span>
                     </td>
                     <td className="py-2 px-2"><button type="button" onClick={() => { setEditingTransferId(t.id); setForm({ product: String(t.product), quantity: String(t.quantity) }); setTransferType(t.transfer_type); }} className="text-brand-700">Edit quantity</button></td>
