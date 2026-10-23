@@ -1,6 +1,7 @@
 from django.db.models import Sum
 from django.utils import timezone
 from rest_framework import permissions
+from rest_framework.exceptions import ValidationError
 from rest_framework.response import Response
 from rest_framework.views import APIView
 
@@ -11,17 +12,38 @@ from .helpers import resolve_showroom_scope
 
 class DashboardView(APIView):
     """
-    Admin: totals across all showrooms for today + showroom-wise breakdown.
+    Admin: totals across all showrooms for a month + showroom-wise breakdown.
     Showroom user: today's own numbers only.
     """
 
     permission_classes = [permissions.IsAuthenticated]
 
     def get(self, request):
-        today = request.query_params.get("date", timezone.localdate().isoformat())
+        year_param = request.query_params.get("year")
+        month_param = request.query_params.get("month")
+        if bool(year_param) != bool(month_param):
+            raise ValidationError("Both year and month are required for a monthly dashboard.")
+
+        if year_param and month_param:
+            try:
+                year = int(year_param)
+                month = int(month_param)
+            except (TypeError, ValueError) as exc:
+                raise ValidationError("Year and month must be valid numbers.") from exc
+            if month < 1 or month > 12:
+                raise ValidationError({"month": "Month must be between 1 and 12."})
+            balances_filter = {"date__year": year, "date__month": month}
+            adjustment_filter = {"created_at__date__year": year, "created_at__date__month": month}
+            period = f"{year:04d}-{month:02d}"
+        else:
+            today = request.query_params.get("date", timezone.localdate().isoformat())
+            balances_filter = {"date": today}
+            adjustment_filter = {"created_at__date": today}
+            period = today
+
         showrooms_qs, showroom_id = resolve_showroom_scope(request)
 
-        balances = DailyBalance.objects.filter(date=today, showroom__in=showrooms_qs)
+        balances = DailyBalance.objects.filter(**balances_filter, showroom__in=showrooms_qs)
         if showroom_id:
             balances = balances.filter(showroom_id=showroom_id)
 
@@ -32,19 +54,32 @@ class DashboardView(APIView):
             expense=Sum("expense"),
             salary=Sum("salary"),
             deposit=Sum("deposit"),
-            closing_balance=Sum("closing_balance"),
         )
         totals = {k: (v or 0) for k, v in totals.items()}
+        if year_param and month_param:
+            latest_closing_balances = (
+                balances.values_list("showroom_id", flat=True)
+                .distinct()
+            )
+            totals["closing_balance"] = sum(
+                balances.filter(showroom_id=balance_showroom_id)
+                .order_by("-date", "-id")
+                .values_list("closing_balance", flat=True)
+                .first() or 0
+                for balance_showroom_id in latest_closing_balances
+            )
+        else:
+            totals["closing_balance"] = balances.aggregate(value=Sum("closing_balance"))["value"] or 0
 
-        stock_totals = DailyStock.objects.filter(date=today, showroom__in=showrooms_qs).aggregate(
+        stock_totals = DailyStock.objects.filter(**balances_filter, showroom__in=showrooms_qs).aggregate(
             received=Sum("received_qty"), sold=Sum("sold_qty"), returned=Sum("return_qty"),
         )
         adjustment_total = StockAdjustment.objects.filter(
-            location="showroom", showroom__in=showrooms_qs, created_at__date=today,
+            location="showroom", showroom__in=showrooms_qs, **adjustment_filter,
         ).aggregate(value=Sum("difference"))["value"] or 0
 
         data = {
-            "date": today,
+            "period": period,
             "total_showrooms": showrooms_qs.count(),
             **totals,
             "stock_summary": {
@@ -61,6 +96,8 @@ class DashboardView(APIView):
                 )
             ),
         }
+        if not year_param:
+            data["date"] = period
 
         if request.user.role != "admin":
             data.pop("showroom_wise", None)
