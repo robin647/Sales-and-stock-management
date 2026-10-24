@@ -21,6 +21,15 @@ class DailyStockSerializer(serializers.ModelSerializer):
         product = attrs.get("product") or getattr(self.instance, "product", None)
         date = attrs.get("date") or getattr(self.instance, "date", None)
 
+        opening = getattr(self.instance, "opening_qty", None)
+        if opening is None and showroom and product and date:
+            previous = DailyStock.objects.filter(showroom=showroom, product=product, date__lt=date).order_by("-date").first()
+            opening = previous.closing_qty if previous else 0
+        if opening is not None:
+            closing = opening + attrs.get("received_qty", getattr(self.instance, "received_qty", 0)) - attrs.get("sold_qty", getattr(self.instance, "sold_qty", 0)) - attrs.get("returned_to_factory_qty", getattr(self.instance, "returned_to_factory_qty", 0)) + attrs.get("return_qty", getattr(self.instance, "return_qty", 0))
+            if closing < 0:
+                raise serializers.ValidationError({"non_field_errors": [f"Insufficient stock: this change would leave {closing} units. Reduce sold/return-to-factory quantity or record a stock receipt first."]})
+
         if DailyStock.objects.filter(showroom=showroom, product=product, date=date).exclude(
             pk=getattr(self.instance, "pk", None)
         ).exists():
@@ -72,6 +81,18 @@ class DailyBalanceSerializer(serializers.ModelSerializer):
             showroom = request.user.showroom
         date = attrs.get("date") or getattr(self.instance, "date", None)
 
+        opening = getattr(self.instance, "opening_balance", None)
+        if opening is None and showroom and date:
+            previous = DailyBalance.objects.filter(showroom=showroom, date__lt=date).order_by("-date").first()
+            opening = previous.closing_balance if previous else 0
+        if opening is not None:
+            cash = attrs.get("cash_sale", getattr(self.instance, "cash_sale", 0))
+            expense = attrs.get("expense", getattr(self.instance, "expense", 0))
+            salary = attrs.get("salary", getattr(self.instance, "salary", 0))
+            deposit = attrs.get("deposit", getattr(self.instance, "deposit", 0))
+            if opening + cash - expense - salary - deposit < 0:
+                raise serializers.ValidationError({"non_field_errors": ["Closing balance cannot be negative. Check expense, salary, and deposit against opening balance and cash sale."]})
+
         if DailyBalance.objects.filter(showroom=showroom, date=date).exclude(
             pk=getattr(self.instance, "pk", None)
         ).exists():
@@ -81,7 +102,8 @@ class DailyBalanceSerializer(serializers.ModelSerializer):
         return attrs
 
     def create(self, validated_data):
-        showroom = validated_data["showroom"]
+        showroom = validated_data.get("showroom") or self.context["request"].user.showroom
+        validated_data["showroom"] = showroom
         date = validated_data["date"]
 
         previous_entry = (
