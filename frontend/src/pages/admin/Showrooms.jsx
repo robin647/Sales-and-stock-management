@@ -14,6 +14,9 @@ const [credentialsRowId, setCredentialsRowId] = useState(null);
   const [credentialsForm, setCredentialsForm] = useState({ username: "", password: "" });
   const [credentialsError, setCredentialsError] = useState("");
   const [credentialsSuccess, setCredentialsSuccess] = useState("");
+  const [editingId, setEditingId] = useState(null);
+  const [editForm, setEditForm] = useState({ name: "", address: "", phone: "", username: "", password: "" });
+  const [editError, setEditError] = useState("");
 
   function loadShowrooms() {
     showroomApi.list().then((res) => setShowrooms(res.data.results || res.data));
@@ -54,6 +57,40 @@ const [credentialsRowId, setCredentialsRowId] = useState(null);
   async function toggleActive(sr) {
     await showroomApi.update(sr.id, { is_active: !sr.is_active });
     loadShowrooms();
+  }
+
+  function startEdit(sr) {
+    setEditingId(sr.id);
+    setEditError("");
+    setEditForm({ name: sr.name, address: sr.address || "", phone: sr.phone || "", username: sr.login_username || "", password: "" });
+  }
+
+  async function saveEdit(e) {
+    e.preventDefault();
+    setEditError("");
+    const payload = { ...editForm };
+    const current = showrooms.find((item) => item.id === editingId);
+    if (!payload.password && payload.username !== (current?.login_username || "")) {
+      setEditError("Enter a new password when changing the login username.");
+      return;
+    }
+    if (!payload.password) { delete payload.username; delete payload.password; }
+    try {
+      await showroomApi.update(editingId, payload);
+      setEditingId(null);
+      loadShowrooms();
+    } catch (err) { setEditError(firstError(err.response?.data)); }
+  }
+
+  async function deleteShowroom(sr) {
+    if (!window.confirm(`Permanently delete “${sr.name}” and all data linked to it, including stock, balance entries, transfers, showroom wholesale sales, returns, and its showroom login? This cannot be undone.`)) return;
+    try {
+      await showroomApi.delete(sr.id);
+      loadShowrooms();
+    } catch (err) {
+      setEditError(firstError(err.response?.data));
+      setEditingId(sr.id);
+    }
   }
 
   function openCredentialsForm(sr) {
@@ -136,6 +173,10 @@ const [credentialsRowId, setCredentialsRowId] = useState(null);
                   </td>
                   <td className="px-4 text-right space-x-3 whitespace-nowrap">
                     <button
+                      onClick={() => startEdit(sr)}
+                      className="text-brand-600 text-xs font-medium hover:underline"
+                    >Edit</button>
+                    <button
                       onClick={() =>
                         credentialsRowId === sr.id ? closeCredentialsForm() : openCredentialsForm(sr)
                       }
@@ -149,8 +190,16 @@ const [credentialsRowId, setCredentialsRowId] = useState(null);
                     >
                       {sr.is_active ? "Deactivate" : "Activate"}
                     </button>
+                    <button onClick={() => deleteShowroom(sr)} className="text-red-600 text-xs font-medium hover:underline">Delete</button>
                   </td>
                 </tr>
+                {editingId === sr.id && <tr className="border-b border-gray-50 bg-gray-50/60"><td colSpan={5} className="px-4 py-4">
+                  <form onSubmit={saveEdit} className="flex flex-wrap items-end gap-3">
+                    {[["name", "Name"], ["address", "Address"], ["phone", "Phone"], ["username", "Login username"], ["password", "New password (optional)"]].map(([key, label]) => <label key={key} className="text-xs text-gray-600">{label}<input type={key === "password" ? "password" : "text"} minLength={key === "password" ? 8 : undefined} required={key === "name"} value={editForm[key]} onChange={(e) => setEditForm({ ...editForm, [key]: e.target.value })} className="mt-1 block w-44 rounded-lg border border-gray-300 px-2 py-1.5 text-sm" /></label>)}
+                    <button className="rounded-lg bg-brand-500 px-4 py-2 text-xs font-medium text-white">Save changes</button><button type="button" onClick={() => setEditingId(null)} className="px-2 py-2 text-xs text-gray-500">Cancel</button>
+                    {editError && <div className="w-full text-xs text-red-600">{editError}</div>}
+                  </form>
+                </td></tr>}
                 {credentialsRowId === sr.id && (
                   <tr className="border-b border-gray-50 bg-gray-50/60">
                     <td colSpan={5} className="px-4 py-4">

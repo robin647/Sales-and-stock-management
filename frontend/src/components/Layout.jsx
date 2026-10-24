@@ -102,7 +102,7 @@ export default function Layout({ children }) {
             </button>
           </div>
         </header>
-        <div className="mx-auto w-full max-w-[1600px] min-h-0 flex-1 overflow-y-auto p-4 sm:p-6 lg:p-8">{children}</div>
+        <div className="mx-auto w-full max-w-[1600px] min-h-0 flex-1 overflow-x-hidden overflow-y-auto overscroll-y-auto p-4 sm:p-6 lg:p-8">{children}</div>
         <SiteFooter />
       </main>
     </div>

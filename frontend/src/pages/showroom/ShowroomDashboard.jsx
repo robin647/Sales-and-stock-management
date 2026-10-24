@@ -18,8 +18,10 @@ export default function ShowroomDashboard() {
   const [error, setError] = useState("");
 
   useEffect(() => {
+    const today = localDateString();
+    const [year, month] = today.split("-");
     reportApi
-      .dashboard({ date: localDateString() })
+      .dashboard({ year, month })
       .then((res) => setData(res.data))
       .catch(() => setError("Could not load dashboard data."));
   }, []);
@@ -29,7 +31,8 @@ export default function ShowroomDashboard() {
 
   return (
     <div>
-      <h1 className="text-lg font-semibold mb-4">Today's Overview — {data.date}</h1>
+      <h1 className="text-lg font-semibold mb-1">Monthly Overview</h1>
+      <div className="mb-3 text-sm text-gray-500">Monthly statement for {data.period}</div>
       <div className="grid grid-cols-2 md:grid-cols-3 gap-4">
         <StatCard label="Total Sale" value={data.total_sale} />
         <StatCard label="Cash Sale" value={data.cash_sale} />
@@ -37,6 +40,11 @@ export default function ShowroomDashboard() {
         <StatCard label="Expense" value={data.expense} />
         <StatCard label="Salary" value={data.salary} />
         <StatCard label="Deposit" value={data.deposit} />
+        <StatCard label="Closing Balance" value={data.closing_balance} />
+        <StatCard label="Stock Received" value={data.stock_summary.received} isCurrency={false} />
+        <StatCard label="Stock Sold" value={data.stock_summary.sold} isCurrency={false} />
+        <StatCard label="Customer Returns" value={data.stock_summary.returned} isCurrency={false} />
+        <StatCard label="Returned to Factory" value={data.stock_summary.returned_to_factory} isCurrency={false} />
       </div>
     </div>
   );

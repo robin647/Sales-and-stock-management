@@ -10,6 +10,7 @@ export const showroomApi = {
   list: () => api.get("/showrooms/"),
   create: (data) => api.post("/showrooms/", data),
   update: (id, data) => api.patch(`/showrooms/${id}/`, data),
+  delete: (id) => api.delete(`/showrooms/${id}/`),
 };
 
 export const showroomUserApi = {
