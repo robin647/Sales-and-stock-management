@@ -91,7 +91,7 @@ def transfer_stock(*, product, showroom, quantity, transfer_type, date, created_
     )
 
 @transaction.atomic
-def update_transfer(*, transfer, quantity, transfer_type):
+def update_transfer(*, transfer, quantity, transfer_type, notes=None):
     from .models import DailyStock
 
     transfer = transfer.__class__.objects.select_for_update().get(pk=transfer.pk)
@@ -103,6 +103,9 @@ def update_transfer(*, transfer, quantity, transfer_type):
     _apply_transfer_change(
         transfer, factory, store, daily, quantity=quantity, transfer_type=transfer_type
     )
+    if notes is not None and notes != transfer.notes:
+        transfer.notes = notes.strip()
+        transfer.save(update_fields=["notes"])
     return transfer
 
 @transaction.atomic

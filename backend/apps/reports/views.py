@@ -182,6 +182,7 @@ class DailyStatementView(APIView):
                 "expense": balance.expense,
                 "salary": balance.salary,
                 "deposit": balance.deposit,
+                "notes": balance.notes,
                 "closing_balance": balance.closing_balance,
             } if balance else None,
         })

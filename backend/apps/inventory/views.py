@@ -96,6 +96,12 @@ class DailyBalanceViewSet(ShowroomScopedMixin, viewsets.ModelViewSet):
                         "Review that day's expenses, salary, and deposit."
                     ]
                 })
+            if entry.closing_balance > 100000:
+                raise ValidationError({
+                    "non_field_errors": [
+                        f"Updating this balance would make {entry.date} closing balance exceed 100,000."
+                    ]
+                })
             entry.save(update_fields=["opening_balance", "total_sale", "closing_balance", "updated_at"])
             opening = entry.closing_balance
 

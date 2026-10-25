@@ -1,5 +1,5 @@
 from django.conf import settings
-from django.core.validators import MinValueValidator
+from django.core.validators import MaxValueValidator, MinValueValidator
 from django.db import models
 
 from apps.products.models import Product
@@ -47,7 +47,7 @@ class StockTransfer(models.Model):
     quantity = models.PositiveIntegerField(validators=[MinValueValidator(1)])
     transfer_type = models.CharField(max_length=16, choices=TRANSFER_TYPES)
     date = models.DateField()
-    notes = models.CharField(max_length=255, blank=True)
+    notes = models.CharField(max_length=500, blank=True)
     created_by = models.ForeignKey(settings.AUTH_USER_MODEL, on_delete=models.PROTECT, related_name="stock_transfers")
     created_at = models.DateTimeField(auto_now_add=True)
 
@@ -116,12 +116,13 @@ class DailyBalance(models.Model):
     date = models.DateField()
 
     opening_balance = models.DecimalField(max_digits=12, decimal_places=2, default=0)
-    cash_sale = models.DecimalField(max_digits=12, decimal_places=2, default=0, validators=[MinValueValidator(0)])
-    card_sale = models.DecimalField(max_digits=12, decimal_places=2, default=0, validators=[MinValueValidator(0)])
+    cash_sale = models.DecimalField(max_digits=12, decimal_places=2, default=0, validators=[MinValueValidator(0), MaxValueValidator(100000)])
+    card_sale = models.DecimalField(max_digits=12, decimal_places=2, default=0, validators=[MinValueValidator(0), MaxValueValidator(100000)])
     total_sale = models.DecimalField(max_digits=12, decimal_places=2, default=0)
-    expense = models.DecimalField(max_digits=12, decimal_places=2, default=0, validators=[MinValueValidator(0)])
-    salary = models.DecimalField(max_digits=12, decimal_places=2, default=0, validators=[MinValueValidator(0)])
-    deposit = models.DecimalField(max_digits=12, decimal_places=2, default=0, validators=[MinValueValidator(0)])
+    expense = models.DecimalField(max_digits=12, decimal_places=2, default=0, validators=[MinValueValidator(0), MaxValueValidator(100000)])
+    salary = models.DecimalField(max_digits=12, decimal_places=2, default=0, validators=[MinValueValidator(0), MaxValueValidator(100000)])
+    deposit = models.DecimalField(max_digits=12, decimal_places=2, default=0, validators=[MinValueValidator(0), MaxValueValidator(100000)])
+    notes = models.CharField(max_length=500, blank=True)
     closing_balance = models.DecimalField(max_digits=12, decimal_places=2, default=0)
 
     created_by = models.ForeignKey(settings.AUTH_USER_MODEL, on_delete=models.PROTECT, related_name="+")
@@ -151,6 +152,8 @@ class DailyBalance(models.Model):
                 "Closing balance would be negative. Check expense, salary, and deposit amounts "
                 "against opening balance and cash sale."
             )
+        if closing_balance > 100000:
+            raise ValidationError("Closing balance cannot exceed 100,000.")
 
     def save(self, *args, **kwargs):
         self.total_sale, self.closing_balance = self.compute_totals()
