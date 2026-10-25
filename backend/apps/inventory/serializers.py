@@ -64,7 +64,7 @@ class DailyBalanceSerializer(serializers.ModelSerializer):
         fields = [
             "id", "showroom", "showroom_name", "date",
             "opening_balance", "cash_sale", "card_sale", "total_sale",
-            "expense", "salary", "deposit", "closing_balance",
+            "expense", "salary", "deposit", "notes", "closing_balance",
             "created_by", "created_at", "updated_at",
         ]
         read_only_fields = [
@@ -94,8 +94,11 @@ class DailyBalanceSerializer(serializers.ModelSerializer):
             expense = attrs.get("expense", getattr(self.instance, "expense", 0))
             salary = attrs.get("salary", getattr(self.instance, "salary", 0))
             deposit = attrs.get("deposit", getattr(self.instance, "deposit", 0))
-            if opening + cash - expense - salary - deposit < 0:
+            projected_closing = opening + cash - expense - salary - deposit
+            if projected_closing < 0:
                 raise serializers.ValidationError({"non_field_errors": ["Closing balance cannot be negative. Check expense, salary, and deposit against opening balance and cash sale."]})
+            if projected_closing > 100000:
+                raise serializers.ValidationError({"non_field_errors": ["Closing balance cannot exceed 100,000."]})
 
         if DailyBalance.objects.filter(showroom=showroom, date=date).exclude(
             pk=getattr(self.instance, "pk", None)
@@ -179,12 +182,13 @@ class StockTransferSerializer(serializers.ModelSerializer):
         return transfer_stock(created_by=self.context["request"].user, **validated_data)
 
     def update(self, instance, validated_data):
-        unknown_fields = set(validated_data) - {"quantity", "transfer_type"}
+        unknown_fields = set(validated_data) - {"quantity", "transfer_type", "notes"}
         if unknown_fields:
-            raise serializers.ValidationError("Only quantity and transfer type can be edited.")
+            raise serializers.ValidationError("Only quantity, transfer type, and notes can be edited.")
         from .services import update_transfer
         return update_transfer(
             transfer=instance,
             quantity=validated_data.get("quantity", instance.quantity),
             transfer_type=validated_data.get("transfer_type", instance.transfer_type),
+            notes=validated_data.get("notes", instance.notes),
         )

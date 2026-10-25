@@ -138,11 +138,12 @@ export default function Reports() {
                         ["Expense", dailyData.balance.expense],
                         ["Salary", dailyData.balance.salary],
                         ["Deposit", dailyData.balance.deposit],
+                        ["Notes", dailyData.balance.notes || "—"],
                         ["Closing Balance", dailyData.balance.closing_balance],
                       ].map(([label, val]) => (
                         <tr key={label} className="border-b border-gray-50">
                           <td className="py-1 text-gray-500">{label}</td>
-                          <td className="text-right font-medium">৳ {Number(val).toLocaleString()}</td>
+                          <td className={`${label === "Notes" ? "text-left" : "text-right"} font-medium`}>{label === "Notes" ? val : `৳ ${Number(val).toLocaleString()}`}</td>
                         </tr>
                       ))}
                     </tbody>

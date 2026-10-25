@@ -64,6 +64,7 @@ class DailyExcelExportView(APIView):
                 ("Expense", balance.expense),
                 ("Salary", balance.salary),
                 ("Deposit", balance.deposit),
+                ("Notes", balance.notes),
                 ("Closing Balance", balance.closing_balance),
             ]
             for row in rows:

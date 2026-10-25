@@ -17,7 +17,7 @@ function errorMessage(error) {
 export default function BalanceEntry() {
   const [date, setDate] = useState(todayStr());
   const [existing, setExisting] = useState(null);
-  const [form, setForm] = useState({ cash_sale: 0, card_sale: 0, expense: 0, salary: 0, deposit: 0 });
+  const [form, setForm] = useState({ cash_sale: 0, card_sale: 0, expense: 0, salary: 0, deposit: 0, notes: "" });
   const [error, setError] = useState("");
   const [success, setSuccess] = useState("");
 
@@ -27,8 +27,8 @@ export default function BalanceEntry() {
       const results = res.data.results || res.data;
       const entry = results[0] || null;
       setExisting(entry);
-      if (entry) setForm({ cash_sale: entry.cash_sale, card_sale: entry.card_sale, expense: entry.expense, salary: entry.salary, deposit: entry.deposit });
-      else setForm({ cash_sale: 0, card_sale: 0, expense: 0, salary: 0, deposit: 0 });
+      if (entry) setForm({ cash_sale: entry.cash_sale, card_sale: entry.card_sale, expense: entry.expense, salary: entry.salary, deposit: entry.deposit, notes: entry.notes || "" });
+      else setForm({ cash_sale: 0, card_sale: 0, expense: 0, salary: 0, deposit: 0, notes: "" });
     }).catch((err) => {
       setExisting(null);
       setError(err.response?.data?.detail || "Could not load the balance entry for this date.");
@@ -74,11 +74,12 @@ export default function BalanceEntry() {
                 ["Expense", existing.expense],
                 ["Salary", existing.salary],
                 ["Deposit", existing.deposit],
+                ["Notes", existing.notes || "—"],
                 ["Closing Balance", existing.closing_balance],
               ].map(([label, val]) => (
                 <tr key={label} className="border-b border-gray-50">
                   <td className="w-1/2 py-1 text-gray-500">{label}</td>
-                  <td className="w-1/2 whitespace-nowrap text-right font-medium">৳ {Number(val).toLocaleString()}</td>
+                  <td className={`w-1/2 ${label === "Notes" ? "text-left" : "whitespace-nowrap text-right"} font-medium`}>{label === "Notes" ? val : `৳ ${Number(val).toLocaleString()}`}</td>
                 </tr>
               ))}
             </tbody>
@@ -101,6 +102,7 @@ export default function BalanceEntry() {
               <input
                 type="number"
                 min="0"
+                max="100000"
                 step="0.01"
                 value={form[key]}
                 onChange={(e) => setForm({ ...form, [key]: e.target.value })}
@@ -108,6 +110,10 @@ export default function BalanceEntry() {
               />
             </div>
           ))}
+
+          <label className="mb-2 block text-xs text-gray-500">Expense / other details (optional)
+            <textarea maxLength={500} rows={3} value={form.notes} onChange={(e) => setForm({ ...form, notes: e.target.value })} placeholder="e.g. shop rent, electricity, transport" className="mt-1 w-full rounded-lg border border-gray-300 px-3 py-2 text-sm" />
+          </label>
 
           <p className="text-xs text-gray-400 mb-3">
             Opening balance is carried forward automatically from yesterday's closing balance.

@@ -22,7 +22,7 @@ export default function StockEntry() {
   const [transferType, setTransferType] = useState("sale");
   const [editingTransferId, setEditingTransferId] = useState(null);
   const [deletingTransferId, setDeletingTransferId] = useState(null);
-  const [form, setForm] = useState({ product: "", quantity: "" });
+  const [form, setForm] = useState({ product: "", quantity: "", notes: "" });
   const [error, setError] = useState("");
   const [success, setSuccess] = useState("");
 
@@ -72,14 +72,14 @@ export default function StockEntry() {
         quantity: quantity,
         transfer_type: transferType,
         date: date,
-        notes: "",
+        notes: form.notes.trim(),
       };
 
-      if (editingTransferId) await stockTransferApi.update(editingTransferId, { quantity, transfer_type: transferType });
+      if (editingTransferId) await stockTransferApi.update(editingTransferId, { quantity, transfer_type: transferType, notes: form.notes.trim() });
       else await stockTransferApi.create(payload);
       setSuccess(editingTransferId ? "Stock transfer updated." : `${transferLabels[transferType]} recorded successfully!`);
       setEditingTransferId(null);
-      setForm({ product: "", quantity: "" });
+      setForm({ product: "", quantity: "", notes: "" });
       await Promise.all([loadTransfers(), loadStocks()]);
     } catch (err) {
       const response = err.response?.data;
@@ -107,7 +107,7 @@ export default function StockEntry() {
       await stockTransferApi.delete(transfer.id);
       if (editingTransferId === transfer.id) {
         setEditingTransferId(null);
-        setForm({ product: "", quantity: "" });
+        setForm({ product: "", quantity: "", notes: "" });
       }
       setSuccess("Stock transfer deleted.");
       await Promise.all([loadTransfers(), loadStocks()]);
@@ -198,13 +198,17 @@ export default function StockEntry() {
             required
           />
 
+          <label className="mb-4 block text-xs text-gray-500">Stock note (optional)
+            <textarea maxLength={500} rows={2} value={form.notes} onChange={(e) => setForm({ ...form, notes: e.target.value })} placeholder="Add a detail about this stock movement" className="mt-1 w-full rounded-lg border border-gray-300 px-3 py-2 text-sm" />
+          </label>
+
           <button
             type="submit"
             className="w-full bg-brand-500 hover:bg-brand-600 text-white text-sm font-medium py-2 rounded-lg transition-colors"
           >
             {editingTransferId ? "Update stock transfer" : `Record ${transferLabels[transferType]}`}
           </button>
-          {editingTransferId && <button type="button" onClick={() => { setEditingTransferId(null); setForm({ product: "", quantity: "" }); }} className="mt-2 w-full rounded-lg border border-gray-300 py-2 text-sm">Cancel edit</button>}
+          {editingTransferId && <button type="button" onClick={() => { setEditingTransferId(null); setForm({ product: "", quantity: "", notes: "" }); }} className="mt-2 w-full rounded-lg border border-gray-300 py-2 text-sm">Cancel edit</button>}
         </form>
       </div>
 
@@ -222,6 +226,7 @@ export default function StockEntry() {
                 <th className="py-2 px-2">From</th>
                 <th className="py-2 px-2">To</th>
                 <th className="py-2 px-2">Status</th>
+                <th className="py-2 px-2">Note</th>
                 <th className="py-2 px-2">Actions</th>
               </tr>
             </thead>
@@ -249,13 +254,14 @@ export default function StockEntry() {
                         {t.status}
                       </span>
                     </td>
+                    <td className="py-2 px-2">{t.notes || "—"}</td>
                     <td className="py-2 px-2">
                       <div className="flex items-center gap-3">
                         <button
                           type="button"
                           onClick={() => {
                             setEditingTransferId(t.id);
-                            setForm({ product: String(t.product), quantity: String(t.quantity) });
+                            setForm({ product: String(t.product), quantity: String(t.quantity), notes: t.notes || "" });
                             setTransferType(t.transfer_type);
                             setError("");
                             setSuccess("");
@@ -279,7 +285,7 @@ export default function StockEntry() {
                 ))
               ) : (
                 <tr>
-                  <td colSpan={8} className="text-gray-400 py-4 text-center">
+                  <td colSpan={9} className="text-gray-400 py-4 text-center">
                     No transfers yet for this date.
                   </td>
                 </tr>
