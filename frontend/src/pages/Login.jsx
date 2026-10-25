@@ -1,5 +1,5 @@
 import { useState } from "react";
-import { useNavigate } from "react-router-dom";
+import { useLocation, useNavigate } from "react-router-dom";
 import { useAuth } from "../context/AuthContext.jsx";
 import { SiteFooter } from "../components/SiteFooter.jsx";
 
@@ -26,6 +26,7 @@ export default function Login() {
   const [loading, setLoading] = useState(false);
   const { login, loginShowroom, logout } = useAuth();
   const navigate = useNavigate();
+  const location = useLocation();
 
   const copy = MODES[mode];
 
@@ -98,6 +99,11 @@ export default function Login() {
           </div>
 
           <form onSubmit={handleSubmit} className="space-y-4">
+            {location.state?.passwordChanged && (
+              <div role="status" className="rounded-lg border border-green-100 bg-green-50 px-3 py-2.5 text-sm font-medium text-green-700">
+                Password changed. Sign in with your new password.
+              </div>
+            )}
             {error && (
               <div role="alert" className="login-error rounded-lg border px-3 py-2.5 text-sm font-medium">
                 {error}

@@ -56,6 +56,7 @@ export default function Layout({ children }) {
               <NavLink onClick={() => setMenuOpen(false)} to="/" end className={linkClass}>Dashboard</NavLink>
               <NavLink onClick={() => setMenuOpen(false)} to="/stock" className={linkClass}>Stock Entry</NavLink>
               <NavLink onClick={() => setMenuOpen(false)} to="/balance" className={linkClass}>Balance Entry</NavLink>
+              <NavLink onClick={() => setMenuOpen(false)} to="/change-password" className={linkClass}>Change Password</NavLink>
               <NavLink onClick={() => setMenuOpen(false)} to="/reports" className={linkClass}>Reports</NavLink>
             </>
           )}

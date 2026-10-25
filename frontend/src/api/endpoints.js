@@ -4,6 +4,7 @@ export const authApi = {
   login: (username, password) => api.post("/auth/login/", { username, password }),
   showroomLogin: (username, password) => api.post("/auth/login/showroom/", { username, password }),
   me: () => api.get("/accounts/me/"),
+  changePassword: (data) => api.post("/accounts/password/change/", data),
 };
 
 export const showroomApi = {

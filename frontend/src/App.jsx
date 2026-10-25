@@ -1,4 +1,4 @@
-import { lazy, Suspense } from "react";
+import { lazy, Suspense, useEffect } from "react";
 import { Navigate, Route, Routes } from "react-router-dom";
 import Layout from "./components/Layout.jsx";
 import { useAuth } from "./context/AuthContext.jsx";
@@ -17,6 +17,7 @@ const WholesaleReturns = lazy(() => import("./pages/admin/WholesaleReturns.jsx")
 const AllPartiesSummary = lazy(() => import("./pages/admin/AllPartiesSummary.jsx"));
 const WholesaleReports = lazy(() => import("./pages/admin/WholesaleReports.jsx"));
 const BalanceEntry = lazy(() => import("./pages/showroom/BalanceEntry.jsx"));
+const ChangePassword = lazy(() => import("./pages/showroom/ChangePassword.jsx"));
 const ShowroomDashboard = lazy(() => import("./pages/showroom/ShowroomDashboard.jsx"));
 const StockEntry = lazy(() => import("./pages/showroom/StockEntry.jsx"));
 import { WhatsAppButton } from "./components/SiteFooter.jsx";
@@ -27,6 +28,16 @@ function Home() {
 }
 
 export default function App() {
+  useEffect(() => {
+    const preventWheelChange = (event) => {
+      if (event.target instanceof HTMLInputElement && event.target.type === "number" && event.target === document.activeElement) {
+        event.preventDefault();
+      }
+    };
+    document.addEventListener("wheel", preventWheelChange, { capture: true, passive: false });
+    return () => document.removeEventListener("wheel", preventWheelChange, true);
+  }, []);
+
   return (
     <>
     <Suspense fallback={<div className="flex min-h-screen items-center justify-center text-slate-600">Loading workspace…</div>}>
@@ -82,6 +93,7 @@ export default function App() {
           </ProtectedRoute>
         }
       />
+      <Route path="/change-password" element={<ProtectedRoute requireShowroom><Layout><ChangePassword /></Layout></ProtectedRoute>} />
       <Route
         path="/reports"
         element={

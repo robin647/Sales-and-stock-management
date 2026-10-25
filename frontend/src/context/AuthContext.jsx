@@ -53,7 +53,8 @@ async function login(username, password) {
   }
 
   function logout() {
-    localStorage.clear();
+    localStorage.removeItem("access_token");
+    localStorage.removeItem("refresh_token");
     setUser(null);
   }
 
