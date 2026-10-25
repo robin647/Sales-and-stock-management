@@ -1,5 +1,5 @@
 from rest_framework import viewsets, permissions
-from rest_framework.exceptions import PermissionDenied
+from rest_framework.exceptions import PermissionDenied, ValidationError
 from rest_framework.response import Response
 
 from .models import DailyBalance, DailyStock, FactoryStock, ShowroomStock, StockTransfer
@@ -76,19 +76,51 @@ class DailyBalanceViewSet(ShowroomScopedMixin, viewsets.ModelViewSet):
     def queryset_base(self):
         return DailyBalance.objects.select_related("showroom").all()
 
+    @staticmethod
+    def _recalculate_from(showroom_id, start_date):
+        """Rebuild opening/closing balances from a changed date onward."""
+        entries = DailyBalance.objects.select_for_update().filter(
+            showroom_id=showroom_id, date__gte=start_date
+        ).order_by("date", "id")
+        previous = DailyBalance.objects.select_for_update().filter(
+            showroom_id=showroom_id, date__lt=start_date
+        ).order_by("-date", "-id").first()
+        opening = previous.closing_balance if previous else 0
+        for entry in entries:
+            entry.opening_balance = opening
+            entry.total_sale, entry.closing_balance = entry.compute_totals()
+            if entry.closing_balance < 0:
+                raise ValidationError({
+                    "non_field_errors": [
+                        f"Updating this balance would make {entry.date} closing balance negative. "
+                        "Review that day's expenses, salary, and deposit."
+                    ]
+                })
+            entry.save(update_fields=["opening_balance", "total_sale", "closing_balance", "updated_at"])
+            opening = entry.closing_balance
+
+    def perform_create(self, serializer):
+        from django.db import transaction
+
+        user = self.request.user
+        showroom = serializer.validated_data.get("showroom") if user.role == "admin" else user.showroom
+        if not showroom:
+            raise PermissionDenied("Admin must specify a showroom when creating an entry.")
+        date = serializer.validated_data["date"]
+        with transaction.atomic():
+            serializer.save(showroom=showroom)
+            self._recalculate_from(showroom.id, date)
+
     def perform_update(self, serializer):
         from django.db import transaction
 
         with transaction.atomic():
+            old_showroom_id = serializer.instance.showroom_id
+            old_date = serializer.instance.date
             entry = serializer.save()
-            later_entries = DailyBalance.objects.select_for_update().filter(
-                showroom_id=entry.showroom_id, date__gt=entry.date
-            ).order_by("date", "id")
-            previous = entry
-            for later in later_entries:
-                later.opening_balance = previous.closing_balance
-                later.save(update_fields=["opening_balance", "total_sale", "closing_balance", "updated_at"])
-                previous = later
+            self._recalculate_from(old_showroom_id, old_date)
+            if (entry.showroom_id, entry.date) != (old_showroom_id, old_date):
+                self._recalculate_from(entry.showroom_id, entry.date)
 
 class FactoryStockViewSet(viewsets.ReadOnlyModelViewSet):
     serializer_class = FactoryStockSerializer

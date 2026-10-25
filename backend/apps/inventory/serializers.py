@@ -81,9 +81,13 @@ class DailyBalanceSerializer(serializers.ModelSerializer):
             showroom = request.user.showroom
         date = attrs.get("date") or getattr(self.instance, "date", None)
 
-        opening = getattr(self.instance, "opening_balance", None)
-        if opening is None and showroom and date:
-            previous = DailyBalance.objects.filter(showroom=showroom, date__lt=date).order_by("-date").first()
+        # The opening for an edited entry comes from the preceding date, not
+        # from the value stored on this row (which may be stale after edits).
+        opening = None
+        if showroom and date:
+            previous = DailyBalance.objects.filter(
+                showroom=showroom, date__lt=date
+            ).exclude(pk=getattr(self.instance, "pk", None)).order_by("-date").first()
             opening = previous.closing_balance if previous else 0
         if opening is not None:
             cash = attrs.get("cash_sale", getattr(self.instance, "cash_sale", 0))
@@ -112,6 +116,16 @@ class DailyBalanceSerializer(serializers.ModelSerializer):
         validated_data["opening_balance"] = previous_entry.closing_balance if previous_entry else 0
         validated_data["created_by"] = self.context["request"].user
         return super().create(validated_data)
+
+    def update(self, instance, validated_data):
+        # Date/showroom changes also need an opening from the new position.
+        showroom = validated_data.get("showroom", instance.showroom)
+        date = validated_data.get("date", instance.date)
+        previous = DailyBalance.objects.filter(
+            showroom=showroom, date__lt=date
+        ).exclude(pk=instance.pk).order_by("-date").first()
+        validated_data["opening_balance"] = previous.closing_balance if previous else 0
+        return super().update(instance, validated_data)
 
 class FactoryStockSerializer(serializers.ModelSerializer):
     product_name = serializers.CharField(source="product.name", read_only=True)
