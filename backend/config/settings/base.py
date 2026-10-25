@@ -124,6 +124,7 @@ REST_FRAMEWORK = {
         "anon": "60/minute",
         "user": "300/minute",
         "login": "10/minute",
+        "password_change": "5/hour",
     },
     "EXCEPTION_HANDLER": "core.exceptions.custom_exception_handler",
 }

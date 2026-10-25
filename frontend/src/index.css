@@ -100,6 +100,18 @@ textarea {
   font: inherit;
 }
 
+/* Keep numeric input validation while removing browser spinner controls. */
+input[type="number"] {
+  appearance: textfield;
+  -moz-appearance: textfield;
+}
+
+input[type="number"]::-webkit-inner-spin-button,
+input[type="number"]::-webkit-outer-spin-button {
+  margin: 0;
+  -webkit-appearance: none;
+}
+
 button {
   cursor: pointer;
   -webkit-tap-highlight-color: transparent;

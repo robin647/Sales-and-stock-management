@@ -1,4 +1,5 @@
 from rest_framework import generics, permissions, status
+from rest_framework.exceptions import PermissionDenied
 from rest_framework.response import Response
 from rest_framework.throttling import ScopedRateThrottle
 from rest_framework.views import APIView
@@ -9,6 +10,7 @@ from core.permissions import IsAdmin
 from .models import User
 from .serializers import (
     CustomTokenObtainPairSerializer,
+    ChangePasswordSerializer,
     ShowroomTokenObtainPairSerializer,
     ShowroomUserCreateSerializer,
     UserSerializer,
@@ -39,6 +41,20 @@ class MeView(APIView):
 
     def get(self, request):
         return Response(UserSerializer(request.user).data)
+
+
+class ChangePasswordView(APIView):
+    permission_classes = [permissions.IsAuthenticated]
+    throttle_classes = [ScopedRateThrottle]
+    throttle_scope = "password_change"
+
+    def post(self, request):
+        if request.user.role != User.Role.SHOWROOM_USER:
+            raise PermissionDenied("Password change is available from showroom accounts only.")
+        serializer = ChangePasswordSerializer(data=request.data, context={"request": request})
+        serializer.is_valid(raise_exception=True)
+        serializer.save()
+        return Response({"detail": "Password changed. Please sign in again."}, status=status.HTTP_200_OK)
 
 class ShowroomUserListCreateView(generics.ListCreateAPIView):
     """Admin-only: list all showroom users, or create a new one."""

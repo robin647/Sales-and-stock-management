@@ -126,3 +126,35 @@ class ShowroomUserCreateSerializer(serializers.ModelSerializer):
         user.full_clean()
         user.save()
         return user
+
+
+class ChangePasswordSerializer(serializers.Serializer):
+    current_password = serializers.CharField(write_only=True, trim_whitespace=False)
+    new_password = serializers.CharField(write_only=True, trim_whitespace=False, min_length=8)
+    confirm_password = serializers.CharField(write_only=True, trim_whitespace=False)
+
+    def validate(self, attrs):
+        from django.contrib.auth.password_validation import validate_password
+
+        user = self.context["request"].user
+        if not user.check_password(attrs["current_password"]):
+            raise serializers.ValidationError({"current_password": "Current password is incorrect."})
+        if attrs["new_password"] != attrs["confirm_password"]:
+            raise serializers.ValidationError({"confirm_password": "New passwords do not match."})
+        try:
+            validate_password(attrs["new_password"], user=user)
+        except DjangoValidationError as error:
+            raise serializers.ValidationError({"new_password": list(error.messages)}) from error
+        return attrs
+
+    def save(self, **kwargs):
+        from django.db import transaction
+        from rest_framework_simplejwt.token_blacklist.models import OutstandingToken
+
+        user = self.context["request"].user
+        with transaction.atomic():
+            user.set_password(self.validated_data["new_password"])
+            user.save(update_fields=["password"])
+            for token in OutstandingToken.objects.filter(user=user):
+                token.blacklist()
+        return user
