@@ -21,10 +21,19 @@ class DailyStockSerializer(serializers.ModelSerializer):
         product = attrs.get("product") or getattr(self.instance, "product", None)
         date = attrs.get("date") or getattr(self.instance, "date", None)
 
-        opening = getattr(self.instance, "opening_qty", None)
-        if opening is None and showroom and product and date:
-            previous = DailyStock.objects.filter(showroom=showroom, product=product, date__lt=date).order_by("-date").first()
-            opening = previous.closing_qty if previous else 0
+        # Always derive opening from the nearest earlier row. Stored opening
+        # values may be stale after an earlier date was edited.
+        opening = None
+        if showroom and product and date:
+            previous = DailyStock.objects.filter(
+                showroom=showroom, product=product, date__lt=date
+            ).exclude(pk=getattr(self.instance, "pk", None)).order_by("-date").first()
+            same_position = self.instance and (
+                showroom.pk, product.pk, date
+            ) == (self.instance.showroom_id, self.instance.product_id, self.instance.date)
+            opening = previous.closing_qty if previous else (
+                self.instance.opening_qty if same_position else 0
+            )
         if opening is not None:
             closing = opening + attrs.get("received_qty", getattr(self.instance, "received_qty", 0)) - attrs.get("sold_qty", getattr(self.instance, "sold_qty", 0)) - attrs.get("returned_to_factory_qty", getattr(self.instance, "returned_to_factory_qty", 0)) + attrs.get("return_qty", getattr(self.instance, "return_qty", 0))
             if closing < 0:
@@ -51,6 +60,21 @@ class DailyStockSerializer(serializers.ModelSerializer):
         validated_data["opening_qty"] = previous_entry.closing_qty if previous_entry else 0
         validated_data["created_by"] = self.context["request"].user
         return super().create(validated_data)
+
+    def update(self, instance, validated_data):
+        showroom = validated_data.get("showroom", instance.showroom)
+        product = validated_data.get("product", instance.product)
+        date = validated_data.get("date", instance.date)
+        previous = DailyStock.objects.filter(
+            showroom=showroom, product=product, date__lt=date
+        ).exclude(pk=instance.pk).order_by("-date").first()
+        same_position = (showroom.pk, product.pk, date) == (
+            instance.showroom_id, instance.product_id, instance.date
+        )
+        validated_data["opening_qty"] = previous.closing_qty if previous else (
+            instance.opening_qty if same_position else 0
+        )
+        return super().update(instance, validated_data)
 
 class DailyBalanceSerializer(serializers.ModelSerializer):
 

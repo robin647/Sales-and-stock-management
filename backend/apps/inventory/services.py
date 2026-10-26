@@ -5,6 +5,34 @@ from rest_framework.exceptions import ValidationError
 
 from .models import FactoryStock, ShowroomStock, StockAdjustment
 
+def recalculate_daily_stock(showroom_id, product_id, start_date):
+    """Rebuild a product's daily opening and closing quantities from a date."""
+    from .models import DailyStock
+
+    entries = list(DailyStock.objects.select_for_update().filter(
+        showroom_id=showroom_id, product_id=product_id, date__gte=start_date
+    ).order_by("date", "id"))
+    previous = DailyStock.objects.select_for_update().filter(
+        showroom_id=showroom_id, product_id=product_id, date__lt=start_date
+    ).order_by("-date", "-id").first()
+    # The earliest row may have a deliberate starting balance from the live
+    # showroom inventory when it was first created by a stock transfer.
+    opening = previous.closing_qty if previous else (entries[0].opening_qty if entries else 0)
+    for entry in entries:
+        entry.opening_qty = opening
+        entry.closing_qty = entry.compute_closing()
+        if entry.closing_qty < 0:
+            raise ValidationError({"non_field_errors": [
+                f"This change would make stock negative on {entry.date} "
+                f"({entry.closing_qty} units). Review that day's sales and stock movements."
+            ]})
+        try:
+            entry.save(update_fields=["opening_qty", "closing_qty", "updated_at"])
+        except DjangoValidationError as exc:
+            detail = getattr(exc, "message_dict", None) or exc.messages
+            raise ValidationError(detail) from exc
+        opening = entry.closing_qty
+
 def _lock_stock(product, location, showroom=None):
     if location == "factory":
         row, _ = FactoryStock.objects.get_or_create(product=product, defaults={"quantity": 0})
@@ -85,6 +113,7 @@ def transfer_stock(*, product, showroom, quantity, transfer_type, date, created_
     except DjangoValidationError as exc:
         detail = getattr(exc, "message_dict", None) or exc.messages
         raise ValidationError(detail) from exc
+    recalculate_daily_stock(showroom.id, product.id, date)
     return StockTransfer.objects.create(
         product=product, showroom=showroom, quantity=quantity,
         transfer_type=transfer_type, date=date, notes=notes, created_by=created_by,
@@ -165,6 +194,7 @@ def _apply_transfer_change(transfer, factory, store, daily, *, quantity, transfe
     except DjangoValidationError as exc:
         detail = getattr(exc, "message_dict", None) or exc.messages
         raise ValidationError(detail) from exc
+    recalculate_daily_stock(transfer.showroom_id, transfer.product_id, transfer.date)
     factory.save(update_fields=["quantity", "updated_at"])
     store.save(update_fields=["quantity", "updated_at"])
     if new_type:
