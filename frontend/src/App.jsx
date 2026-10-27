@@ -16,6 +16,7 @@ const EasyWholesaleManagement = lazy(() => import("./pages/admin/EasyWholesaleMa
 const WholesaleReturns = lazy(() => import("./pages/admin/WholesaleReturns.jsx"));
 const AllPartiesSummary = lazy(() => import("./pages/admin/AllPartiesSummary.jsx"));
 const WholesaleReports = lazy(() => import("./pages/admin/WholesaleReports.jsx"));
+const EmployeeManagement = lazy(() => import("./pages/admin/EmployeeManagement.jsx"));
 const BalanceEntry = lazy(() => import("./pages/showroom/BalanceEntry.jsx"));
 const ChangePassword = lazy(() => import("./pages/showroom/ChangePassword.jsx"));
 const ShowroomDashboard = lazy(() => import("./pages/showroom/ShowroomDashboard.jsx"));
@@ -76,6 +77,7 @@ export default function App() {
       <Route path="/wholesale/returns" element={<ProtectedRoute requireAdmin><Layout><WholesaleReturns /></Layout></ProtectedRoute>} />
       <Route path="/wholesale/summary" element={<ProtectedRoute requireAdmin><Layout><AllPartiesSummary /></Layout></ProtectedRoute>} />
       <Route path="/wholesale/reports" element={<ProtectedRoute requireAdmin><Layout><WholesaleReports /></Layout></ProtectedRoute>} />
+      <Route path="/employees" element={<ProtectedRoute requireAdmin><Layout><EmployeeManagement /></Layout></ProtectedRoute>} />
 
       <Route
         path="/stock"
