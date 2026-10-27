@@ -11,6 +11,9 @@ export default function EmployeeManagement() {
   const [entries, setEntries] = useState([]);
   const [month, setMonth] = useState(monthNow);
   const [form, setForm] = useState({ name: "", employee_id: "", designation: "", salary: "" });
+  const [editingEmployee, setEditingEmployee] = useState(null);
+  const [employeeEdit, setEmployeeEdit] = useState({ name: "", employee_id: "", designation: "", salary: "" });
+  const [editingEntryId, setEditingEntryId] = useState(null);
   const [busy, setBusy] = useState(false);
   const [message, setMessage] = useState("");
   const [error, setError] = useState("");
@@ -60,8 +63,32 @@ export default function EmployeeManagement() {
         attendance_bonus: Number(entry.attendance_bonus), loan: Number(entry.loan),
         other_deduction: Number(entry.other_deduction),
       });
-      await loadSheet(); setMessage(`${entry.employee_name}'s salary updated.`);
+      await loadSheet(); setEditingEntryId(null); setMessage(`${entry.employee_name}'s salary updated.`);
     } catch (err) { setError(err.response?.data?.absent_days?.[0] || "Could not update salary. Check the entered values."); }
+    finally { setBusy(false); }
+  }
+
+  function beginEmployeeEdit(employee) {
+    setEditingEmployee(employee.id);
+    setEmployeeEdit({ name: employee.name, employee_id: employee.employee_id, designation: employee.designation, salary: employee.salary });
+  }
+
+  async function saveEmployeeEdit(event) {
+    event.preventDefault(); setBusy(true); setError("");
+    try {
+      await employeeApi.update(editingEmployee, { ...employeeEdit, salary: Number(employeeEdit.salary) });
+      setEditingEmployee(null); await loadEmployees(); setMessage("Employee details updated.");
+    } catch (err) { setError(err.response?.data?.employee_id?.[0] || "Could not update employee details."); }
+    finally { setBusy(false); }
+  }
+
+  async function deleteEmployee(employee) {
+    if (!window.confirm(`Delete ${employee.name} (${employee.employee_id}) from active employee list?`)) return;
+    setBusy(true); setError("");
+    try {
+      await employeeApi.delete(employee.id); await loadEmployees();
+      await loadSheet(); setMessage(`${employee.name} removed from the active employee list.`);
+    } catch { setError("Could not delete employee."); }
     finally { setBusy(false); }
   }
 
@@ -78,13 +105,14 @@ export default function EmployeeManagement() {
         <input className={fieldClass} type="number" min="0" step="0.01" placeholder="Monthly salary" aria-label="Monthly salary" required value={form.salary} onChange={(e) => setForm({ ...form, salary: e.target.value })} />
         <button disabled={busy} className="rounded-lg bg-emerald-700 px-4 py-2 text-sm font-semibold text-white hover:bg-emerald-800 disabled:opacity-50">Add employee</button>
       </form>
-      <div className="mt-5 overflow-x-auto"><table className="min-w-full text-left text-sm"><thead className="text-xs uppercase text-gray-500"><tr><th className="px-3 py-2">Employee</th><th className="px-3 py-2">ID</th><th className="px-3 py-2">Designation</th><th className="px-3 py-2">Monthly salary</th></tr></thead><tbody className="divide-y divide-gray-100">{employees.map((employee) => <tr key={employee.id}><td className="px-3 py-3 font-medium">{employee.name}</td><td className="px-3 py-3">{employee.employee_id}</td><td className="px-3 py-3">{employee.designation}</td><td className="px-3 py-3">{money(employee.salary)}</td></tr>)}{!employees.length && <tr><td className="px-3 py-5 text-gray-500" colSpan="4">No employees added yet.</td></tr>}</tbody></table></div>
+      {editingEmployee && <form onSubmit={saveEmployeeEdit} className="mt-4 grid grid-cols-1 gap-3 rounded-xl border border-emerald-200 bg-emerald-50/50 p-4 sm:grid-cols-2 xl:grid-cols-5"><input className={fieldClass} aria-label="Edit employee name" required value={employeeEdit.name} onChange={(e) => setEmployeeEdit({ ...employeeEdit, name: e.target.value })} /><input className={fieldClass} aria-label="Edit employee ID" required value={employeeEdit.employee_id} onChange={(e) => setEmployeeEdit({ ...employeeEdit, employee_id: e.target.value })} /><input className={fieldClass} aria-label="Edit designation" required value={employeeEdit.designation} onChange={(e) => setEmployeeEdit({ ...employeeEdit, designation: e.target.value })} /><input className={fieldClass} aria-label="Edit monthly salary" type="number" min="0" step="0.01" required value={employeeEdit.salary} onChange={(e) => setEmployeeEdit({ ...employeeEdit, salary: e.target.value })} /><div className="flex gap-2"><button disabled={busy} className="rounded-lg bg-emerald-700 px-4 py-2 text-sm font-semibold text-white">Save</button><button type="button" onClick={() => setEditingEmployee(null)} className="rounded-lg border border-gray-200 px-4 py-2 text-sm">Cancel</button></div></form>}
+      <div className="mt-5 overflow-x-auto"><table className="min-w-full text-left text-sm"><thead className="text-xs uppercase text-gray-500"><tr><th className="px-3 py-2">Employee</th><th className="px-3 py-2">ID</th><th className="px-3 py-2">Designation</th><th className="px-3 py-2">Monthly salary</th><th className="px-3 py-2">Action</th></tr></thead><tbody className="divide-y divide-gray-100">{employees.map((employee) => <tr key={employee.id}><td className="px-3 py-3 font-medium">{employee.name}</td><td className="px-3 py-3">{employee.employee_id}</td><td className="px-3 py-3">{employee.designation}</td><td className="px-3 py-3">{money(employee.salary)}</td><td className="px-3 py-3"><div className="flex gap-2"><button onClick={() => beginEmployeeEdit(employee)} className="rounded-lg border border-emerald-200 px-3 py-1.5 text-xs font-semibold text-emerald-800">Update</button><button disabled={busy} onClick={() => deleteEmployee(employee)} className="rounded-lg border border-rose-200 px-3 py-1.5 text-xs font-semibold text-rose-700 disabled:opacity-50">Delete</button></div></td></tr>)}{!employees.length && <tr><td className="px-3 py-5 text-gray-500" colSpan="5">No employees added yet.</td></tr>}</tbody></table></div>
     </section>
 
     <section className="dashboard-chart-panel">
       <div className="dashboard-section-heading mb-4"><div><h2>Monthly salary sheet</h2><p>Perday rate = Net Salary ÷ month days. Leave amount = perday rate × leave days. Total = Net Salary − Absent Amount + Leave Amount + OT + Hazira Bownous − Loan − Deduct.</p></div></div>
       <div className="mb-4 flex flex-wrap items-end gap-3"><label className="text-sm font-medium text-gray-600">Salary month<input type="month" value={month} onChange={(e) => setMonth(e.target.value)} className={`${fieldClass} mt-1 block w-auto`} /></label><button disabled={busy || !employees.length} onClick={createSheet} className="rounded-lg bg-emerald-700 px-4 py-2.5 text-sm font-semibold text-white hover:bg-emerald-800 disabled:opacity-50">Create salary sheet</button><button disabled={busy || !entries.length} onClick={() => employeeApi.exportSalarySheet(month).catch(() => setError("Could not download salary sheet."))} className="rounded-lg border border-gray-200 px-4 py-2.5 text-sm font-semibold text-gray-700 hover:bg-gray-50 disabled:opacity-50">Download monthly sheet</button></div>
-      <div className="overflow-x-auto"><table className="min-w-[1550px] w-full text-left text-sm"><thead className="bg-gray-50 text-xs uppercase text-gray-500"><tr>{["Employee Name", "Net Salary", "Perday Rate", "Absent", "Leave / Chuti", "Leave Amount", "Absent Amount", "OT Hours", "OT Rete", "Hazira Bownous", "Loan", "Deduct", "Total Salary", "Action"].map((heading) => <th key={heading} className="px-3 py-3">{heading}</th>)}</tr></thead><tbody className="divide-y divide-gray-100">{entries.map((entry) => <tr key={entry.id}><td className="px-3 py-3"><div className="font-medium">{entry.employee_name}</div><div className="text-xs text-gray-500">{entry.employee_id} · {entry.designation}</div></td>{[["base_salary", entry.base_salary, null], ["per_day_rate", entry.per_day_rate, null], ["absent_days", entry.absent_days, "1"], ["leave_days", entry.leave_days, "1"], ["leave_amount", entry.leave_amount, null], ["absence_deduction", entry.absence_deduction, null], ["overtime_hours", entry.overtime_hours, "0.01"], ["overtime_rate", entry.overtime_rate, "0.01"], ["attendance_bonus", entry.attendance_bonus, "0.01"], ["loan", entry.loan, "0.01"], ["other_deduction", entry.other_deduction, "0.01"], ["net_salary", entry.net_salary, null]].map(([key, value, step]) => <td key={key} className="px-3 py-3">{step ? <input aria-label={`${entry.employee_name} ${key}`} type="number" min="0" max={["absent_days", "leave_days"].includes(key) ? entry.total_days : undefined} step={step} value={value} onChange={(e) => editEntry(entry.id, key, e.target.value)} className="w-24 rounded-lg border border-gray-200 px-2 py-1.5" /> : <span className={key === "net_salary" ? "font-semibold text-emerald-800" : ""}>{money(value)}</span>}</td>)}<td className="px-3 py-3"><button disabled={busy} onClick={() => saveEntry(entry)} className="rounded-lg border border-emerald-200 px-3 py-1.5 text-xs font-semibold text-emerald-800 hover:bg-emerald-50 disabled:opacity-50">Save</button></td></tr>)}{!entries.length && <tr><td className="px-3 py-8 text-center text-gray-500" colSpan="14">Choose a month and create its salary sheet to begin.</td></tr>}</tbody></table></div>
+      <div className="overflow-x-auto"><table className="min-w-[1550px] w-full text-left text-sm"><thead className="bg-gray-50 text-xs uppercase text-gray-500"><tr>{["Employee Name", "Net Salary", "Perday Rate", "Absent", "Leave / Chuti", "Leave Amount", "Absent Amount", "OT Hours", "OT Rete", "Hazira Bownous", "Loan", "Deduct", "Total Salary", "Action"].map((heading) => <th key={heading} className="px-3 py-3">{heading}</th>)}</tr></thead><tbody className="divide-y divide-gray-100">{entries.map((entry) => { const editing = editingEntryId === entry.id; return <tr key={entry.id}><td className="px-3 py-3"><div className="font-medium">{entry.employee_name}</div><div className="text-xs text-gray-500">{entry.employee_id} · {entry.designation} · {entry.total_days} days</div></td>{[["base_salary", entry.base_salary, null], ["per_day_rate", entry.per_day_rate, null], ["absent_days", entry.absent_days, "1"], ["leave_days", entry.leave_days, "1"], ["leave_amount", entry.leave_amount, null], ["absence_deduction", entry.absence_deduction, null], ["overtime_hours", entry.overtime_hours, "0.01"], ["overtime_rate", entry.overtime_rate, "0.01"], ["attendance_bonus", entry.attendance_bonus, "0.01"], ["loan", entry.loan, "0.01"], ["other_deduction", entry.other_deduction, "0.01"], ["net_salary", entry.net_salary, null]].map(([key, value, step]) => <td key={key} className="px-3 py-3">{editing && step ? <input aria-label={`${entry.employee_name} ${key}`} type="number" min="0" max={["absent_days", "leave_days"].includes(key) ? entry.total_days : undefined} step={step} value={value} onChange={(e) => editEntry(entry.id, key, e.target.value)} className="w-24 rounded-lg border border-gray-200 px-2 py-1.5" /> : <span className={key === "net_salary" ? "font-semibold text-emerald-800" : ""}>{money(value)}</span>}</td>)}<td className="px-3 py-3">{editing ? <button disabled={busy} onClick={() => saveEntry(entry)} className="rounded-lg border border-emerald-200 px-3 py-1.5 text-xs font-semibold text-emerald-800 hover:bg-emerald-50 disabled:opacity-50">Save</button> : <button disabled={busy} onClick={() => setEditingEntryId(entry.id)} className="rounded-lg border border-emerald-200 px-3 py-1.5 text-xs font-semibold text-emerald-800 hover:bg-emerald-50 disabled:opacity-50">Update</button>}</td></tr>; })}{!entries.length && <tr><td className="px-3 py-8 text-center text-gray-500" colSpan="14">Choose a month and create its salary sheet to begin.</td></tr>}</tbody></table></div>
     </section>
   </div>;
 }

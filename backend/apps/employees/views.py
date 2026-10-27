@@ -23,9 +23,14 @@ class AdminOnly:
 
 
 class EmployeeViewSet(AdminOnly, viewsets.ModelViewSet):
-    queryset = Employee.objects.all()
+    queryset = Employee.objects.filter(is_active=True)
     serializer_class = EmployeeSerializer
     pagination_class = None
+
+    def perform_destroy(self, instance):
+        # Preserve salary history while removing the employee from active management.
+        instance.is_active = False
+        instance.save(update_fields=["is_active"])
 
 
 class SalaryEntryViewSet(AdminOnly, viewsets.ModelViewSet):
@@ -52,7 +57,7 @@ class CreateSalarySheetView(AdminOnly, APIView):
         if not month:
             raise ValidationError({"month": "Select a valid month in YYYY-MM format."})
         total_days = SalaryEntry.days_in_month(month.year, month.month)
-        employees = Employee.objects.all()
+        employees = Employee.objects.filter(is_active=True)
         for employee in employees:
             SalaryEntry.objects.get_or_create(
                 employee=employee,
