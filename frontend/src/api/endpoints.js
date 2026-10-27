@@ -14,6 +14,16 @@ export const showroomApi = {
   delete: (id) => api.delete(`/showrooms/${id}/`),
 };
 
+export const employeeApi = {
+  list: () => api.get("/employees/"),
+  create: (data) => api.post("/employees/", data),
+  update: (id, data) => api.patch(`/employees/${id}/`, data),
+  salaryEntries: (month) => api.get("/employees/salary-entries/", { params: { month } }),
+  updateSalaryEntry: (id, data) => api.patch(`/employees/salary-entries/${id}/`, data),
+  createSalarySheet: (month) => api.post("/employees/salary-sheets/create/", { month }),
+  exportSalarySheet: (month) => downloadFile("/employees/salary-sheets/export/", { month }, `salary-sheet-${month}.csv`),
+};
+
 export const showroomUserApi = {
   list: () => api.get("/accounts/showroom-users/"),
   create: (data) => api.post("/accounts/showroom-users/", data),
