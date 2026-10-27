@@ -6,6 +6,11 @@ class Migration(migrations.Migration):
     dependencies = [("employees", "0001_initial")]
     operations = [
         migrations.AddField(
+            model_name="employee",
+            name="is_active",
+            field=models.BooleanField(default=True),
+        ),
+        migrations.AddField(
             model_name="salaryentry",
             name="leave_days",
             field=models.PositiveSmallIntegerField(default=0),
