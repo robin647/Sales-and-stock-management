@@ -28,6 +28,34 @@ export const employeeApi = {
   exportSalarySheet: (month) => downloadFile("/employees/salary-sheets/export/", { month }, `salary-sheet-${month}.xlsx`),
 };
 
+export const swingApi = {
+  operators: {
+    list: (params = {}) => api.get("/swing/operators/", { params }),
+    create: (data) => api.post("/swing/operators/", data),
+    update: (id, data) => api.patch(`/swing/operators/${id}/`, data),
+    delete: (id) => api.delete(`/swing/operators/${id}/`),
+    statement: (id) => api.get(`/swing/operators/${id}/statement/`),
+  },
+  lots: {
+    list: (params = {}) => api.get("/swing/lots/", { params }),
+    create: (data) => api.post("/swing/lots/", data),
+    update: (id, data) => api.patch(`/swing/lots/${id}/`, data),
+    delete: (id) => api.delete(`/swing/lots/${id}/`),
+  },
+  payments: {
+    list: (params = {}) => api.get("/swing/payments/", { params }),
+    create: (data) => api.post("/swing/payments/", data),
+    update: (id, data) => api.patch(`/swing/payments/${id}/`, data),
+    delete: (id) => api.delete(`/swing/payments/${id}/`),
+  },
+  rejects: {
+    list: (params = {}) => api.get("/swing/rejects/", { params }),
+    create: (data) => api.post("/swing/rejects/", data),
+    update: (id, data) => api.patch(`/swing/rejects/${id}/`, data),
+    delete: (id) => api.delete(`/swing/rejects/${id}/`),
+  },
+};
+
 export const showroomUserApi = {
   list: () => api.get("/accounts/showroom-users/"),
   create: (data) => api.post("/accounts/showroom-users/", data),

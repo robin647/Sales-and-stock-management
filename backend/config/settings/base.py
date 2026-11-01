@@ -42,6 +42,7 @@ INSTALLED_APPS = [
     "apps.reports",
     "apps.wholesale",
     "apps.employees",
+    "apps.swing",
 ]
 
 MIDDLEWARE = [
