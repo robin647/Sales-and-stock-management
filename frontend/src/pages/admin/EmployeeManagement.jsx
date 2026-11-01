@@ -35,7 +35,8 @@ export default function EmployeeManagement() {
   const [form, setForm] = useState(newEmployee);
   const [editingEmployee, setEditingEmployee] = useState(null);
   const [employeeEdit, setEmployeeEdit] = useState(newEmployee);
-  const [editingEntryId, setEditingEntryId] = useState(null);
+  const [editingEntry, setEditingEntry] = useState(null);
+  const [salaryEditError, setSalaryEditError] = useState("");
   const [busy, setBusy] = useState(false);
   const [employeesLoading, setEmployeesLoading] = useState(true);
   const [employeesLoadError, setEmployeesLoadError] = useState("");
@@ -126,33 +127,47 @@ export default function EmployeeManagement() {
     finally { setBusy(false); }
   }
 
-  function editEntry(id, key, value) {
-    setEntries((current) => current.map((entry) => {
-      if (entry.id !== id) return entry;
-      const updated = { ...entry, [key]: value };
+  function beginSalaryEdit(entry) {
+    setEditingEntry({ ...entry });
+    setSalaryEditError("");
+  }
+
+  function editEntry(key, value) {
+    setEditingEntry((current) => {
+      if (!current) return current;
+      const updated = { ...current, [key]: value };
       if (key === "absent_days") {
-        const perDay = Number(entry.base_salary || 0) / Number(entry.total_days || 1);
+        const perDay = Number(current.base_salary || 0) / Number(current.total_days || 1);
         updated.absence_amount = (perDay * Number(value || 0)).toFixed(2);
       }
       return updated;
-    }));
+    });
+    setSalaryEditError("");
   }
 
-  async function saveEntry(entry) {
+  async function saveEntry(event) {
+    event.preventDefault();
+    if (!editingEntry) return;
+    const absentDays = Number(editingEntry.absent_days);
+    const leaveDays = Number(editingEntry.leave_days);
+    if (absentDays + leaveDays > editingEntry.total_days) {
+      setSalaryEditError("Absent days and leave days together cannot exceed the days in this month.");
+      return;
+    }
     setBusy(true); setError("");
     try {
-      const response = await employeeApi.updateSalaryEntry(entry.id, {
-        absent_days: Number(entry.absent_days), leave_days: Number(entry.leave_days),
-        leave_amount: Number(entry.leave_amount), absence_amount: Number(entry.absence_amount),
-        overtime_hours: Number(entry.overtime_hours), overtime_rate: Number(entry.overtime_rate),
-        attendance_bonus: Number(entry.attendance_bonus), advance_balance: Number(entry.advance_balance),
-        advance_deduction: Number(entry.advance_deduction), outstanding_loan: Number(entry.outstanding_loan),
-        loan: Number(entry.loan), other_deduction: Number(entry.other_deduction),
+      const response = await employeeApi.updateSalaryEntry(editingEntry.id, {
+        absent_days: absentDays, leave_days: leaveDays,
+        leave_amount: Number(editingEntry.leave_amount), absence_amount: Number(editingEntry.absence_amount),
+        overtime_hours: Number(editingEntry.overtime_hours), overtime_rate: Number(editingEntry.overtime_rate),
+        attendance_bonus: Number(editingEntry.attendance_bonus), advance_balance: Number(editingEntry.advance_balance),
+        advance_deduction: Number(editingEntry.advance_deduction), outstanding_loan: Number(editingEntry.outstanding_loan),
+        loan: Number(editingEntry.loan), other_deduction: Number(editingEntry.other_deduction),
       });
-      setEntries((current) => current.map((row) => row.id === entry.id ? response.data : row));
-      setEditingEntryId(null);
-      setMessage(`${entry.employee_name}'s salary updated.`);
-    } catch (err) { setError(apiErrorMessage(err, "Could not update salary. Check the entered values.")); }
+      setEntries((current) => current.map((row) => row.id === editingEntry.id ? response.data : row));
+      setEditingEntry(null);
+      setMessage(`${editingEntry.employee_name}'s salary updated.`);
+    } catch (err) { setSalaryEditError(apiErrorMessage(err, "Could not update salary. Check the entered values.")); }
     finally { setBusy(false); }
   }
 
@@ -262,35 +277,63 @@ export default function EmployeeManagement() {
       <div className="mb-4 grid grid-cols-2 gap-3 md:grid-cols-5">
         {[["Basic salary", totals.basic], ["Overtime", totals.overtime], ["Bonuses", totals.bonuses], ["Deductions", totals.deductions], ["Total payable", totals.payable]].map(([label, amount]) => <div key={label} className="border-l-2 border-emerald-600 pl-3 py-1"><p className="text-xs uppercase text-gray-500">{label}</p><p className="mt-1 text-sm font-semibold text-gray-900">{money(amount)}</p></div>)}
       </div>
-      <div className="overflow-x-auto"><table className="min-w-[2200px] w-full text-left text-sm"><thead className="bg-gray-50 text-xs uppercase text-gray-500"><tr>{["Employee", "Basic / Net", "Per-day rate", "Absent days", "Leave days", "Leave adjustment", "Absent amount", "OT hours", "OT rate", "OT amount", "Hazira bonus", "Advance balance", "Advance deduction", "Outstanding loan", "Loan deduction", "Additional deduction", "Total salary", "Actions"].map((heading) => <th key={heading} className="px-3 py-3">{heading}</th>)}</tr></thead><tbody className="divide-y divide-gray-100">
+      <div className="overflow-x-auto"><table className="min-w-[2050px] w-full text-left text-sm"><thead className="bg-gray-50 text-xs uppercase text-gray-500"><tr>{["Employee", "Basic / Net", "Per-day rate", "Absent days", "Leave days", "Leave adjustment", "Absent amount", "OT hours", "OT rate", "OT amount", "Hazira bonus", "Advance balance", "Advance deduction", "Outstanding loan", "Loan deduction", "Additional deduction", "Total salary"].map((heading) => <th key={heading} className="px-3 py-3">{heading}</th>)}</tr></thead><tbody className="divide-y divide-gray-100">
         {entries.map((entry) => {
-          const editing = editingEntryId === entry.id;
-          const controls = [
-            ["absent_days", "Absent days", "1"], ["leave_days", "Leave days", "1"],
-            ["leave_amount", "Leave adjustment", "0.01"], ["absence_amount", "Absent amount", "0.01"],
-            ["overtime_hours", "OT hours", "0.01"], ["overtime_rate", "OT rate", "0.01"],
-            ["attendance_bonus", "Hazira bonus", "0.01"], ["advance_balance", "Advance balance", "0.01"],
-            ["advance_deduction", "Advance deduction", "0.01"], ["outstanding_loan", "Outstanding loan", "0.01"],
-            ["loan", "Loan deduction", "0.01"], ["other_deduction", "Additional deduction", "0.01"],
-          ];
-          const showValue = (key, value, label, step, allowNegative = false) => editing
-            ? <input aria-label={`${entry.employee_name} ${label}`} type="number" min={allowNegative ? undefined : "0"} max={["absent_days", "leave_days"].includes(key) ? entry.total_days : undefined} step={step} value={value ?? 0} onChange={(event) => editEntry(entry.id, key, event.target.value)} className="w-28 rounded-lg border border-gray-200 px-2 py-1.5" />
-            : <span>{["absent_days", "leave_days", "overtime_hours"].includes(key) ? value : money(value)}</span>;
           return <tr key={entry.id}>
-            <td className="px-3 py-3"><div className="font-medium">{entry.employee_name}</div><div className="text-xs text-gray-500">{entry.employee_id} · {entry.designation} · {entry.total_days} days</div></td>
+            <td className="px-3 py-3"><div className="whitespace-nowrap font-medium">{entry.employee_name} <span className="text-xs font-normal text-gray-500">({entry.designation})</span></div><div className="mt-1 whitespace-nowrap text-xs text-gray-500">{entry.employee_id} · {entry.total_days} days</div><div className="mt-2 flex gap-2"><button type="button" disabled={busy} onClick={() => beginSalaryEdit(entry)} className="rounded-lg border border-emerald-200 px-3 py-1.5 text-xs font-semibold text-emerald-800 disabled:opacity-50">Update</button><button type="button" disabled={busy} onClick={() => deleteEntry(entry)} className="rounded-lg border border-rose-200 px-3 py-1.5 text-xs font-semibold text-rose-700 disabled:opacity-50">Delete</button></div></td>
             <td className="px-3 py-3">{money(entry.base_salary)}</td><td className="px-3 py-3">{money(entry.per_day_rate)}</td>
-            {controls.slice(0, 2).map(([key, label, step]) => <td key={key} className="px-3 py-3">{showValue(key, entry[key], label, step)}</td>)}
-            {controls.slice(2, 4).map(([key, label, step]) => <td key={key} className="px-3 py-3">{showValue(key, entry[key], label, step, key === "leave_amount")}</td>)}
-            {controls.slice(4, 6).map(([key, label, step]) => <td key={key} className="px-3 py-3">{showValue(key, entry[key], label, step)}</td>)}
+            <td className="px-3 py-3">{entry.absent_days}</td><td className="px-3 py-3">{entry.leave_days}</td>
+            <td className="px-3 py-3">{money(entry.leave_amount)}</td><td className="px-3 py-3">{money(entry.absence_amount)}</td>
+            <td className="px-3 py-3">{entry.overtime_hours}</td><td className="px-3 py-3">{money(entry.overtime_rate)}</td>
             <td className="px-3 py-3">{money(Number(entry.overtime_hours || 0) * Number(entry.overtime_rate || 0))}</td>
-            {controls.slice(6).map(([key, label, step]) => <td key={key} className="px-3 py-3">{showValue(key, entry[key], label, step)}</td>)}
+            <td className="px-3 py-3">{money(entry.attendance_bonus)}</td><td className="px-3 py-3">{money(entry.advance_balance)}</td>
+            <td className="px-3 py-3">{money(entry.advance_deduction)}</td><td className="px-3 py-3">{money(entry.outstanding_loan)}</td>
+            <td className="px-3 py-3">{money(entry.loan)}</td><td className="px-3 py-3">{money(entry.other_deduction)}</td>
             <td className="px-3 py-3 font-semibold text-emerald-800">{money(payrollPreview(entry))}</td>
-            <td className="px-3 py-3"><div className="flex gap-2">{editing ? <><button type="button" disabled={busy} onClick={() => saveEntry(entry)} className="rounded-lg border border-emerald-200 px-3 py-1.5 text-xs font-semibold text-emerald-800 disabled:opacity-50">Save</button><button type="button" onClick={() => { setEditingEntryId(null); loadSheet().catch((err) => setSheetLoadError(apiErrorMessage(err, "Could not reload the salary sheet."))); }} className="rounded-lg border border-gray-200 px-3 py-1.5 text-xs">Cancel</button></> : <button type="button" disabled={busy} onClick={() => setEditingEntryId(entry.id)} className="rounded-lg border border-emerald-200 px-3 py-1.5 text-xs font-semibold text-emerald-800 disabled:opacity-50">Update</button>}<button type="button" disabled={busy} onClick={() => deleteEntry(entry)} className="rounded-lg border border-rose-200 px-3 py-1.5 text-xs font-semibold text-rose-700 disabled:opacity-50">Delete</button></div></td>
           </tr>;
         })}
-        {sheetLoading && <tr><td className="px-3 py-8 text-center text-gray-500" colSpan="18">Loading salary sheet…</td></tr>}
-        {!sheetLoading && !sheetLoadError && !entries.length && <tr><td className="px-3 py-8 text-center text-gray-500" colSpan="18">No rows for {month}. Create or open a salary sheet to begin.</td></tr>}
+        {sheetLoading && <tr><td className="px-3 py-8 text-center text-gray-500" colSpan="17">Loading salary sheet…</td></tr>}
+        {!sheetLoading && !sheetLoadError && !entries.length && <tr><td className="px-3 py-8 text-center text-gray-500" colSpan="17">No rows for {month}. Create or open a salary sheet to begin.</td></tr>}
       </tbody></table></div>
     </section>
+    {editingEntry && <div className="fixed inset-0 z-50 flex items-center justify-center bg-slate-950/55 p-4" onMouseDown={(event) => { if (event.target === event.currentTarget && !busy) setEditingEntry(null); }}>
+      <section role="dialog" aria-modal="true" aria-labelledby="salary-edit-title" className="max-h-[90vh] w-full max-w-3xl overflow-y-auto rounded-xl bg-white shadow-2xl" onMouseDown={(event) => event.stopPropagation()}>
+        <form onSubmit={saveEntry}>
+          <header className="border-b border-gray-200 px-5 py-4 sm:px-6">
+            <p className="text-xs font-semibold uppercase text-emerald-700">{month}</p>
+            <h2 id="salary-edit-title" className="mt-1 text-lg font-semibold text-gray-900">Update monthly salary</h2>
+            <p className="mt-1 text-sm text-gray-600"><span className="font-medium text-gray-800">{editingEntry.employee_name}</span> <span className="whitespace-nowrap">({editingEntry.designation})</span></p>
+          </header>
+          <div className="grid grid-cols-1 gap-4 px-5 py-5 sm:grid-cols-2 sm:px-6">
+            {[
+              ["absent_days", "Absent days", "1", editingEntry.total_days],
+              ["leave_days", "Leave days", "1", editingEntry.total_days],
+              ["leave_amount", "Leave amount / paid leave credit", "0.01", undefined],
+              ["absence_amount", "Absent amount", "0.01", undefined],
+              ["overtime_hours", "OT hours", "0.01", undefined],
+              ["overtime_rate", "OT rate", "0.01", undefined],
+              ["attendance_bonus", "Hazira bonus", "0.01", undefined],
+              ["advance_balance", "Advance balance", "0.01", undefined],
+              ["advance_deduction", "Advance deduction", "0.01", undefined],
+              ["outstanding_loan", "Outstanding loan", "0.01", undefined],
+              ["loan", "Loan deduction", "0.01", undefined],
+              ["other_deduction", "Additional deduction", "0.01", undefined],
+            ].map(([key, label, step, max]) => <label key={key} className="text-sm font-medium text-gray-700">
+              {label}
+              <input aria-label={label} type="number" min={key === "leave_amount" ? undefined : "0"} max={max} step={step} required value={editingEntry[key] ?? 0} onChange={(event) => editEntry(key, event.target.value)} className={`${fieldClass} mt-1`} />
+            </label>)}
+            <div className="rounded-lg border border-emerald-200 bg-emerald-50 p-4 sm:col-span-2">
+              <p className="text-xs font-semibold uppercase text-emerald-800">Calculated total salary</p>
+              <p className="mt-1 text-2xl font-bold text-emerald-900">{money(payrollPreview(editingEntry))}</p>
+            </div>
+            {salaryEditError && <p role="alert" className="rounded-lg border border-rose-200 bg-rose-50 p-3 text-sm text-rose-800 sm:col-span-2">{salaryEditError}</p>}
+          </div>
+          <footer className="flex justify-end gap-2 border-t border-gray-200 px-5 py-4 sm:px-6">
+            <button type="button" disabled={busy} onClick={() => { setEditingEntry(null); setSalaryEditError(""); }} className="rounded-lg border border-gray-200 px-4 py-2 text-sm font-semibold text-gray-700 disabled:opacity-50">Cancel</button>
+            <button type="submit" disabled={busy} className="rounded-lg bg-emerald-700 px-4 py-2 text-sm font-semibold text-white hover:bg-emerald-800 disabled:opacity-50">{busy ? "Saving…" : "Save Changes"}</button>
+          </footer>
+        </form>
+      </section>
+    </div>}
   </div>;
 }
