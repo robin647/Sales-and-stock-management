@@ -67,6 +67,7 @@ export default function SwingManagement() {
   const [lotSearch, setLotSearch] = useState("");
   const [lotPickerOpen, setLotPickerOpen] = useState(false);
   const [status, setStatus] = useState({ loading: true, detailLoading: false, saving: false, error: "", message: "" });
+  const [exporting, setExporting] = useState("");
 
   const activeOperators = useMemo(() => operators.filter((operator) => operator.is_active), [operators]);
   const searchedOperators = useMemo(() => activeOperators.filter((operator) => operator.name.toLowerCase().includes(detailsSearch.toLowerCase())), [activeOperators, detailsSearch]);
@@ -298,6 +299,27 @@ export default function SwingManagement() {
     } catch (error) { notifyError(error); }
   }
 
+  async function exportAllOperators() {
+    setExporting("operators");
+    setStatus((current) => ({ ...current, error: "", message: "" }));
+    try {
+      await swingApi.exportOperators();
+      setStatus((current) => ({ ...current, message: "All-operator XLSX downloaded." }));
+    } catch (error) { notifyError(error); }
+    finally { setExporting(""); }
+  }
+
+  async function exportOperatorStatement() {
+    if (!selectedOperator) return;
+    setExporting("statement");
+    setStatus((current) => ({ ...current, error: "", message: "" }));
+    try {
+      await swingApi.operators.exportStatement(selectedOperator);
+      setStatus((current) => ({ ...current, message: `${currentOperatorName} statement XLSX downloaded.` }));
+    } catch (error) { notifyError(error); }
+    finally { setExporting(""); }
+  }
+
   const currentOperatorName = selected?.name || activeOperators.find((operator) => String(operator.id) === selectedOperator)?.name || "";
 
   return <div className="space-y-6">
@@ -320,7 +342,7 @@ export default function SwingManagement() {
 
     <section className="dashboard-chart-panel">
       <div className="dashboard-section-heading mb-4"><div><h2>All Swing Operators</h2><p>Active operator totals from saved lots, rejections, and payments.</p></div><span className="dashboard-section-tag">{dashboardRows.length} active</span></div>
-      <div className="mb-4 max-w-sm"><Field label="Search operators"><input className={inputClass} placeholder="Search by operator name" value={operatorSearch} onChange={(event) => setOperatorSearch(event.target.value)} /></Field></div>
+      <div className="mb-4 flex flex-col gap-3 sm:flex-row sm:items-end sm:justify-between"><div className="w-full sm:max-w-sm"><Field label="Search operators"><input className={inputClass} placeholder="Search by operator name" value={operatorSearch} onChange={(event) => setOperatorSearch(event.target.value)} /></Field></div><button type="button" onClick={exportAllOperators} disabled={exporting !== "" || !dashboardRows.length} className="whitespace-nowrap rounded-lg border border-emerald-700 px-4 py-2.5 text-sm font-semibold text-emerald-800 hover:bg-emerald-50 disabled:opacity-50">{exporting === "operators" ? "Preparing XLSX…" : "Export XLSX"}</button></div>
       <div className="overflow-x-auto"><table className="w-full min-w-[980px] text-left text-sm"><thead className="bg-gray-50 text-[11px] uppercase text-gray-600"><tr>{["Operator Name", "Total Products", "Rejected Products", "Total Work Amount", "Total Paid", "Total Due", "Actions"].map((heading) => <th key={heading} className="whitespace-nowrap px-3 py-3">{heading}</th>)}</tr></thead><tbody className="divide-y divide-gray-100">
         {searchedDashboardRows.map((operator) => <tr key={operator.id}><td className="whitespace-nowrap px-3 py-3 font-semibold text-gray-900">{operator.name}</td><td className="px-3 py-3">{Number(operator.total_products).toLocaleString()}</td><td className="px-3 py-3">{Number(operator.rejected_products).toLocaleString()}</td><td className="px-3 py-3">{money(operator.total_work_amount)}</td><td className="px-3 py-3">{money(operator.total_paid)}</td><td className="px-3 py-3 font-semibold">{money(operator.total_due)}</td><td className="px-3 py-3"><div className="flex gap-3"><button type="button" onClick={() => { setSelectedOperator(String(operator.id)); setDetailsSearch(activeOperators.find((row) => row.id === operator.id)?.name || operator.name); document.getElementById("swing-operator-details")?.scrollIntoView({ behavior: "smooth", block: "start" }); }} className="whitespace-nowrap text-xs font-semibold text-emerald-800 hover:underline">View Details</button><button type="button" onClick={() => openOperatorModal(activeOperators.find((row) => row.id === operator.id))} className="text-xs font-semibold text-gray-700 hover:underline">Edit</button><button type="button" onClick={() => deleteOperator(operator)} className="text-xs font-semibold text-rose-700 hover:underline">Delete</button></div></td></tr>)}
         {!status.loading && !searchedDashboardRows.length && <TableEmpty columns={7}>{operatorSearch ? "No active operators match this search." : "No active swing operators yet."}</TableEmpty>}
@@ -334,7 +356,7 @@ export default function SwingManagement() {
         <div className="relative w-full sm:max-w-md"><Field label="Search swing operator"><input role="combobox" aria-expanded={operatorPickerOpen} aria-autocomplete="list" autoComplete="off" className={inputClass} placeholder="Type an operator name" value={detailsSearch} onFocus={() => setOperatorPickerOpen(true)} onBlur={() => window.setTimeout(() => setOperatorPickerOpen(false), 120)} onChange={(event) => { setDetailsSearch(event.target.value); setOperatorPickerOpen(true); }} /></Field>
           {operatorPickerOpen && <ul role="listbox" className="absolute z-30 mt-1 max-h-56 w-full overflow-auto rounded-lg border border-gray-200 bg-white py-1 shadow-lg">{searchedOperators.map((operator) => <li key={operator.id}><button type="button" onMouseDown={(event) => event.preventDefault()} onClick={() => { setSelectedOperator(String(operator.id)); setDetailsSearch(operator.name); setOperatorPickerOpen(false); }} className={`w-full px-3 py-2 text-left text-sm hover:bg-emerald-50 ${selectedOperator === String(operator.id) ? "bg-emerald-50 font-semibold" : ""}`}>{operator.name}</button></li>)}{!searchedOperators.length && <li className="px-3 py-2 text-sm text-gray-500">No matching active operators</li>}</ul>}
         </div>
-        <div className="flex gap-2"><button type="button" onClick={() => openPayment()} disabled={!selectedOperator} className="rounded-lg bg-emerald-700 px-4 py-2.5 text-sm font-semibold text-white disabled:opacity-50">Payment</button><button type="button" onClick={() => openReject()} disabled={!selectedOperator || !lots.length} className="rounded-lg border border-rose-200 px-4 py-2.5 text-sm font-semibold text-rose-800 disabled:opacity-50">Reject Details</button></div>
+        <div className="flex flex-wrap gap-2"><button type="button" onClick={() => openPayment()} disabled={!selectedOperator} className="rounded-lg bg-emerald-700 px-4 py-2.5 text-sm font-semibold text-white disabled:opacity-50">Payment</button><button type="button" onClick={() => openReject()} disabled={!selectedOperator || !lots.length} className="rounded-lg border border-rose-200 px-4 py-2.5 text-sm font-semibold text-rose-800 disabled:opacity-50">Reject Details</button><button type="button" onClick={exportOperatorStatement} disabled={!selectedOperator || exporting !== ""} className="rounded-lg border border-gray-300 px-4 py-2.5 text-sm font-semibold text-gray-700 hover:bg-gray-50 disabled:opacity-50">{exporting === "statement" ? "Preparing XLSX…" : "Export XLSX"}</button></div>
       </div>
 
       {selectedOperator && <>
