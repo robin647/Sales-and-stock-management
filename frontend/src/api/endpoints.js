@@ -18,6 +18,7 @@ export const employeeApi = {
   list: () => api.get("/employees/"),
   create: (data) => api.post("/employees/", data),
   update: (id, data) => api.patch(`/employees/${id}/`, data),
+  delete: (id) => api.delete(`/employees/${id}/`),
   salaryEntries: (month) => api.get("/employees/salary-entries/", { params: { month } }),
   updateSalaryEntry: (id, data) => api.patch(`/employees/salary-entries/${id}/`, data),
   createSalarySheet: (month) => api.post("/employees/salary-sheets/create/", { month }),
