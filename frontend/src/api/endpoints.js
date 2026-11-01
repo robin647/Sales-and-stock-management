@@ -23,6 +23,7 @@ export const employeeApi = {
   updateSalaryEntry: (id, data) => api.patch(`/employees/salary-entries/${id}/`, data),
   deleteSalaryEntry: (id) => api.delete(`/employees/salary-entries/${id}/`),
   salarySheets: () => api.get("/employees/salary-sheets/"),
+  openSalarySheet: (month) => api.get("/employees/salary-sheets/open/", { params: { month } }),
   createSalarySheet: (month) => api.post("/employees/salary-sheets/create/", { month }),
   exportSalarySheet: (month) => downloadFile("/employees/salary-sheets/export/", { month }, `salary-sheet-${month}.xlsx`),
 };

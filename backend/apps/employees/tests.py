@@ -44,7 +44,7 @@ class EmployeeManagementApiTests(APITestCase):
             response = self.client.post(
                 reverse("salary-sheet-create"), {"month": month}, format="json"
             )
-        self.assertEqual(response.status_code, 200, response.data)
+        self.assertIn(response.status_code, (200, 201), response.data)
         return response
 
     def test_employee_crud_search_and_soft_delete_preserves_salary_history(self):
@@ -104,6 +104,7 @@ class EmployeeManagementApiTests(APITestCase):
             self.employees_url,
             reverse("salary-entry-list"),
             reverse("salary-sheet-list"),
+            reverse("salary-sheet-open"),
             reverse("salary-sheet-export"),
         ]
         for path in protected_gets:
@@ -121,7 +122,7 @@ class EmployeeManagementApiTests(APITestCase):
         employee = self.create_employee()
         first = self.create_sheet()
         second = self.create_sheet()
-        self.assertEqual(first.status_code, 200)
+        self.assertEqual(first.status_code, 201)
         self.assertEqual(second.status_code, 200)
         self.assertEqual(first.data[0]["id"], second.data[0]["id"])
         self.assertEqual(SalarySheet.objects.filter(month="2026-11-01").count(), 1)
@@ -140,6 +141,65 @@ class EmployeeManagementApiTests(APITestCase):
         self.assertEqual(history.status_code, 200)
         self.assertEqual(history.data[0]["month"], "2026-11")
         self.assertEqual(history.data[0]["entry_count"], 1)
+
+    def test_open_salary_sheet_returns_saved_values_without_mutating_them(self):
+        employee = self.create_employee()
+        created = self.create_sheet()
+        entry_id = created.data[0]["id"]
+        self.client.patch(
+            reverse("salary-entry-detail", kwargs={"pk": entry_id}),
+            {"absent_days": 2, "overtime_hours": "1.50", "attendance_bonus": "75", "loan": "200"},
+            format="json",
+        )
+        saved = SalaryEntry.objects.get(pk=entry_id)
+        saved_values = (saved.absent_days, saved.overtime_hours, saved.attendance_bonus, saved.loan, saved.updated_at)
+
+        response = self.client.get(reverse("salary-sheet-open"), {"month": "2026-11"})
+
+        self.assertEqual(response.status_code, 200)
+        self.assertEqual(len(response.data), 1)
+        self.assertEqual(response.data[0]["employee"], employee["id"])
+        self.assertEqual(response.data[0]["absent_days"], 2)
+        self.assertEqual(response.data[0]["overtime_hours"], "1.50")
+        self.assertEqual(response.data[0]["attendance_bonus"], "75.00")
+        self.assertEqual(response.data[0]["loan"], "200.00")
+        saved.refresh_from_db()
+        self.assertEqual((saved.absent_days, saved.overtime_hours, saved.attendance_bonus, saved.loan, saved.updated_at), saved_values)
+        self.assertEqual(SalaryEntry.objects.filter(sheet__month="2026-11-01").count(), 1)
+
+    def test_open_missing_sheet_and_create_without_active_employees_are_clear(self):
+        missing = self.client.get(reverse("salary-sheet-open"), {"month": "2026-11"})
+        self.assertEqual(missing.status_code, 404)
+        self.assertIn("No salary sheet exists", missing.data["detail"])
+
+        create = self.client.post(
+            reverse("salary-sheet-create"), {"month": "2026-11"}, format="json"
+        )
+        self.assertEqual(create.status_code, 400)
+        self.assertIn("No active employees", str(create.data["errors"]["employees"]))
+        self.assertFalse(SalarySheet.objects.filter(month="2026-11-01").exists())
+
+    def test_new_salary_sheet_creates_default_rows_for_all_active_employees(self):
+        self.create_employee()
+        self.create_employee("EMP-002", name="Second Employee", nid_number="NID-002")
+
+        response = self.create_sheet("2026-11")
+
+        self.assertEqual(response.status_code, 201)
+        self.assertEqual(len(response.data), 2)
+        for entry in response.data:
+            with self.subTest(employee_id=entry["employee_id"]):
+                self.assertEqual(entry["total_days"], 30)
+                self.assertEqual(entry["per_day_rate"], "1000.00")
+                self.assertEqual(entry["absent_days"], 0)
+                self.assertEqual(entry["leave_days"], 0)
+                self.assertEqual(entry["overtime_hours"], "0.00")
+                self.assertEqual(entry["leave_amount"], "0.00")
+                self.assertEqual(entry["absence_amount"], "0.00")
+                self.assertEqual(entry["attendance_bonus"], "0.00")
+                self.assertEqual(entry["loan"], "0.00")
+                self.assertEqual(entry["other_deduction"], "0.00")
+                self.assertEqual(entry["total_salary"], "30000.00")
 
     def test_payroll_calculation_and_manual_adjustments(self):
         self.create_employee()
