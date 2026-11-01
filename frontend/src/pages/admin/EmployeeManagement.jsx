@@ -130,7 +130,9 @@ export default function EmployeeManagement() {
       const rows = response.data.results ?? response.data;
       setEntries(rows);
       setSheetLoadError("");
-      setMessage(`Salary sheet opened for ${month}.`);
+      setMessage(rows.length
+        ? `Salary sheet opened for ${month}.`
+        : `The ${month} salary sheet exists but has no employee rows. Select Create sheet to initialize it.`);
     } catch (err) {
       setEntries([]);
       setError(apiErrorMessage(err, "Could not open the salary sheet."));
@@ -153,7 +155,7 @@ export default function EmployeeManagement() {
       setSheetLoadError("");
       await loadHistory();
       setMessage(response.status === 201
-        ? `Salary sheet created for ${month}.`
+        ? `Salary sheet created or completed for ${month}. Existing salary rows were preserved.`
         : `A salary sheet already exists for ${month}; saved data was opened without changes.`);
     } catch (err) { setError(apiErrorMessage(err, "Could not create the salary sheet.")); }
     finally { setBusy(false); setSheetAction(""); setSheetLoading(false); }

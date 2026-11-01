@@ -48,6 +48,7 @@ def create_salary_entries(sheet):
         ))
     for entry in entries:
         entry.save(force_insert=True)
+    return len(entries)
 
 
 class AdminOnly:
@@ -123,12 +124,14 @@ class CreateSalarySheetView(AdminOnly, APIView):
             raise ValidationError({"employees": "No active employees exist. Add an active employee before creating a salary sheet."})
 
         with transaction.atomic():
-            sheet, created = SalarySheet.objects.get_or_create(month=month)
-            if created:
-                create_salary_entries(sheet)
+            sheet, sheet_created = SalarySheet.objects.get_or_create(month=month)
+            entries_created = create_salary_entries(sheet)
+            if not sheet.entries.exists():
+                raise ValidationError({"employees": "No active employees are available to populate this salary sheet."})
 
         entries = sheet.entries.select_related("employee").all()
-        return Response(SalaryEntrySerializer(entries, many=True).data, status=201 if created else 200)
+        status_code = 201 if sheet_created or entries_created else 200
+        return Response(SalaryEntrySerializer(entries, many=True).data, status=status_code)
 
 
 class OpenSalarySheetView(AdminOnly, APIView):
