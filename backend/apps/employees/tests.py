@@ -201,6 +201,43 @@ class EmployeeManagementApiTests(APITestCase):
                 self.assertEqual(entry["other_deduction"], "0.00")
                 self.assertEqual(entry["total_salary"], "30000.00")
 
+    def test_create_populates_existing_empty_sheet(self):
+        self.create_employee()
+        sheet = SalarySheet.objects.create(month="2026-10-01")
+
+        response = self.client.post(
+            reverse("salary-sheet-create"), {"month": "2026-10"}, format="json"
+        )
+
+        self.assertEqual(response.status_code, 201)
+        self.assertEqual(len(response.data), 1)
+        self.assertEqual(response.data[0]["month"], "2026-10-01")
+        self.assertEqual(response.data[0]["total_days"], 31)
+        self.assertEqual(response.data[0]["per_day_rate"], "967.74")
+        self.assertEqual(SalaryEntry.objects.filter(sheet=sheet).count(), 1)
+
+    def test_create_backfills_new_employees_without_changing_saved_rows(self):
+        self.create_employee()
+        first_response = self.create_sheet()
+        original = first_response.data[0]
+        self.client.patch(
+            reverse("salary-entry-detail", kwargs={"pk": original["id"]}),
+            {"absent_days": 2, "attendance_bonus": "125.00"},
+            format="json",
+        )
+        self.create_employee("EMP-002", name="Second Employee", nid_number="NID-002")
+
+        response = self.client.post(
+            reverse("salary-sheet-create"), {"month": "2026-11"}, format="json"
+        )
+
+        self.assertEqual(response.status_code, 201)
+        self.assertEqual(len(response.data), 2)
+        preserved = next(row for row in response.data if row["id"] == original["id"])
+        self.assertEqual(preserved["absent_days"], 2)
+        self.assertEqual(preserved["attendance_bonus"], "125.00")
+        self.assertEqual(SalaryEntry.objects.filter(sheet__month="2026-11-01").count(), 2)
+
     def test_payroll_calculation_and_manual_adjustments(self):
         self.create_employee()
         response = self.create_sheet()
