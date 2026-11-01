@@ -5,6 +5,7 @@ from rest_framework import permissions, viewsets
 from rest_framework.decorators import action
 from rest_framework.exceptions import PermissionDenied
 from rest_framework.response import Response
+from rest_framework.views import APIView
 
 from .models import SwingLot, SwingOperator, SwingPayment, SwingReject
 from .serializers import (
@@ -17,6 +18,51 @@ from .services import validate_lot_capacity, validate_reject_capacity
 
 
 ZERO = Decimal("0.00")
+
+
+class SwingDashboardSummaryView(APIView):
+    permission_classes = [permissions.IsAuthenticated]
+
+    def check_permissions(self, request):
+        super().check_permissions(request)
+        if request.user.role != "admin":
+            raise PermissionDenied("Only Admin can access Swing Management.")
+
+    def get(self, request):
+        operators = SwingOperator.objects.filter(is_active=True).prefetch_related(
+            "lots", "payments", "lots__rejections"
+        )
+        rows = []
+        for operator in operators:
+            lots = [lot for lot in operator.lots.all() if lot.is_active]
+            payments = [payment for payment in operator.payments.all() if payment.is_active]
+            rejects = [reject for lot in lots for reject in lot.rejections.all() if reject.is_active]
+            total_products = sum(lot.quantity for lot in lots)
+            rejected_products = sum(reject.quantity for reject in rejects)
+            total_work = sum((Decimal(lot.quantity) * lot.rate for lot in lots), ZERO)
+            reject_total = sum((Decimal(reject.quantity) * reject.lot.rate for reject in rejects), ZERO)
+            total_paid = sum((payment.amount for payment in payments), ZERO)
+            total_work = total_work.quantize(Decimal("0.01"))
+            total_due = (total_work - reject_total - total_paid).quantize(Decimal("0.01"))
+            rows.append({
+                "id": operator.pk,
+                "name": operator.name,
+                "total_products": total_products,
+                "rejected_products": rejected_products,
+                "total_work_amount": total_work,
+                "total_paid": total_paid.quantize(Decimal("0.01")),
+                "total_due": total_due,
+            })
+
+        return Response({
+            "summary": {
+                "total_products_sewn": sum(row["total_products"] for row in rows),
+                "total_sewing_cost": sum((row["total_work_amount"] for row in rows), ZERO).quantize(Decimal("0.01")),
+                "total_payments_made": sum((row["total_paid"] for row in rows), ZERO).quantize(Decimal("0.01")),
+                "total_outstanding_due": sum((row["total_due"] for row in rows), ZERO).quantize(Decimal("0.01")),
+            },
+            "operators": rows,
+        })
 
 
 class AdminOnlyViewSet(viewsets.ModelViewSet):
@@ -125,6 +171,40 @@ class SwingOperatorViewSet(AdminOnlyViewSet):
         total_gross = sum((Decimal(lot.quantity) * lot.rate for lot in lots), ZERO)
         total_reject_amount = sum((Decimal(reject.quantity) * reject.lot.rate for reject in rejects), ZERO)
         total_payments = sum((payment.amount for payment in payments), ZERO)
+        lot_rows = []
+        lot_balance = ZERO
+        previous_lot_date = None
+        for lot in lots:
+            lot_rejects = [reject for reject in rejects if reject.lot_id == lot.pk]
+            reject_qty = sum(reject.quantity for reject in lot_rejects)
+            reject_amount = sum((Decimal(reject.quantity) * lot.rate for reject in lot_rejects), ZERO).quantize(Decimal("0.01"))
+            lot_total = (Decimal(lot.quantity) * lot.rate).quantize(Decimal("0.01"))
+            lot_payments = [
+                payment for payment in payments
+                if (previous_lot_date is None or payment.payment_date > previous_lot_date)
+                and payment.payment_date <= lot.lot_date
+            ]
+            if lot == lots[-1]:
+                lot_payments.extend(payment for payment in payments if payment.payment_date > lot.lot_date)
+            receive_amount = sum((payment.amount for payment in lot_payments), ZERO).quantize(Decimal("0.01"))
+            lot_brought_forward = lot_balance
+            lot_due = (lot_brought_forward + lot_total - reject_amount - receive_amount).quantize(Decimal("0.01"))
+            lot_rows.append({
+                "lot_id": lot.pk,
+                "event_date": lot.lot_date,
+                "bf_taka": lot_brought_forward,
+                "colour": lot.fabric_specification,
+                "lot_no": lot.lot_number,
+                "lot_qty": lot.quantity,
+                "lot_rate": lot.rate,
+                "total_tk": lot_total,
+                "reject_qty": reject_qty,
+                "reject_tk": reject_amount,
+                "receive_tk": receive_amount,
+                "due_taka": lot_due,
+            })
+            lot_balance = lot_due
+            previous_lot_date = lot.lot_date
         return Response({
             "operator": SwingOperatorSerializer(operator).data,
             "summary": {
@@ -132,11 +212,13 @@ class SwingOperatorViewSet(AdminOnlyViewSet):
                 "total_products_assigned": total_quantity,
                 "total_rejected_quantity": total_rejected,
                 "total_accepted_quantity": total_quantity - total_rejected,
-                "total_sewing_amount": (total_gross - total_reject_amount).quantize(Decimal("0.01")),
+                "total_sewing_amount": total_gross.quantize(Decimal("0.01")),
+                "net_sewing_amount": (total_gross - total_reject_amount).quantize(Decimal("0.01")),
                 "total_payments_received": total_payments.quantize(Decimal("0.01")),
                 "current_outstanding_balance": balance.quantize(Decimal("0.01")),
             },
             "statement": statement,
+            "lot_rows": lot_rows,
             "lots": SwingLotSerializer(lots, many=True).data,
         })
 
