@@ -4,8 +4,8 @@ from rest_framework.routers import DefaultRouter
 from .views import CreateSalarySheetView, EmployeeViewSet, ExportSalarySheetView, SalaryEntryViewSet
 
 router = DefaultRouter()
-router.register("", EmployeeViewSet, basename="employee")
 router.register("salary-entries", SalaryEntryViewSet, basename="salary-entry")
+router.register("", EmployeeViewSet, basename="employee")
 
 urlpatterns = [
     path("salary-sheets/create/", CreateSalarySheetView.as_view(), name="salary-sheet-create"),
