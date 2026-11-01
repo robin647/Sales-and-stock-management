@@ -10,7 +10,7 @@ from openpyxl import Workbook
 from openpyxl.styles import Alignment, Border, Font, PatternFill, Side
 from openpyxl.utils import get_column_letter
 from rest_framework import permissions, viewsets
-from rest_framework.exceptions import PermissionDenied, ValidationError
+from rest_framework.exceptions import NotFound, PermissionDenied, ValidationError
 from rest_framework.response import Response
 from rest_framework.views import APIView
 
@@ -119,10 +119,29 @@ class CreateSalarySheetView(AdminOnly, APIView):
         if not month:
             raise ValidationError({"month": "Select a valid month in YYYY-MM format."})
 
+        if not SalarySheet.objects.filter(month=month).exists() and not Employee.objects.filter(is_active=True).exists():
+            raise ValidationError({"employees": "No active employees exist. Add an active employee before creating a salary sheet."})
+
         with transaction.atomic():
             sheet, created = SalarySheet.objects.get_or_create(month=month)
             if created:
                 create_salary_entries(sheet)
+
+        entries = sheet.entries.select_related("employee").all()
+        return Response(SalaryEntrySerializer(entries, many=True).data, status=201 if created else 200)
+
+
+class OpenSalarySheetView(AdminOnly, APIView):
+    def get(self, request):
+        month_value = request.query_params.get("month", "")
+        month = parse_month(month_value)
+        if not month:
+            raise ValidationError({"month": "Select a valid month in YYYY-MM format."})
+
+        try:
+            sheet = SalarySheet.objects.get(month=month)
+        except SalarySheet.DoesNotExist as exc:
+            raise NotFound("No salary sheet exists for this month. Create one to begin.") from exc
 
         entries = sheet.entries.select_related("employee").all()
         return Response(SalaryEntrySerializer(entries, many=True).data)

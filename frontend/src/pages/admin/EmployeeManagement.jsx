@@ -42,6 +42,7 @@ export default function EmployeeManagement() {
   const [employeesLoadError, setEmployeesLoadError] = useState("");
   const [sheetLoading, setSheetLoading] = useState(true);
   const [sheetLoadError, setSheetLoadError] = useState("");
+  const [sheetAction, setSheetAction] = useState("");
   const [message, setMessage] = useState("");
   const [error, setError] = useState("");
 
@@ -115,16 +116,47 @@ export default function EmployeeManagement() {
     finally { setBusy(false); }
   }
 
-  async function createSheet() {
+  async function openSheet() {
+    if (!/^\d{4}-(0[1-9]|1[0-2])$/.test(month)) {
+      setError("Select a valid salary month first.");
+      setMessage("");
+      return;
+    }
     setBusy(true); setError(""); setMessage("");
+    setSheetAction("open");
+    setSheetLoading(true);
+    try {
+      const response = await employeeApi.openSalarySheet(month);
+      const rows = response.data.results ?? response.data;
+      setEntries(rows);
+      setSheetLoadError("");
+      setMessage(`Salary sheet opened for ${month}.`);
+    } catch (err) {
+      setEntries([]);
+      setError(apiErrorMessage(err, "Could not open the salary sheet."));
+    } finally { setBusy(false); setSheetAction(""); setSheetLoading(false); }
+  }
+
+  async function createSheet() {
+    if (!/^\d{4}-(0[1-9]|1[0-2])$/.test(month)) {
+      setError("Select a valid salary month first.");
+      setMessage("");
+      return;
+    }
+    setBusy(true); setError(""); setMessage("");
+    setSheetAction("create");
+    setSheetLoading(true);
     try {
       const response = await employeeApi.createSalarySheet(month);
       const rows = response.data.results ?? response.data;
       setEntries(rows);
+      setSheetLoadError("");
       await loadHistory();
-      setMessage(`Salary sheet ready for ${month}.`);
-    } catch (err) { setError(apiErrorMessage(err, "Could not create or open the salary sheet.")); }
-    finally { setBusy(false); }
+      setMessage(response.status === 201
+        ? `Salary sheet created for ${month}.`
+        : `A salary sheet already exists for ${month}; saved data was opened without changes.`);
+    } catch (err) { setError(apiErrorMessage(err, "Could not create the salary sheet.")); }
+    finally { setBusy(false); setSheetAction(""); setSheetLoading(false); }
   }
 
   function beginSalaryEdit(entry) {
@@ -271,9 +303,11 @@ export default function EmployeeManagement() {
       <div className="mb-4 flex flex-wrap items-end gap-3">
         <label className="text-sm font-medium text-gray-600">Salary month<input type="month" value={month} onChange={(event) => setMonth(event.target.value)} className={`${fieldClass} mt-1 block w-auto`} /></label>
         <label className="text-sm font-medium text-gray-600">Salary history<select value="" onChange={(event) => event.target.value && setMonth(event.target.value)} className={`${fieldClass} mt-1 block w-auto`}><option value="">Open a saved month</option>{history.map((sheet) => <option key={sheet.id} value={sheet.month}>{sheet.month} · {sheet.entry_count} rows</option>)}</select></label>
-        <button type="button" disabled={busy || employeesLoading || !employees.length} onClick={createSheet} className="rounded-lg bg-emerald-700 px-4 py-2.5 text-sm font-semibold text-white hover:bg-emerald-800 disabled:opacity-50">Create / open sheet</button>
+        <button type="button" disabled={busy || !/^\d{4}-(0[1-9]|1[0-2])$/.test(month)} onClick={openSheet} className="rounded-lg border border-gray-200 px-4 py-2.5 text-sm font-semibold text-gray-700 hover:bg-gray-50 disabled:opacity-50">{sheetAction === "open" ? "Opening…" : "Open sheet"}</button>
+        <button type="button" disabled={busy || !/^\d{4}-(0[1-9]|1[0-2])$/.test(month)} onClick={createSheet} className="rounded-lg bg-emerald-700 px-4 py-2.5 text-sm font-semibold text-white hover:bg-emerald-800 disabled:opacity-50">{sheetAction === "create" ? "Creating…" : "Create sheet"}</button>
         <button type="button" disabled={busy || !entries.length} onClick={() => employeeApi.exportSalarySheet(month).catch((err) => setError(apiErrorMessage(err, "Could not download Excel sheet.")))} className="rounded-lg border border-gray-200 px-4 py-2.5 text-sm font-semibold text-gray-700 hover:bg-gray-50 disabled:opacity-50">Export Excel</button>
       </div>
+      {!employeesLoading && !employeesLoadError && !employees.length && <p className="mb-4 text-sm text-amber-700">No active employees are available. Existing salary sheets can still be opened; creating a new sheet requires an active employee.</p>}
       <div className="mb-4 grid grid-cols-2 gap-3 md:grid-cols-5">
         {[["Basic salary", totals.basic], ["Overtime", totals.overtime], ["Bonuses", totals.bonuses], ["Deductions", totals.deductions], ["Total payable", totals.payable]].map(([label, amount]) => <div key={label} className="border-l-2 border-emerald-600 pl-3 py-1"><p className="text-xs uppercase text-gray-500">{label}</p><p className="mt-1 text-sm font-semibold text-gray-900">{money(amount)}</p></div>)}
       </div>
