@@ -1,6 +1,10 @@
 from decimal import Decimal
 
 from django.db import transaction
+from django.http import HttpResponse
+from openpyxl import Workbook
+from openpyxl.styles import Alignment, Font, PatternFill
+from openpyxl.utils import get_column_letter
 from rest_framework import permissions, viewsets
 from rest_framework.decorators import action
 from rest_framework.exceptions import PermissionDenied
@@ -18,6 +22,189 @@ from .services import validate_lot_capacity, validate_reject_capacity
 
 
 ZERO = Decimal("0.00")
+XLSX_CONTENT_TYPE = "application/vnd.openxmlformats-officedocument.spreadsheetml.sheet"
+
+
+def _dashboard_data():
+    operators = SwingOperator.objects.filter(is_active=True).prefetch_related(
+        "lots", "payments", "lots__rejections"
+    )
+    rows = []
+    for operator in operators:
+        lots = [lot for lot in operator.lots.all() if lot.is_active]
+        payments = [payment for payment in operator.payments.all() if payment.is_active]
+        rejects = [reject for lot in lots for reject in lot.rejections.all() if reject.is_active]
+        total_products = sum(lot.quantity for lot in lots)
+        rejected_products = sum(reject.quantity for reject in rejects)
+        total_work = sum((Decimal(lot.quantity) * lot.rate for lot in lots), ZERO).quantize(Decimal("0.01"))
+        reject_total = sum((Decimal(reject.quantity) * reject.lot.rate for reject in rejects), ZERO)
+        total_paid = sum((payment.amount for payment in payments), ZERO).quantize(Decimal("0.01"))
+        total_due = (total_work - reject_total - total_paid).quantize(Decimal("0.01"))
+        rows.append({
+            "id": operator.pk,
+            "name": operator.name,
+            "total_products": total_products,
+            "rejected_products": rejected_products,
+            "total_work_amount": total_work,
+            "total_paid": total_paid,
+            "total_due": total_due,
+        })
+
+    return {
+        "summary": {
+            "total_products_sewn": sum(row["total_products"] for row in rows),
+            "total_sewing_cost": sum((row["total_work_amount"] for row in rows), ZERO).quantize(Decimal("0.01")),
+            "total_payments_made": sum((row["total_paid"] for row in rows), ZERO).quantize(Decimal("0.01")),
+            "total_outstanding_due": sum((row["total_due"] for row in rows), ZERO).quantize(Decimal("0.01")),
+        },
+        "operators": rows,
+    }
+
+
+def _build_lot_rows(lots, rejects, payments):
+    rows = []
+    lot_balance = ZERO
+    previous_lot_date = None
+    for lot_index, lot in enumerate(lots):
+        lot_rejects = [reject for reject in rejects if reject.lot_id == lot.pk]
+        reject_qty = sum(reject.quantity for reject in lot_rejects)
+        reject_amount = sum((Decimal(reject.quantity) * lot.rate for reject in lot_rejects), ZERO).quantize(Decimal("0.01"))
+        lot_total = (Decimal(lot.quantity) * lot.rate).quantize(Decimal("0.01"))
+        lot_payments = [
+            payment for payment in payments
+            if (previous_lot_date is None or payment.payment_date > previous_lot_date)
+            and payment.payment_date <= lot.lot_date
+        ]
+        if lot_index == len(lots) - 1:
+            lot_payments.extend(payment for payment in payments if payment.payment_date > lot.lot_date)
+        receive_amount = sum((payment.amount for payment in lot_payments), ZERO).quantize(Decimal("0.01"))
+        brought_forward = lot_balance
+        lot_balance = (brought_forward + lot_total - reject_amount - receive_amount).quantize(Decimal("0.01"))
+        rows.append({
+            "lot_id": lot.pk,
+            "event_date": lot.lot_date,
+            "bf_taka": brought_forward,
+            "colour": lot.fabric_specification,
+            "lot_no": lot.lot_number,
+            "lot_qty": lot.quantity,
+            "lot_rate": lot.rate,
+            "total_tk": lot_total,
+            "reject_qty": reject_qty,
+            "reject_tk": reject_amount,
+            "receive_tk": receive_amount,
+            "due_taka": lot_balance,
+        })
+        previous_lot_date = lot.lot_date
+    return rows
+
+
+def _style_sheet(sheet, header_row=1):
+    sheet.freeze_panes = f"A{header_row + 1}"
+    for cell in sheet[header_row]:
+        cell.font = Font(bold=True, color="FFFFFF")
+        cell.fill = PatternFill("solid", fgColor="176B52")
+        cell.alignment = Alignment(horizontal="center", vertical="center")
+    sheet.auto_filter.ref = f"A{header_row}:{get_column_letter(sheet.max_column)}{sheet.max_row}"
+    for column_index in range(1, sheet.max_column + 1):
+        column_letter = get_column_letter(column_index)
+        width = max((len(str(sheet.cell(row, column_index).value or "")) for row in range(1, sheet.max_row + 1)), default=0)
+        sheet.column_dimensions[column_letter].width = min(max(width + 2, 12), 30)
+
+
+class SwingOperatorsExportView(APIView):
+    permission_classes = [permissions.IsAuthenticated]
+
+    def check_permissions(self, request):
+        super().check_permissions(request)
+        if request.user.role != "admin":
+            raise PermissionDenied("Only Admin can export Swing Management data.")
+
+    def get(self, request):
+        data = _dashboard_data()
+        workbook = Workbook()
+        sheet = workbook.active
+        sheet.title = "All Operators"
+        sheet.append(["Operator Name", "Total Products", "Rejected Products", "Total Work Amount", "Total Paid", "Total Due"])
+        for row in data["operators"]:
+            sheet.append([
+                row["name"], row["total_products"], row["rejected_products"],
+                row["total_work_amount"], row["total_paid"], row["total_due"],
+            ])
+        totals = data["summary"]
+        sheet.append([
+            "TOTAL", totals["total_products_sewn"],
+            sum(row["rejected_products"] for row in data["operators"]),
+            totals["total_sewing_cost"], totals["total_payments_made"], totals["total_outstanding_due"],
+        ])
+        _style_sheet(sheet)
+        for cell in sheet[sheet.max_row]:
+            cell.font = Font(bold=True, color="064E3B")
+        for row in sheet.iter_rows(min_row=2, min_col=4, max_col=6):
+            for cell in row:
+                cell.number_format = '"৳" #,##0.00;[Red]("৳" #,##0.00)'
+        response = HttpResponse(content_type=XLSX_CONTENT_TYPE)
+        response["Content-Disposition"] = 'attachment; filename="swing-all-operators.xlsx"'
+        workbook.save(response)
+        return response
+
+
+class SwingOperatorStatementExportView(APIView):
+    permission_classes = [permissions.IsAuthenticated]
+
+    def check_permissions(self, request):
+        super().check_permissions(request)
+        if request.user.role != "admin":
+            raise PermissionDenied("Only Admin can export Swing Management data.")
+
+    def get(self, request, operator_id):
+        operator = SwingOperator.objects.filter(pk=operator_id).first()
+        if not operator:
+            from rest_framework.exceptions import NotFound
+
+            raise NotFound("Swing operator not found.")
+
+        lots = list(operator.lots.filter(is_active=True).order_by("lot_date", "id"))
+        lot_ids = [lot.pk for lot in lots]
+        rejects = list(SwingReject.objects.filter(
+            lot_id__in=lot_ids, lot__is_active=True, is_active=True,
+        ).select_related("lot").order_by("reject_date", "id"))
+        payments = list(operator.payments.filter(is_active=True).order_by("payment_date", "id"))
+        lot_rows = _build_lot_rows(lots, rejects, payments)
+
+        workbook = Workbook()
+        sheet = workbook.active
+        sheet.title = "Lot Statement"
+        sheet.merge_cells("A1:K1")
+        sheet["A1"] = operator.name
+        sheet["A1"].font = Font(bold=True, size=16, color="FFFFFF")
+        sheet["A1"].fill = PatternFill("solid", fgColor="176B52")
+        sheet["A1"].alignment = Alignment(horizontal="center")
+        sheet.merge_cells("A2:K2")
+        sheet["A2"] = "Swing Operator Lot Statement"
+        sheet["A2"].font = Font(italic=True, color="475569")
+        headers = ["Date", "B/F Taka", "Colour", "Lot No", "Lot QTY", "Lote Rate", "Total Tk", "Reject QTY", "Reject Tk", "Receive Tk", "Due Taka"]
+        sheet.append([])
+        sheet.append(headers)
+        for row in lot_rows:
+            sheet.append([
+                row["event_date"], row["bf_taka"], row["colour"], row["lot_no"], row["lot_qty"],
+                row["lot_rate"], row["total_tk"], row["reject_qty"], row["reject_tk"],
+                row["receive_tk"], row["due_taka"],
+            ])
+        _style_sheet(sheet, header_row=4)
+        for row in sheet.iter_rows(min_row=5, min_col=2, max_col=2):
+            for cell in row:
+                cell.number_format = '"৳" #,##0.00;[Red]("৳" #,##0.00)'
+        for row in sheet.iter_rows(min_row=5, min_col=6, max_col=7):
+            for cell in row:
+                cell.number_format = '"৳" #,##0.00;[Red]("৳" #,##0.00)'
+        for row in sheet.iter_rows(min_row=5, min_col=9, max_col=11):
+            for cell in row:
+                cell.number_format = '"৳" #,##0.00;[Red]("৳" #,##0.00)'
+        response = HttpResponse(content_type=XLSX_CONTENT_TYPE)
+        response["Content-Disposition"] = f'attachment; filename="swing-operator-{operator.pk}-statement.xlsx"'
+        workbook.save(response)
+        return response
 
 
 class SwingDashboardSummaryView(APIView):
@@ -29,40 +216,7 @@ class SwingDashboardSummaryView(APIView):
             raise PermissionDenied("Only Admin can access Swing Management.")
 
     def get(self, request):
-        operators = SwingOperator.objects.filter(is_active=True).prefetch_related(
-            "lots", "payments", "lots__rejections"
-        )
-        rows = []
-        for operator in operators:
-            lots = [lot for lot in operator.lots.all() if lot.is_active]
-            payments = [payment for payment in operator.payments.all() if payment.is_active]
-            rejects = [reject for lot in lots for reject in lot.rejections.all() if reject.is_active]
-            total_products = sum(lot.quantity for lot in lots)
-            rejected_products = sum(reject.quantity for reject in rejects)
-            total_work = sum((Decimal(lot.quantity) * lot.rate for lot in lots), ZERO)
-            reject_total = sum((Decimal(reject.quantity) * reject.lot.rate for reject in rejects), ZERO)
-            total_paid = sum((payment.amount for payment in payments), ZERO)
-            total_work = total_work.quantize(Decimal("0.01"))
-            total_due = (total_work - reject_total - total_paid).quantize(Decimal("0.01"))
-            rows.append({
-                "id": operator.pk,
-                "name": operator.name,
-                "total_products": total_products,
-                "rejected_products": rejected_products,
-                "total_work_amount": total_work,
-                "total_paid": total_paid.quantize(Decimal("0.01")),
-                "total_due": total_due,
-            })
-
-        return Response({
-            "summary": {
-                "total_products_sewn": sum(row["total_products"] for row in rows),
-                "total_sewing_cost": sum((row["total_work_amount"] for row in rows), ZERO).quantize(Decimal("0.01")),
-                "total_payments_made": sum((row["total_paid"] for row in rows), ZERO).quantize(Decimal("0.01")),
-                "total_outstanding_due": sum((row["total_due"] for row in rows), ZERO).quantize(Decimal("0.01")),
-            },
-            "operators": rows,
-        })
+        return Response(_dashboard_data())
 
 
 class AdminOnlyViewSet(viewsets.ModelViewSet):
@@ -171,40 +325,7 @@ class SwingOperatorViewSet(AdminOnlyViewSet):
         total_gross = sum((Decimal(lot.quantity) * lot.rate for lot in lots), ZERO)
         total_reject_amount = sum((Decimal(reject.quantity) * reject.lot.rate for reject in rejects), ZERO)
         total_payments = sum((payment.amount for payment in payments), ZERO)
-        lot_rows = []
-        lot_balance = ZERO
-        previous_lot_date = None
-        for lot in lots:
-            lot_rejects = [reject for reject in rejects if reject.lot_id == lot.pk]
-            reject_qty = sum(reject.quantity for reject in lot_rejects)
-            reject_amount = sum((Decimal(reject.quantity) * lot.rate for reject in lot_rejects), ZERO).quantize(Decimal("0.01"))
-            lot_total = (Decimal(lot.quantity) * lot.rate).quantize(Decimal("0.01"))
-            lot_payments = [
-                payment for payment in payments
-                if (previous_lot_date is None or payment.payment_date > previous_lot_date)
-                and payment.payment_date <= lot.lot_date
-            ]
-            if lot == lots[-1]:
-                lot_payments.extend(payment for payment in payments if payment.payment_date > lot.lot_date)
-            receive_amount = sum((payment.amount for payment in lot_payments), ZERO).quantize(Decimal("0.01"))
-            lot_brought_forward = lot_balance
-            lot_due = (lot_brought_forward + lot_total - reject_amount - receive_amount).quantize(Decimal("0.01"))
-            lot_rows.append({
-                "lot_id": lot.pk,
-                "event_date": lot.lot_date,
-                "bf_taka": lot_brought_forward,
-                "colour": lot.fabric_specification,
-                "lot_no": lot.lot_number,
-                "lot_qty": lot.quantity,
-                "lot_rate": lot.rate,
-                "total_tk": lot_total,
-                "reject_qty": reject_qty,
-                "reject_tk": reject_amount,
-                "receive_tk": receive_amount,
-                "due_taka": lot_due,
-            })
-            lot_balance = lot_due
-            previous_lot_date = lot.lot_date
+        lot_rows = _build_lot_rows(lots, rejects, payments)
         return Response({
             "operator": SwingOperatorSerializer(operator).data,
             "summary": {

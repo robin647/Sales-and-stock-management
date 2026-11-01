@@ -30,12 +30,14 @@ export const employeeApi = {
 
 export const swingApi = {
   summary: () => api.get("/swing/summary/"),
+  exportOperators: () => downloadFile("/swing/operators/export/", {}, "swing-all-operators.xlsx"),
   operators: {
     list: (params = {}) => api.get("/swing/operators/", { params }),
     create: (data) => api.post("/swing/operators/", data),
     update: (id, data) => api.patch(`/swing/operators/${id}/`, data),
     delete: (id) => api.delete(`/swing/operators/${id}/`),
     statement: (id) => api.get(`/swing/operators/${id}/statement/`),
+    exportStatement: (id) => downloadFile(`/swing/operators/${id}/statement/export/`, {}, `swing-operator-${id}-statement.xlsx`),
   },
   lots: {
     list: (params = {}) => api.get("/swing/lots/", { params }),

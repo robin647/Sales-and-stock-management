@@ -1,6 +1,8 @@
 from decimal import Decimal
+from io import BytesIO
 
 from django.urls import reverse
+from openpyxl import load_workbook
 from rest_framework.test import APITestCase
 
 from apps.accounts.models import User
@@ -192,6 +194,8 @@ class SwingManagementApiTests(APITestCase):
         self.client.force_authenticate(user=showroom_user)
         for path in (
             reverse("swing-summary"),
+            reverse("swing-operators-export"),
+            reverse("swing-operator-statement-export", args=[1]),
             reverse("swing-operator-list"),
             reverse("swing-lot-list"),
             reverse("swing-payment-list"),
@@ -242,3 +246,48 @@ class SwingManagementApiTests(APITestCase):
             "receive_tk": Decimal("200.00"),
             "due_taka": Decimal("950.00"),
         }])
+
+    def test_all_operator_and_operator_statement_xlsx_exports(self):
+        operator = self.create_operator("Export Operator")
+        lot = self.create_lot(operator["id"], lot_number="XLSX-LOT", quantity=50, rate="8.25")
+        self.client.post(
+            reverse("swing-reject-list"),
+            {"lot": lot["id"], "quantity": 2, "reject_date": "2026-10-02"},
+            format="json",
+        )
+        self.client.post(
+            reverse("swing-payment-list"),
+            {"operator": operator["id"], "payment_date": "2026-10-03", "amount": "100.00", "remarks": "Cash"},
+            format="json",
+        )
+
+        all_export = self.client.get(reverse("swing-operators-export"))
+        self.assertEqual(all_export.status_code, 200)
+        self.assertEqual(all_export["Content-Type"], "application/vnd.openxmlformats-officedocument.spreadsheetml.sheet")
+        self.assertIn("swing-all-operators.xlsx", all_export["Content-Disposition"])
+        all_sheet = load_workbook(BytesIO(all_export.content), read_only=True).active
+        self.assertEqual(next(all_sheet.iter_rows(values_only=True)), (
+            "Operator Name", "Total Products", "Rejected Products", "Total Work Amount", "Total Paid", "Total Due",
+        ))
+        self.assertEqual(list(all_sheet.iter_rows(min_row=2, max_row=2, values_only=True))[0], (
+            "Export Operator", 50, 2, Decimal("412.50"), Decimal("100.00"), Decimal("296.00"),
+        ))
+
+        statement_export = self.client.get(reverse("swing-operator-statement-export", args=[operator["id"]]))
+        self.assertEqual(statement_export.status_code, 200)
+        self.assertEqual(statement_export["Content-Type"], "application/vnd.openxmlformats-officedocument.spreadsheetml.sheet")
+        self.assertIn(f"swing-operator-{operator['id']}-statement.xlsx", statement_export["Content-Disposition"])
+        statement_sheet = load_workbook(BytesIO(statement_export.content), read_only=True).active
+        self.assertEqual(statement_sheet["A1"].value, "Export Operator")
+        self.assertEqual(tuple(cell.value for cell in statement_sheet[4]), (
+            "Date", "B/F Taka", "Colour", "Lot No", "Lot QTY", "Lote Rate", "Total Tk",
+            "Reject QTY", "Reject Tk", "Receive Tk", "Due Taka",
+        ))
+        lot_row = [cell.value for cell in statement_sheet[5]]
+        self.assertEqual(lot_row[0].date().isoformat(), "2026-10-01")
+        self.assertEqual(lot_row[1], 0)
+        self.assertEqual(lot_row[2:5], ["Navy cotton", "XLSX-LOT", 50])
+        self.assertEqual([Decimal(str(value)).quantize(Decimal("0.01")) for value in (lot_row[5], lot_row[6], lot_row[8], lot_row[9], lot_row[10])], [
+            Decimal("8.25"), Decimal("412.50"), Decimal("16.50"), Decimal("100.00"), Decimal("296.00"),
+        ])
+        self.assertEqual(lot_row[7], 2)
