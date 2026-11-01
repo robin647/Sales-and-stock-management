@@ -94,7 +94,8 @@ class SwingManagementApiTests(APITestCase):
             "total_products_assigned": 600,
             "total_rejected_quantity": 20,
             "total_accepted_quantity": 580,
-            "total_sewing_amount": Decimal("6000.00"),
+            "total_sewing_amount": Decimal("6200.00"),
+            "net_sewing_amount": Decimal("6000.00"),
             "total_payments_received": Decimal("1000.00"),
             "current_outstanding_balance": Decimal("5000.00"),
         })
@@ -166,7 +167,8 @@ class SwingManagementApiTests(APITestCase):
         )
         self.assertEqual(updated.status_code, 200, updated.data)
         statement = self.client.get(reverse("swing-operator-statement", args=[operator["id"]]))
-        self.assertEqual(statement.data["summary"]["total_sewing_amount"], Decimal("6960.00"))
+        self.assertEqual(statement.data["summary"]["total_sewing_amount"], Decimal("7200.00"))
+        self.assertEqual(statement.data["summary"]["net_sewing_amount"], Decimal("6960.00"))
         self.assertEqual(statement.data["summary"]["current_outstanding_balance"], Decimal("6960.00"))
 
         invalid_date = self.client.patch(
@@ -180,6 +182,7 @@ class SwingManagementApiTests(APITestCase):
         self.assertEqual(deleted_reject.status_code, 204)
         statement = self.client.get(reverse("swing-operator-statement", args=[operator["id"]]))
         self.assertEqual(statement.data["summary"]["total_sewing_amount"], Decimal("7200.00"))
+        self.assertEqual(statement.data["summary"]["net_sewing_amount"], Decimal("7200.00"))
         self.assertEqual(statement.data["summary"]["current_outstanding_balance"], Decimal("7200.00"))
 
     def test_showroom_users_cannot_access_swing_apis(self):
@@ -188,6 +191,7 @@ class SwingManagementApiTests(APITestCase):
         )
         self.client.force_authenticate(user=showroom_user)
         for path in (
+            reverse("swing-summary"),
             reverse("swing-operator-list"),
             reverse("swing-lot-list"),
             reverse("swing-payment-list"),
@@ -195,3 +199,46 @@ class SwingManagementApiTests(APITestCase):
         ):
             with self.subTest(path=path):
                 self.assertEqual(self.client.get(path).status_code, 403)
+
+    def test_dashboard_aggregates_active_operators_and_lot_rows_keep_rejections_grouped(self):
+        operator = self.create_operator("Active operator")
+        other = self.create_operator("Inactive operator")
+        lot = self.create_lot(operator["id"], quantity=100, rate="12.50")
+        self.create_lot(other["id"], quantity=900, rate="30.00", lot_number="INACTIVE-LOT")
+        self.client.post(
+            reverse("swing-reject-list"),
+            {"lot": lot["id"], "quantity": 8, "reject_date": "2026-10-04"},
+            format="json",
+        )
+        self.client.post(
+            reverse("swing-payment-list"),
+            {"operator": operator["id"], "payment_date": "2026-10-05", "amount": "200.00"},
+            format="json",
+        )
+        SwingOperator.objects.filter(pk=other["id"]).update(is_active=False)
+
+        dashboard = self.client.get(reverse("swing-summary"))
+        self.assertEqual(dashboard.status_code, 200)
+        self.assertEqual(dashboard.data["summary"], {
+            "total_products_sewn": 100,
+            "total_sewing_cost": Decimal("1250.00"),
+            "total_payments_made": Decimal("200.00"),
+            "total_outstanding_due": Decimal("950.00"),
+        })
+        self.assertEqual([row["id"] for row in dashboard.data["operators"]], [operator["id"]])
+
+        statement = self.client.get(reverse("swing-operator-statement", args=[operator["id"]]))
+        self.assertEqual(statement.data["lot_rows"], [{
+            "lot_id": lot["id"],
+            "event_date": statement.data["lot_rows"][0]["event_date"],
+            "bf_taka": Decimal("0.00"),
+            "colour": "Navy cotton",
+            "lot_no": "LOT-001",
+            "lot_qty": 100,
+            "lot_rate": Decimal("12.50"),
+            "total_tk": Decimal("1250.00"),
+            "reject_qty": 8,
+            "reject_tk": Decimal("100.00"),
+            "receive_tk": Decimal("200.00"),
+            "due_taka": Decimal("950.00"),
+        }])

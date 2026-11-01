@@ -29,6 +29,7 @@ export const employeeApi = {
 };
 
 export const swingApi = {
+  summary: () => api.get("/swing/summary/"),
   operators: {
     list: (params = {}) => api.get("/swing/operators/", { params }),
     create: (data) => api.post("/swing/operators/", data),
