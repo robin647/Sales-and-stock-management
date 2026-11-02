@@ -52,6 +52,7 @@ export default function Layout({ children }) {
               <NavLink onClick={() => setMenuOpen(false)} to="/reports" className={linkClass}>Showrooms Reports</NavLink>
               <NavLink onClick={() => setMenuOpen(false)} to="/employees" className={linkClass}>Employee Management</NavLink>
               <NavLink onClick={() => setMenuOpen(false)} to="/swing" className={linkClass}>Swing Management</NavLink>
+              <NavLink onClick={() => setMenuOpen(false)} to="/producer-cost-management" className={linkClass}>Producer &amp; Cost Management</NavLink>
             </>
           ) : (
             <>

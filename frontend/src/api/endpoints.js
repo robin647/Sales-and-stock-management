@@ -59,6 +59,41 @@ export const swingApi = {
   },
 };
 
+export const producerApi = {
+  dashboardSummary: () => api.get("/producers/dashboard-summary/"),
+  list: (params = {}) => api.get("/producers/", { params }),
+  get: (id) => api.get(`/producers/${id}/`),
+  create: (data) => api.post("/producers/", data),
+  update: (id, data) => api.patch(`/producers/${id}/`, data),
+  delete: (id) => api.delete(`/producers/${id}/`),
+  ledger: (id, params = {}) => api.get(`/producers/${id}/ledger/`, { params }),
+  export: () => downloadFile("/producers/export/", {}, "producer-financial-summary.xlsx"),
+  costs: {
+    list: (params = {}) => api.get("/producer-costs/", { params }),
+    create: (data) => api.post("/producer-costs/", data),
+    update: (id, data) => api.patch(`/producer-costs/${id}/`, data),
+    delete: (id) => api.delete(`/producer-costs/${id}/`),
+  },
+  payments: {
+    list: (params = {}) => api.get("/producer-payments/", { params }),
+    create: (data) => api.post("/producer-payments/", data),
+    update: (id, data) => api.patch(`/producer-payments/${id}/`, data),
+    delete: (id) => api.delete(`/producer-payments/${id}/`),
+  },
+  otherCosts: {
+    list: (params = {}) => api.get("/other-costs/", { params }),
+    create: (data) => api.post("/other-costs/", data),
+    update: (id, data) => api.patch(`/other-costs/${id}/`, data),
+    delete: (id) => api.delete(`/other-costs/${id}/`),
+  },
+  costSpecifications: {
+    list: (params = {}) => api.get("/cost-specifications/", { params }),
+    create: (data) => api.post("/cost-specifications/", data),
+    update: (id, data) => api.patch(`/cost-specifications/${id}/`, data),
+    delete: (id) => api.delete(`/cost-specifications/${id}/`),
+  },
+};
+
 export const showroomUserApi = {
   list: () => api.get("/accounts/showroom-users/"),
   create: (data) => api.post("/accounts/showroom-users/", data),
