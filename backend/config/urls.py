@@ -20,6 +20,7 @@ urlpatterns = [
     path("api/reports/", include("apps.reports.urls")),
     path("api/wholesale/", include("apps.wholesale.urls")),
     path("api/employees/", include("apps.employees.urls")),
+    path("api/assistant/", include("apps.assistant.urls")),
     path("api/swing/", include("apps.swing.urls")),
     path("api/", include("apps.producers.urls")),
 ]

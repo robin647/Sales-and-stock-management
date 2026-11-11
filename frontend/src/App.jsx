@@ -24,6 +24,7 @@ const ChangePassword = lazy(() => import("./pages/showroom/ChangePassword.jsx"))
 const ShowroomDashboard = lazy(() => import("./pages/showroom/ShowroomDashboard.jsx"));
 const StockEntry = lazy(() => import("./pages/showroom/StockEntry.jsx"));
 import { WhatsAppButton } from "./components/SiteFooter.jsx";
+import AIAssistantButton from "./components/AIAssistantButton.jsx";
 
 function Home() {
   const { isAdmin } = useAuth();
@@ -31,6 +32,8 @@ function Home() {
 }
 
 export default function App() {
+  const { isAdmin } = useAuth();
+
   useEffect(() => {
     const preventWheelChange = (event) => {
       if (event.target instanceof HTMLInputElement && event.target.type === "number" && event.target === document.activeElement) {
@@ -112,6 +115,7 @@ export default function App() {
       <Route path="*" element={<Navigate to="/" replace />} />
     </Routes>
     </Suspense>
+    {isAdmin && <AIAssistantButton />}
     <WhatsAppButton />
     </>
   );

@@ -20,6 +20,8 @@ for env_file in (BASE_DIR.parent / ".env.local", BASE_DIR.parent / ".env", BASE_
         environ.Env.read_env(env_file)
 
 SECRET_KEY = env("SECRET_KEY", default="unsafe-dev-key-change-me")
+GROQ_API_KEY = env("GROQ_API_KEY", default="")
+GROQ_MODEL = env("GROQ_MODEL", default="llama-3.3-70b-versatile")
 
 INSTALLED_APPS = [
     "django.contrib.admin",
@@ -42,6 +44,7 @@ INSTALLED_APPS = [
     "apps.reports",
     "apps.wholesale",
     "apps.employees",
+    "apps.assistant",
     "apps.swing",
     "apps.producers",
 ]
@@ -128,6 +131,7 @@ REST_FRAMEWORK = {
         "user": "300/minute",
         "login": "10/minute",
         "password_change": "5/hour",
+        "assistant": "20/minute",
     },
     "EXCEPTION_HANDLER": "core.exceptions.custom_exception_handler",
 }

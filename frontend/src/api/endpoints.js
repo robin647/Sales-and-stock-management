@@ -231,6 +231,10 @@ export const reportApi = {
   exportMonthly: (params, filename) => downloadFile("/reports/export/monthly/", params, filename),
 };
 
+export const assistantApi = {
+  chat: (question) => api.post("/assistant/chat/", { question }, { timeout: 75000 }),
+};
+
 async function downloadFile(path, params, filename) {
   const response = await api.get(path, { params, responseType: "blob" });
   const url = window.URL.createObjectURL(new Blob([response.data]));
