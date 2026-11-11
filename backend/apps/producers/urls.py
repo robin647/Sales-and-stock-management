@@ -5,7 +5,6 @@ from .views import (
     CostSpecificationViewSet,
     OtherCostViewSet,
     ProducerCostViewSet,
-    ProducerDashboardSummaryView,
     ProducerExcelExportView,
     ProducerPaymentViewSet,
     ProducerViewSet,
@@ -20,6 +19,5 @@ router.register("cost-specifications", CostSpecificationViewSet, basename="cost-
 
 urlpatterns = [
     *router.urls,
-    path("dashboard-summary/", ProducerDashboardSummaryView.as_view(), name="producer-dashboard-summary"),
-    path("export/", ProducerExcelExportView.as_view(), name="producer-export"),
+    path("producers/export/", ProducerExcelExportView.as_view(), name="producer-export"),
 ]

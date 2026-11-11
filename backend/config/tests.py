@@ -71,6 +71,22 @@ class RootStatusTests(SimpleTestCase):
                 response = self.client.get(reverse(route_name), secure=True)
                 self.assertEqual(response.status_code, 401)
 
+    def test_producer_management_routes_match_frontend_api_paths(self):
+        routes = (
+            "/api/producers/",
+            "/api/producer-costs/",
+            "/api/producer-payments/",
+            "/api/other-costs/",
+            "/api/cost-specifications/",
+            "/api/producers/dashboard-summary/",
+            "/api/producers/export/",
+        )
+
+        for route in routes:
+            with self.subTest(route=route):
+                response = self.client.get(route, secure=True)
+                self.assertEqual(response.status_code, 401)
+
     def test_existing_authentication_and_permissions_are_unchanged(self):
         unauthenticated = self.client.get(reverse("me"), secure=True)
         self.assertEqual(unauthenticated.status_code, 401)
