@@ -61,6 +61,11 @@ export default function AdminDashboard() {
   if (loading || !data) return <div className="rounded-xl border border-gray-200 bg-white p-5 text-sm font-medium text-gray-600">Loading dashboard...</div>;
 
   const wholesale = data.wholesale_summary || {};
+  const business = data.all_time_summary || {};
+  const costs = business.costs || {};
+  const sales = business.sales || {};
+  const productsSold = business.products_sold || {};
+  const dues = business.dues || {};
   const selectedMonth = formatMonth(data.period || month);
 
   return (
@@ -69,7 +74,7 @@ export default function AdminDashboard() {
         <div>
           <p className="dashboard-eyebrow">Business overview</p>
           <h1>Admin Dashboard</h1>
-          <p className="mt-1 text-sm text-gray-600">Showroom performance for {selectedMonth}, with wholesale account totals.</p>
+          <p className="mt-1 text-sm text-gray-600">All-time business totals, with a monthly showroom view for {selectedMonth}.</p>
         </div>
         <label className="flex items-center gap-2 text-sm font-medium text-gray-600">
           Month
@@ -82,6 +87,50 @@ export default function AdminDashboard() {
           />
         </label>
       </header>
+
+      <section aria-labelledby="business-overview-title" className="space-y-4">
+        <div className="dashboard-section-heading">
+          <div><h2 id="business-overview-title">Business overview · all time</h2><p>Combined operating costs, sales, production, and outstanding balances</p></div>
+          <span className="dashboard-section-tag">All business units</span>
+        </div>
+        <div className="grid grid-cols-1 gap-3 sm:grid-cols-2 xl:grid-cols-4">
+          <StatCard label="Total Operating Cost" value={business.total_cost} description="Payroll, showroom salary, swing, producer & operating costs" accent="rose" />
+          <StatCard label="Total Sales" value={business.total_sales} description="Showroom + wholesale, after wholesale returns" accent="green" />
+          <StatCard label="Products Produced" value={business.total_products_produced} currency={false} description="Active swing lots" accent="gold" />
+          <StatCard label="Products Sold" value={productsSold.total} currency={false} description="Showroom + wholesale quantities" accent="blue" />
+        </div>
+      </section>
+
+      <section aria-labelledby="business-costs-title" className="space-y-4">
+        <div className="dashboard-section-heading">
+          <div><h2 id="business-costs-title">Cost breakdown</h2><p>All-time cost by business area</p></div>
+        </div>
+        <div className="grid grid-cols-1 gap-3 sm:grid-cols-2 xl:grid-cols-3">
+          <StatCard label="Employee Salaries" value={costs.employee_salary} description="Total calculated salary from saved salary sheets" accent="blue" />
+          <StatCard label="Showroom Salary" value={costs.showroom_salary} description="Salary recorded in showroom daily balances" accent="blue" />
+          <StatCard label="Swing Operator Cost" value={costs.swing_operator_cost} description="Active lot quantity × rate" accent="gold" />
+          <StatCard label="Producer Cost" value={costs.producer_cost} description="Active producer cost records" accent="green" />
+          <StatCard label="Other Costs" value={costs.other_cost} description="Active other-cost records" accent="gold" />
+          <StatCard label="Showroom Expenses" value={costs.showroom_expenses} description="Recorded in showroom daily balances" accent="rose" />
+        </div>
+      </section>
+
+      <section aria-labelledby="business-cashflow-title" className="space-y-4">
+        <div className="dashboard-section-heading">
+          <div><h2 id="business-cashflow-title">Sales, cash & balances</h2><p>All-time sales and cash recorded across the business</p></div>
+        </div>
+        <div className="grid grid-cols-1 gap-3 sm:grid-cols-2 xl:grid-cols-4">
+          <StatCard label="Showroom Sales" value={sales.showroom} description="All recorded showroom sales" accent="green" />
+          <StatCard label="Wholesale Sales" value={sales.wholesale} description="Net of recorded returns" accent="blue" />
+          <StatCard label="Total Cash Received" value={sales.total_cash_received} description="Showroom cash + wholesale cash payments" accent="gold" />
+          <StatCard label="Wholesale Due" value={dues.wholesale_receivable} description="Customer receivable balance" accent="rose" />
+          <StatCard label="Showroom Cash" value={sales.showroom_cash} description="Cash sales recorded by showrooms" accent="blue" />
+          <StatCard label="Wholesale Cash" value={sales.wholesale_cash} description="Cash payments from wholesale accounts" accent="green" />
+          <StatCard label="Swing Operator Due" value={dues.swing_operator_payable} description="Outstanding amount payable to operators" accent="rose" />
+          <StatCard label="Producer Due" value={dues.producer_payable} description="Producer cost less recorded payments" accent="gold" />
+        </div>
+        <p className="text-xs text-gray-500">Showroom sales are recorded as cash/card sales; receivable due is tracked in wholesale accounts. Swing and producer balances are payables.</p>
+      </section>
 
       <section aria-labelledby="showroom-overview-title" className="space-y-4">
         <div className="dashboard-section-heading">

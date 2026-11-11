@@ -1,12 +1,17 @@
-from django.db.models import Sum
+from django.db.models import DecimalField, ExpressionWrapper, F, Sum
+from django.db.models.functions import Round
 from django.utils import timezone
 from rest_framework import permissions
 from rest_framework.exceptions import ValidationError
 from rest_framework.response import Response
 from rest_framework.views import APIView
 
+from apps.employees.models import SalaryEntry
 from apps.inventory.models import DailyBalance, DailyStock, StockAdjustment
+from apps.producers.models import OtherCost, ProducerCost, ProducerPayment
 from apps.showrooms.models import Showroom
+from apps.swing.models import SwingLot, SwingPayment, SwingReject
+from apps.wholesale.models import EasyWholesalePayment, WholesalePayment
 
 from .helpers import resolve_showroom_scope
 
@@ -17,6 +22,117 @@ class DashboardView(APIView):
     """
 
     permission_classes = [permissions.IsAuthenticated]
+
+    @staticmethod
+    def _all_time_summary(wholesale_totals):
+        money_field = DecimalField(max_digits=18, decimal_places=2)
+        zero = 0
+
+        showroom_totals = DailyBalance.objects.aggregate(
+            sales=Sum("total_sale"),
+            cash=Sum("cash_sale"),
+            card=Sum("card_sale"),
+            expenses=Sum("expense"),
+            salary=Sum("salary"),
+        )
+        showroom_sales = showroom_totals["sales"] or zero
+        showroom_cash = showroom_totals["cash"] or zero
+        showroom_card = showroom_totals["card"] or zero
+        showroom_expenses = showroom_totals["expenses"] or zero
+        showroom_salary = showroom_totals["salary"] or zero
+        showroom_products = DailyStock.objects.aggregate(total=Sum("sold_qty"))["total"] or 0
+
+        salary_totals = SalaryEntry.objects.aggregate(
+            base=Sum("base_salary"),
+            absence=Sum("absence_amount"),
+            leave=Sum("leave_amount"),
+            overtime=Sum(Round(ExpressionWrapper(
+                F("overtime_hours") * F("overtime_rate"), output_field=money_field
+            ), precision=2)),
+            bonus=Sum("attendance_bonus"),
+            advance=Sum("advance_deduction"),
+            loan=Sum("loan"),
+            other_deduction=Sum("other_deduction"),
+        )
+        employee_salary = (
+            (salary_totals["base"] or zero)
+            - (salary_totals["absence"] or zero)
+            - (salary_totals["leave"] or zero)
+            + (salary_totals["overtime"] or zero)
+            + (salary_totals["bonus"] or zero)
+            - (salary_totals["advance"] or zero)
+            - (salary_totals["loan"] or zero)
+            - (salary_totals["other_deduction"] or zero)
+        )
+
+        active_lots = SwingLot.objects.filter(is_active=True, operator__is_active=True)
+        swing_cost = active_lots.aggregate(total=Sum(ExpressionWrapper(
+            F("quantity") * F("rate"), output_field=money_field
+        )))["total"] or zero
+        swing_products = active_lots.aggregate(total=Sum("quantity"))["total"] or 0
+        swing_reject_cost = SwingReject.objects.filter(
+            is_active=True, lot__is_active=True, lot__operator__is_active=True
+        ).aggregate(total=Sum(ExpressionWrapper(
+            F("quantity") * F("lot__rate"), output_field=money_field
+        )))["total"] or zero
+        swing_payments = SwingPayment.objects.filter(
+            is_active=True, operator__is_active=True
+        ).aggregate(total=Sum("amount"))["total"] or zero
+        swing_due = swing_cost - swing_reject_cost - swing_payments
+
+        producer_cost = ProducerCost.objects.filter(is_active=True).aggregate(
+            total=Sum("total_cost")
+        )["total"] or zero
+        producer_payments = ProducerPayment.objects.filter(is_active=True).aggregate(
+            total=Sum("amount")
+        )["total"] or zero
+        other_cost = OtherCost.objects.filter(is_active=True).aggregate(
+            total=Sum("amount")
+        )["total"] or zero
+
+        wholesale_cash = (
+            WholesalePayment.objects.aggregate(total=Sum("cash_amount"))["total"] or zero
+        ) + (
+            EasyWholesalePayment.objects.aggregate(total=Sum("cash_amount"))["total"] or zero
+        )
+        wholesale_sales = wholesale_totals["total_sales"]
+        wholesale_due = wholesale_totals["total_due"]
+        total_cost = (
+            employee_salary + showroom_salary + swing_cost + producer_cost
+            + other_cost + showroom_expenses
+        )
+
+        return {
+            "total_cost": total_cost,
+            "costs": {
+                "employee_salary": employee_salary,
+                "showroom_salary": showroom_salary,
+                "swing_operator_cost": swing_cost,
+                "producer_cost": producer_cost,
+                "other_cost": other_cost,
+                "showroom_expenses": showroom_expenses,
+            },
+            "total_sales": showroom_sales + wholesale_sales,
+            "sales": {
+                "showroom": showroom_sales,
+                "wholesale": wholesale_sales,
+                "showroom_cash": showroom_cash,
+                "showroom_card": showroom_card,
+                "wholesale_cash": wholesale_cash,
+                "total_cash_received": showroom_cash + wholesale_cash,
+            },
+            "total_products_produced": swing_products,
+            "products_sold": {
+                "showroom": showroom_products,
+                "wholesale": wholesale_totals["total_products"],
+                "total": showroom_products + wholesale_totals["total_products"],
+            },
+            "dues": {
+                "wholesale_receivable": wholesale_due,
+                "swing_operator_payable": swing_due,
+                "producer_payable": producer_cost - producer_payments,
+            },
+        }
 
     def get(self, request):
         year_param = request.query_params.get("year")
@@ -114,6 +230,7 @@ class DashboardView(APIView):
                 "active_parties": WholesaleParty.objects.filter(is_active=True).count(),
                 **wholesale_totals,
             }
+            data["all_time_summary"] = self._all_time_summary(wholesale_totals)
 
         return Response(data)
 
