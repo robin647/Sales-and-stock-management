@@ -67,33 +67,74 @@ def _groq_chat(messages, *, json_mode=False):
         with urlopen(request, timeout=35) as response:
             result = json.loads(response.read().decode("utf-8"))
     except HTTPError as error:
-        provider_error = ""
+        # Read the provider response body once so the real reason is available
+        # in Render logs (without ever exposing the API key).
+        response_body = error.read().decode("utf-8", errors="replace")
+        provider_message = ""
+        provider_type = ""
+        provider_code = ""
+
         try:
-            error_payload = json.loads(error.read().decode("utf-8"))
-            provider_error = error_payload.get("error", {}).get("message", "")
-        except (UnicodeDecodeError, json.JSONDecodeError, AttributeError):
-            pass
-        if settings.GROQ_API_KEY:
-            provider_error = provider_error.replace(settings.GROQ_API_KEY, "[redacted]")
+            error_payload = json.loads(response_body)
+            error_data = error_payload.get("error", {})
+
+            if isinstance(error_data, dict):
+                provider_message = str(error_data.get("message") or "")
+                provider_type = str(error_data.get("type") or "")
+                provider_code = str(error_data.get("code") or "")
+            elif isinstance(error_data, str):
+                provider_message = error_data
+            else:
+                provider_message = response_body
+        except (json.JSONDecodeError, AttributeError, TypeError):
+            provider_message = response_body
+
+        api_key = getattr(settings, "GROQ_API_KEY", "") or ""
+        if api_key:
+            provider_message = provider_message.replace(api_key, "[redacted]")
+            provider_type = provider_type.replace(api_key, "[redacted]")
+            provider_code = provider_code.replace(api_key, "[redacted]")
+
         logger.error(
-            "Groq chat completion failed: status=%s provider_error=%s",
+            "Groq chat completion failed: http_status=%s provider_type=%s "
+            "provider_code=%s provider_message=%s",
             error.code,
-            provider_error[:500] or "no provider message",
+            provider_type[:200],
+            provider_code[:200],
+            provider_message[:1000] or "Empty provider response body",
         )
+
         if error.code == 429:
-            raise AssistantAPIException("AI request limit reached. Please try again shortly.", 429) from error
-        if error.code in {401, 403}:
             raise AssistantAPIException(
-                "Groq rejected the API key. Check or replace GROQ_API_KEY in the Render backend environment, then redeploy.",
+                "AI request limit reached. Please try again shortly.", 429
+            ) from error
+
+        if error.code == 401:
+            raise AssistantAPIException(
+                "Groq authentication failed (HTTP 401). Check whether GROQ_API_KEY "
+                "is active and correctly configured in Render.",
                 503,
             ) from error
+
+        if error.code == 403:
+            raise AssistantAPIException(
+                "Groq denied access (HTTP 403). Check the Groq organization/project "
+                "permissions, API key access, and model access. See Render logs "
+                "for the provider error details.",
+                503,
+            ) from error
+
         if error.code in {400, 404}:
             raise AssistantAPIException(
-                f"Groq rejected the model/request (HTTP {error.code}). Check GROQ_MODEL is available to your Groq account and supports chat completions.",
+                f"Groq rejected the model/request (HTTP {error.code}). "
+                "Check GROQ_MODEL and the request configuration. See Render logs "
+                "for the provider error details.",
                 502,
             ) from error
+
         raise AssistantAPIException(
-            f"Groq could not complete the request (HTTP {error.code}). Check the backend service logs for details.",
+            f"Groq could not complete the request (HTTP {error.code}). "
+            "Check Render logs for the provider error details.",
             502,
         ) from error
     except (URLError, TimeoutError, json.JSONDecodeError) as error:
