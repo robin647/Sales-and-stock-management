@@ -5,6 +5,7 @@ those are read from environment variables so the same codebase works
 in local development, Docker, and on Render.
 """
 
+import sys
 from datetime import timedelta
 from pathlib import Path
 
@@ -83,14 +84,22 @@ WSGI_APPLICATION = "config.wsgi.application"
 
 AUTH_USER_MODEL = "accounts.User"
 
-DATABASES = {
-    "default": env.db(
-        "DATABASE_URL", default="postgres://placeholder:placeholder@localhost:5432/placeholder"
-    ),
-}
-DATABASES["default"].setdefault("CONN_MAX_AGE", env.int("DB_CONN_MAX_AGE", default=60))
-DATABASES["default"].setdefault("CONN_HEALTH_CHECKS", True)
-DATABASES["default"].setdefault("OPTIONS", {}).setdefault("connect_timeout", 10)
+if "test" in sys.argv:
+    DATABASES = {
+        "default": {
+            "ENGINE": "django.db.backends.sqlite3",
+            "NAME": BASE_DIR / "test_db.sqlite3",
+        }
+    }
+else:
+    DATABASES = {
+        "default": env.db(
+            "DATABASE_URL", default="postgres://placeholder:placeholder@localhost:5432/placeholder"
+        ),
+    }
+    DATABASES["default"].setdefault("CONN_MAX_AGE", env.int("DB_CONN_MAX_AGE", default=60))
+    DATABASES["default"].setdefault("CONN_HEALTH_CHECKS", True)
+    DATABASES["default"].setdefault("OPTIONS", {}).setdefault("connect_timeout", 10)
 
 AUTH_PASSWORD_VALIDATORS = [
     {"NAME": "django.contrib.auth.password_validation.UserAttributeSimilarityValidator"},

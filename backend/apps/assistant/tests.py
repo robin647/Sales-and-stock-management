@@ -1,11 +1,14 @@
+import json
+from io import BytesIO
 from types import SimpleNamespace
 from unittest.mock import patch
+from urllib.error import HTTPError
 
 from django.test import SimpleTestCase, override_settings
 from django.urls import reverse
 from rest_framework.test import APIClient
 
-from .views import _make_plan
+from .views import AssistantAPIException, _groq_chat, _make_plan
 
 
 class AssistantEndpointTests(SimpleTestCase):
@@ -62,3 +65,38 @@ class AssistantEndpointTests(SimpleTestCase):
     @patch("apps.assistant.views._groq_chat", return_value='{"intent":"sql_query","date":"2026-01-01"}')
     def test_planner_rejects_intents_outside_the_allowlist(self, _groq_chat):
         self.assertEqual(_make_plan("run any query"), {"intent": "unknown"})
+
+
+class GroqErrorHandlingTests(SimpleTestCase):
+    @override_settings(GROQ_API_KEY="test-groq-key")
+    @patch("apps.assistant.views.urlopen")
+    def test_invalid_key_returns_safe_configuration_guidance(self, mock_urlopen):
+        provider_body = json.dumps({
+            "error": {"message": "Invalid key test-groq-key"},
+        }).encode("utf-8")
+        mock_urlopen.side_effect = HTTPError(
+            "https://api.groq.com/", 401, "Unauthorized", {}, BytesIO(provider_body),
+        )
+
+        with self.assertRaises(AssistantAPIException) as raised:
+            _groq_chat([{"role": "user", "content": "hello"}])
+
+        self.assertEqual(raised.exception.status_code, 503)
+        self.assertIn("GROQ_API_KEY", str(raised.exception.detail))
+        self.assertNotIn("test-groq-key", str(raised.exception.detail))
+
+    @override_settings(GROQ_API_KEY="test-groq-key")
+    @patch("apps.assistant.views.urlopen")
+    def test_unavailable_model_returns_model_configuration_guidance(self, mock_urlopen):
+        provider_body = json.dumps({
+            "error": {"message": "model not found"},
+        }).encode("utf-8")
+        mock_urlopen.side_effect = HTTPError(
+            "https://api.groq.com/", 404, "Not Found", {}, BytesIO(provider_body),
+        )
+
+        with self.assertRaises(AssistantAPIException) as raised:
+            _groq_chat([{"role": "user", "content": "hello"}])
+
+        self.assertEqual(raised.exception.status_code, 502)
+        self.assertIn("GROQ_MODEL", str(raised.exception.detail))

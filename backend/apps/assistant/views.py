@@ -1,4 +1,5 @@
 import json
+import logging
 import re
 from calendar import monthrange
 from urllib.error import HTTPError, URLError
@@ -27,6 +28,7 @@ INTENTS = {
     "product_stock",
     "unknown",
 }
+logger = logging.getLogger(__name__)
 
 
 class AssistantAPIException(APIException):
@@ -65,10 +67,37 @@ def _groq_chat(messages, *, json_mode=False):
         with urlopen(request, timeout=35) as response:
             result = json.loads(response.read().decode("utf-8"))
     except HTTPError as error:
+        provider_error = ""
+        try:
+            error_payload = json.loads(error.read().decode("utf-8"))
+            provider_error = error_payload.get("error", {}).get("message", "")
+        except (UnicodeDecodeError, json.JSONDecodeError, AttributeError):
+            pass
+        if settings.GROQ_API_KEY:
+            provider_error = provider_error.replace(settings.GROQ_API_KEY, "[redacted]")
+        logger.error(
+            "Groq chat completion failed: status=%s provider_error=%s",
+            error.code,
+            provider_error[:500] or "no provider message",
+        )
         if error.code == 429:
             raise AssistantAPIException("AI request limit reached. Please try again shortly.", 429) from error
-        raise AssistantAPIException("The AI service could not complete this request.", 502) from error
+        if error.code in {401, 403}:
+            raise AssistantAPIException(
+                "Groq rejected the API key. Check or replace GROQ_API_KEY in the Render backend environment, then redeploy.",
+                503,
+            ) from error
+        if error.code in {400, 404}:
+            raise AssistantAPIException(
+                f"Groq rejected the model/request (HTTP {error.code}). Check GROQ_MODEL is available to your Groq account and supports chat completions.",
+                502,
+            ) from error
+        raise AssistantAPIException(
+            f"Groq could not complete the request (HTTP {error.code}). Check the backend service logs for details.",
+            502,
+        ) from error
     except (URLError, TimeoutError, json.JSONDecodeError) as error:
+        logger.error("Groq chat connection/response failed: error_type=%s", type(error).__name__)
         raise AssistantAPIException("Could not connect to the AI service. Please try again.", 502) from error
 
     try:
