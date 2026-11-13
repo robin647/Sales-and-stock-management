@@ -1,6 +1,6 @@
 services:
   - type: web
-    name: mahir-showroom-api
+    name: sales-and-stock-management
     runtime: python
     rootDir: backend
     buildCommand: python -m pip install --upgrade 'pip>=26.2.2' && pip install -r requirements.txt && python manage.py collectstatic --noinput
