@@ -47,8 +47,10 @@ api.interceptors.response.use(
     if (error.response?.status === 401 && !originalRequest._retry) {
       const refreshToken = localStorage.getItem("refresh_token");
       if (!refreshToken) {
-        localStorage.clear();
-        window.location.href = "/login";
+        if (localStorage.getItem("access_token")) {
+          localStorage.clear();
+          window.location.href = "/login";
+        }
         return Promise.reject(error);
       }
 
