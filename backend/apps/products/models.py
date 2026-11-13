@@ -17,6 +17,8 @@ class Product(models.Model):
     category = models.ForeignKey(ProductCategory, on_delete=models.PROTECT, related_name="products")
     size = models.CharField(max_length=30, blank=True)
     selling_price = models.DecimalField(max_digits=10, decimal_places=2, validators=[MinValueValidator(0)])
+    discount_price = models.DecimalField(max_digits=10, decimal_places=2, null=True, blank=True, validators=[MinValueValidator(0)])
+    image = models.ImageField(upload_to="products/%Y/%m/", blank=True)
     is_active = models.BooleanField(default=True)
     created_at = models.DateTimeField(auto_now_add=True)
 

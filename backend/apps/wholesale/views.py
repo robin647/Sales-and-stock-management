@@ -10,6 +10,7 @@ from rest_framework.exceptions import MethodNotAllowed, PermissionDenied, Valida
 from rest_framework.response import Response
 from rest_framework.views import APIView
 from django_filters.rest_framework import DjangoFilterBackend
+from core.permissions import IsStaffUser
 
 from apps.inventory.models import StockAdjustment
 from core.pagination import StandardPageNumberPagination
@@ -26,7 +27,7 @@ from .serializers import (
 from .services import all_party_summary
 
 class AdminOnlyViewSet(viewsets.ModelViewSet):
-    permission_classes = [permissions.IsAuthenticated]
+    permission_classes = [IsStaffUser]
 
     def check_permissions(self, request):
         super().check_permissions(request)
@@ -266,7 +267,7 @@ class EasyWholesaleReturnViewSet(EasyTransactionViewSet):
     date_field = "return_date"
 
 class PartySummaryView(APIView):
-    permission_classes = [permissions.IsAuthenticated]
+    permission_classes = [IsStaffUser]
 
     def get(self, request):
         if request.user.role != "admin":

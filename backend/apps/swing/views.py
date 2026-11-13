@@ -10,6 +10,7 @@ from rest_framework.decorators import action
 from rest_framework.exceptions import PermissionDenied
 from rest_framework.response import Response
 from rest_framework.views import APIView
+from core.permissions import IsStaffUser
 
 from .models import SwingLot, SwingOperator, SwingPayment, SwingReject
 from .serializers import (
@@ -112,7 +113,7 @@ def _style_sheet(sheet, header_row=1):
 
 
 class SwingOperatorsExportView(APIView):
-    permission_classes = [permissions.IsAuthenticated]
+    permission_classes = [IsStaffUser]
 
     def check_permissions(self, request):
         super().check_permissions(request)
@@ -149,7 +150,7 @@ class SwingOperatorsExportView(APIView):
 
 
 class SwingOperatorStatementExportView(APIView):
-    permission_classes = [permissions.IsAuthenticated]
+    permission_classes = [IsStaffUser]
 
     def check_permissions(self, request):
         super().check_permissions(request)
@@ -208,7 +209,7 @@ class SwingOperatorStatementExportView(APIView):
 
 
 class SwingDashboardSummaryView(APIView):
-    permission_classes = [permissions.IsAuthenticated]
+    permission_classes = [IsStaffUser]
 
     def check_permissions(self, request):
         super().check_permissions(request)
@@ -220,7 +221,7 @@ class SwingDashboardSummaryView(APIView):
 
 
 class AdminOnlyViewSet(viewsets.ModelViewSet):
-    permission_classes = [permissions.IsAuthenticated]
+    permission_classes = [IsStaffUser]
     pagination_class = None
 
     def check_permissions(self, request):

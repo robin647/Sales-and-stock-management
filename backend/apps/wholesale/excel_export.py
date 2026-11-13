@@ -3,14 +3,14 @@ from openpyxl import Workbook
 from openpyxl.styles import Font, PatternFill
 from openpyxl.utils import get_column_letter
 from rest_framework.exceptions import PermissionDenied
-from rest_framework.permissions import IsAuthenticated
+from core.permissions import IsStaffUser
 from rest_framework.views import APIView
 
 from .services import all_party_summary, party_account_statement
 from .models import EasyWholesalePayment, EasyWholesaleReturn, EasyWholesaleSale, WholesaleInvoice
 
 class WholesaleExcelExportView(APIView):
-    permission_classes = [IsAuthenticated]
+    permission_classes = [IsStaffUser]
 
     def get(self, request):
         if request.user.role != "admin":
@@ -115,7 +115,7 @@ class WholesaleExcelExportView(APIView):
         return response
 
 class WholesaleSummaryExcelExportView(APIView):
-    permission_classes = [IsAuthenticated]
+    permission_classes = [IsStaffUser]
 
     def get(self, request):
         if request.user.role != "admin":

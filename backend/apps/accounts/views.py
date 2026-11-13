@@ -11,6 +11,7 @@ from .models import User
 from .serializers import (
     CustomTokenObtainPairSerializer,
     ChangePasswordSerializer,
+    CustomerSignupSerializer,
     ShowroomTokenObtainPairSerializer,
     ShowroomUserCreateSerializer,
     UserSerializer,
@@ -41,6 +42,13 @@ class MeView(APIView):
 
     def get(self, request):
         return Response(UserSerializer(request.user).data)
+
+
+class CustomerSignupView(generics.CreateAPIView):
+    serializer_class = CustomerSignupSerializer
+    permission_classes = [permissions.AllowAny]
+    throttle_classes = [ScopedRateThrottle]
+    throttle_scope = "signup"
 
 
 class ChangePasswordView(APIView):

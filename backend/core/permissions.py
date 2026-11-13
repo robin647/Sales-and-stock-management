@@ -1,5 +1,15 @@
 from rest_framework.permissions import BasePermission
 
+class IsStaffUser(BasePermission):
+    """Allows access only to Admin and Showroom User accounts."""
+
+    def has_permission(self, request, view):
+        return bool(
+            request.user
+            and request.user.is_authenticated
+            and request.user.role in ("admin", "showroom_user")
+        )
+
 class IsAdmin(BasePermission):
     """Allows access only to Admin role users."""
 

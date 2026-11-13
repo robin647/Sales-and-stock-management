@@ -15,7 +15,7 @@ from apps.wholesale.models import (
     WholesaleSaleItem,
 )
 
-from core.permissions import IsAdmin
+from core.permissions import IsAdmin, IsStaffUser
 
 from .models import Showroom
 from .serializers import ShowroomSerializer
@@ -27,7 +27,7 @@ class ShowroomViewSet(viewsets.ModelViewSet):
     """
 
     serializer_class = ShowroomSerializer
-    permission_classes = [permissions.IsAuthenticated]
+    permission_classes = [IsStaffUser]
 
     def get_queryset(self):
         user = self.request.user

@@ -16,6 +16,12 @@ const MODES = {
     subtext: "Use the username and password your Admin set up for your showroom.",
     userPlaceholder: "Showroom username",
   },
+  customer: {
+    label: "Customer",
+    heading: "Customer sign in",
+    subtext: "Sign in with the mobile number used when you created your account.",
+    userPlaceholder: "Mobile number",
+  },
 };
 
 export default function Login() {
@@ -53,6 +59,16 @@ export default function Login() {
         setError("These credentials belong to the Admin account. Switch to the Admin tab.");
         return;
       }
+      if (mode === "customer" && user?.role !== "customer") {
+        logout();
+        setError("These credentials are for a staff account. Choose Admin or Showroom login.");
+        return;
+      }
+      if (mode !== "customer" && user?.role === "customer") {
+        logout();
+        setError("This is a customer account. Switch to the Customer tab.");
+        return;
+      }
       navigate("/");
     } catch (err) {
       setError(
@@ -79,7 +95,7 @@ export default function Login() {
 
         <div className="login-card rounded-2xl border p-6 sm:p-8">
           {                       }
-          <div className="login-mode-switch mb-7 grid grid-cols-2 gap-1.5 rounded-xl p-1.5">
+          <div className="login-mode-switch mb-7 grid grid-cols-3 gap-1.5 rounded-xl p-1.5">
             {Object.entries(MODES).map(([key, m]) => (
               <button
                 key={key}
@@ -99,6 +115,11 @@ export default function Login() {
           </div>
 
           <form onSubmit={handleSubmit} className="space-y-4">
+            {location.state?.customerCreated && (
+              <div role="status" className="rounded-lg border border-green-100 bg-green-50 px-3 py-2.5 text-sm font-medium text-green-700">
+                Account created. Sign in with your mobile number and password.
+              </div>
+            )}
             {location.state?.passwordChanged && (
               <div role="status" className="rounded-lg border border-green-100 bg-green-50 px-3 py-2.5 text-sm font-medium text-green-700">
                 Password changed. Sign in with your new password.
@@ -112,7 +133,7 @@ export default function Login() {
 
             <div>
               <label htmlFor="login-username" className="login-label mb-1 block text-sm font-semibold">
-                Username
+                {mode === "customer" ? "Mobile number" : "Username"}
               </label>
               <input
                 id="login-username"
@@ -152,7 +173,7 @@ export default function Login() {
         </div>
 
         <p className="login-help mt-6 text-center text-sm">
-          Showroom accounts are created by the Admin. Contact your Admin if you don&apos;t have login details.
+          {mode === "customer" ? <>New here? <a className="font-semibold text-brand-600" href="/signup">Create a customer account</a></> : "Showroom accounts are created by the Admin. Contact your Admin if you don’t have login details."}
         </p>
       </div>
       <div className="relative mt-8 w-full">

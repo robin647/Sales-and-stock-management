@@ -13,6 +13,7 @@ from rest_framework import permissions, viewsets
 from rest_framework.exceptions import NotFound, PermissionDenied, ValidationError
 from rest_framework.response import Response
 from rest_framework.views import APIView
+from core.permissions import IsStaffUser
 
 from .models import Employee, SalaryEntry, SalarySheet
 from .serializers import EmployeeSerializer, SalaryEntrySerializer
@@ -52,7 +53,7 @@ def create_salary_entries(sheet):
 
 
 class AdminOnly:
-    permission_classes = [permissions.IsAuthenticated]
+    permission_classes = [IsStaffUser]
 
     def check_permissions(self, request):
         super().check_permissions(request)

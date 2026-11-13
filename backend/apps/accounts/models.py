@@ -11,8 +11,10 @@ class User(AbstractUser):
     class Role(models.TextChoices):
         ADMIN = "admin", "Admin"
         SHOWROOM_USER = "showroom_user", "Showroom User"
+        CUSTOMER = "customer", "Customer"
 
     role = models.CharField(max_length=20, choices=Role.choices, default=Role.SHOWROOM_USER)
+    phone_number = models.CharField(max_length=20, blank=True)
 
     objects = CustomUserManager()
 

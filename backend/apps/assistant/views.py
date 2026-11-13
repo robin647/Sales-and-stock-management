@@ -15,6 +15,7 @@ from rest_framework.exceptions import APIException, ValidationError
 from rest_framework.throttling import UserRateThrottle
 from rest_framework.views import APIView
 from rest_framework.response import Response
+from core.permissions import IsStaffUser
 
 
 INTENTS = {
@@ -311,7 +312,7 @@ class AssistantChatSerializer(serializers.Serializer):
 
 
 class AssistantChatView(APIView):
-    permission_classes = [permissions.IsAuthenticated]
+    permission_classes = [IsStaffUser]
     throttle_classes = [AssistantRateThrottle]
 
     def check_permissions(self, request):

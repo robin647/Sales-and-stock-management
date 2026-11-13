@@ -3,6 +3,7 @@ import api from "./axios";
 export const authApi = {
   login: (username, password) => api.post("/auth/login/", { username, password }),
   showroomLogin: (username, password) => api.post("/auth/login/showroom/", { username, password }),
+  signup: (data) => api.post("/accounts/signup/", data),
   me: () => api.get("/accounts/me/"),
   changePassword: (data) => api.post("/accounts/password/change/", data),
 };

@@ -8,7 +8,8 @@ export default function Products() {
   const [factoryStock, setFactoryStock] = useState({});
   const [showroomStock, setShowroomStock] = useState({});
   const [showrooms, setShowrooms] = useState([]);
-  const [form, setForm] = useState({ name: "", code: "", category: "", size: "", selling_price: "", initial_stock: "" });
+  const [form, setForm] = useState({ name: "", code: "", category: "", size: "", selling_price: "", discount_price: "", initial_stock: "" });
+  const [image, setImage] = useState(null);
   const [error, setError] = useState("");
 
   function loadAll() {
@@ -43,8 +44,15 @@ export default function Products() {
     e.preventDefault();
     setError("");
     try {
-      await productApi.create(form);
-      setForm({ name: "", code: "", category: "", size: "", selling_price: "", initial_stock: "" });
+      const payload = new FormData();
+      Object.entries(form).forEach(([key, value]) => {
+        if (value !== "" || key === "initial_stock") payload.append(key, value);
+      });
+      if (image) payload.append("image", image);
+      await productApi.create(payload);
+      setForm({ name: "", code: "", category: "", size: "", selling_price: "", discount_price: "", initial_stock: "" });
+      setImage(null);
+      document.getElementById("product-image")?.value && (document.getElementById("product-image").value = "");
       loadAll();
     } catch (err) {
       setError("Could not create product. Check the fields and try again.");
@@ -68,7 +76,7 @@ export default function Products() {
               <th>Code</th>
               <th>Category</th>
               <th>Size</th>
-              <th>Price</th>
+              <th>Regular / Offer</th>
               <th>Factory stock</th>
               {showrooms.map((showroom) => <th key={showroom.id}>{showroom.name}</th>)}
               <th>Status</th>
@@ -78,11 +86,11 @@ export default function Products() {
           <tbody>
             {products.map((p) => (
               <tr key={p.id} className="border-b border-gray-50">
-                <td className="py-2 font-medium">{p.name}</td>
+                <td className="py-2 font-medium"><span className="flex items-center gap-2">{p.image && <img src={p.image} alt="" className="h-10 w-9 rounded object-cover" />}{p.name}</span></td>
                 <td className="text-gray-500">{p.code || "—"}</td>
                 <td className="text-gray-500">{p.category_name}</td>
                 <td className="text-gray-500">{p.size || "—"}</td>
-                <td>৳ {Number(p.selling_price).toLocaleString()}</td>
+                <td>{p.discount_price ? <><del className="text-gray-500">৳ {Number(p.selling_price).toLocaleString()}</del><span className="ml-2 font-semibold text-green-700">৳ {Number(p.discount_price).toLocaleString()}</span></> : <>৳ {Number(p.selling_price).toLocaleString()}</>}</td>
                 <td className="font-medium">{factoryStock[p.id] || 0} pcs</td>
                 {showrooms.map((showroom) => (
                   <td key={showroom.id}>{showroomStock[`${p.id}-${showroom.id}`] || 0} pcs</td>
@@ -157,6 +165,14 @@ export default function Products() {
             onChange={(e) => setForm({ ...form, size: e.target.value })}
             className="w-full mb-2 border border-gray-300 rounded-lg px-3 py-2 text-sm"
           />
+          <label htmlFor="product-image" className="mb-3 block text-xs font-medium text-gray-600">Product photo (optional)</label>
+          <input
+            id="product-image"
+            type="file"
+            accept="image/*"
+            onChange={(e) => setImage(e.target.files?.[0] || null)}
+            className="w-full mb-3 border border-gray-300 rounded-lg px-3 py-2 text-sm"
+          />
           <input
             type="number"
             step="0.01"
@@ -165,6 +181,15 @@ export default function Products() {
             onChange={(e) => setForm({ ...form, selling_price: e.target.value })}
             className="w-full mb-3 border border-gray-300 rounded-lg px-3 py-2 text-sm"
             required
+          />
+          <input
+            type="number"
+            min="0"
+            step="0.01"
+            placeholder="Discount price (optional)"
+            value={form.discount_price}
+            onChange={(e) => setForm({ ...form, discount_price: e.target.value })}
+            className="w-full mb-3 border border-gray-300 rounded-lg px-3 py-2 text-sm"
           />
           <input
             type="number"

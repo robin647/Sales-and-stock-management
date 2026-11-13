@@ -6,6 +6,7 @@ export default function ProtectedRoute({ children, requireAdmin = false, require
 
   if (loading) return null;
   if (!user) return <Navigate to="/login" replace />;
+  if (user.role === "customer") return <Navigate to="/" replace />;
   if (requireAdmin && user.role !== "admin") return <Navigate to="/" replace />;
   if (requireShowroom && user.role !== "showroom_user") return <Navigate to="/" replace />;
 

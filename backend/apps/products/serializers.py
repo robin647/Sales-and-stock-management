@@ -17,7 +17,7 @@ class ProductSerializer(serializers.ModelSerializer):
         model = Product
         fields = [
             "id", "name", "code", "category", "category_name", "size",
-            "selling_price", "is_active", "initial_stock", "created_at",
+            "selling_price", "discount_price", "image", "is_active", "initial_stock", "created_at",
         ]
         read_only_fields = ["id", "created_at"]
 
@@ -25,6 +25,13 @@ class ProductSerializer(serializers.ModelSerializer):
         if value < 0:
             raise serializers.ValidationError("Selling price cannot be negative.")
         return value
+
+    def validate(self, attrs):
+        regular_price = attrs.get("selling_price", getattr(self.instance, "selling_price", None))
+        discount_price = attrs.get("discount_price", getattr(self.instance, "discount_price", None))
+        if discount_price is not None and regular_price is not None and discount_price >= regular_price:
+            raise serializers.ValidationError({"discount_price": "Discount price must be lower than the regular price."})
+        return attrs
 
     @transaction.atomic
     def create(self, validated_data):

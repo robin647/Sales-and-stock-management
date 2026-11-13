@@ -5,6 +5,7 @@ from openpyxl.styles import Font
 from rest_framework import permissions
 from rest_framework.views import APIView
 from django.utils import timezone
+from core.permissions import IsStaffUser
 
 from apps.inventory.models import DailyBalance, DailyStock, StockAdjustment
 
@@ -21,7 +22,7 @@ class DailyExcelExportView(APIView):
     Downloads one showroom's daily statement (stock + balance) as .xlsx.
     """
 
-    permission_classes = [permissions.IsAuthenticated]
+    permission_classes = [IsStaffUser]
 
     def get(self, request):
         target_date = request.query_params.get("date", timezone.localdate().isoformat())
@@ -84,7 +85,7 @@ class MonthlyExcelExportView(APIView):
     Downloads the monthly balance + stock summary as .xlsx.
     """
 
-    permission_classes = [permissions.IsAuthenticated]
+    permission_classes = [IsStaffUser]
 
     def get(self, request):
         year = int(request.query_params.get("year", timezone.localdate().year))

@@ -5,6 +5,7 @@ from rest_framework import permissions
 from rest_framework.exceptions import ValidationError
 from rest_framework.response import Response
 from rest_framework.views import APIView
+from core.permissions import IsStaffUser
 
 from apps.employees.models import SalaryEntry
 from apps.inventory.models import DailyBalance, DailyStock, StockAdjustment
@@ -21,7 +22,7 @@ class DashboardView(APIView):
     Showroom user: today's own numbers only.
     """
 
-    permission_classes = [permissions.IsAuthenticated]
+    permission_classes = [IsStaffUser]
 
     @staticmethod
     def _all_time_summary(wholesale_totals):
@@ -237,7 +238,7 @@ class DashboardView(APIView):
 class DailyStatementView(APIView):
     """Returns the full daily statement (stock table + balance row) for one showroom + date."""
 
-    permission_classes = [permissions.IsAuthenticated]
+    permission_classes = [IsStaffUser]
 
     def get(self, request):
         target_date = request.query_params.get("date", timezone.localdate().isoformat())
@@ -307,7 +308,7 @@ class DailyStatementView(APIView):
 class MonthlyReportView(APIView):
     """Aggregated monthly totals for a showroom (or all showrooms for admin)."""
 
-    permission_classes = [permissions.IsAuthenticated]
+    permission_classes = [IsStaffUser]
 
     def get(self, request):
         year = int(request.query_params.get("year", timezone.localdate().year))

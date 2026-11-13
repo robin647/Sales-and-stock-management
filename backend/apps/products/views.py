@@ -7,10 +7,14 @@ from .serializers import ProductCategorySerializer, ProductSerializer
 class ProductCategoryViewSet(viewsets.ModelViewSet):
     serializer_class = ProductCategorySerializer
     queryset = ProductCategory.objects.all()
-    permission_classes = [permissions.IsAuthenticated]
+    permission_classes = [permissions.AllowAny]
 
     def check_permissions(self, request):
         super().check_permissions(request)
+        if request.method in permissions.SAFE_METHODS:
+            return
+        if not request.user.is_authenticated:
+            raise PermissionDenied("Authentication is required to manage product categories.")
         if request.method not in permissions.SAFE_METHODS and request.user.role != "admin":
             raise PermissionDenied("Only Admin can manage product categories.")
 
@@ -22,16 +26,20 @@ class ProductViewSet(viewsets.ModelViewSet):
     """
 
     serializer_class = ProductSerializer
-    permission_classes = [permissions.IsAuthenticated]
+    permission_classes = [permissions.AllowAny]
     filterset_fields = ["category", "is_active"]
 
     def get_queryset(self):
         qs = Product.objects.select_related("category").all()
-        if self.request.user.role != "admin":
+        if not self.request.user.is_authenticated or self.request.user.role != "admin":
             qs = qs.filter(is_active=True)
         return qs
 
     def check_permissions(self, request):
         super().check_permissions(request)
+        if request.method in permissions.SAFE_METHODS:
+            return
+        if not request.user.is_authenticated:
+            raise PermissionDenied("Authentication is required to manage products.")
         if request.method not in permissions.SAFE_METHODS and request.user.role != "admin":
             raise PermissionDenied("Only Admin can manage products.")

@@ -1,6 +1,7 @@
 from rest_framework import viewsets, permissions
 from rest_framework.exceptions import PermissionDenied, ValidationError
 from rest_framework.response import Response
+from core.permissions import IsStaffUser
 
 from .models import DailyBalance, DailyStock, FactoryStock, ShowroomStock, StockTransfer
 from .serializers import (DailyBalanceSerializer, DailyStockSerializer, FactoryStockSerializer,
@@ -64,7 +65,7 @@ class ShowroomScopedMixin:
 
 class DailyStockViewSet(ShowroomScopedMixin, viewsets.ModelViewSet):
     serializer_class = DailyStockSerializer
-    permission_classes = [permissions.IsAuthenticated]
+    permission_classes = [IsStaffUser]
 
     def queryset_base(self):
         return DailyStock.objects.select_related("showroom", "product").all()
@@ -103,7 +104,7 @@ class DailyStockViewSet(ShowroomScopedMixin, viewsets.ModelViewSet):
 
 class DailyBalanceViewSet(ShowroomScopedMixin, viewsets.ModelViewSet):
     serializer_class = DailyBalanceSerializer
-    permission_classes = [permissions.IsAuthenticated]
+    permission_classes = [IsStaffUser]
 
     def queryset_base(self):
         return DailyBalance.objects.select_related("showroom").all()
@@ -162,7 +163,7 @@ class DailyBalanceViewSet(ShowroomScopedMixin, viewsets.ModelViewSet):
 
 class FactoryStockViewSet(viewsets.ReadOnlyModelViewSet):
     serializer_class = FactoryStockSerializer
-    permission_classes = [permissions.IsAuthenticated]
+    permission_classes = [IsStaffUser]
     queryset = FactoryStock.objects.select_related("product").all()
 
     def check_permissions(self, request):
@@ -172,7 +173,7 @@ class FactoryStockViewSet(viewsets.ReadOnlyModelViewSet):
 
 class ShowroomStockViewSet(viewsets.ReadOnlyModelViewSet):
     serializer_class = ShowroomStockSerializer
-    permission_classes = [permissions.IsAuthenticated]
+    permission_classes = [IsStaffUser]
 
     def get_queryset(self):
         queryset = ShowroomStock.objects.select_related("product", "showroom")
@@ -185,7 +186,7 @@ class ShowroomStockViewSet(viewsets.ReadOnlyModelViewSet):
 
 class StockTransferViewSet(viewsets.ModelViewSet):
     serializer_class = StockTransferSerializer
-    permission_classes = [permissions.IsAuthenticated]
+    permission_classes = [IsStaffUser]
     http_method_names = ["get", "post", "patch", "delete", "head", "options"]
 
     def get_queryset(self):

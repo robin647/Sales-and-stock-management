@@ -128,6 +128,55 @@ class ShowroomUserCreateSerializer(serializers.ModelSerializer):
         return user
 
 
+class CustomerSignupSerializer(serializers.Serializer):
+    name = serializers.CharField(max_length=150)
+    email = serializers.EmailField()
+    phone_number = serializers.CharField(max_length=20)
+    password = serializers.CharField(write_only=True, min_length=8, trim_whitespace=False)
+
+    def validate_phone_number(self, value):
+        value = "".join(value.split())
+        if User.objects.filter(username=value).exists():
+            raise serializers.ValidationError("An account with this mobile number already exists.")
+        return value
+
+    def validate_email(self, value):
+        if User.objects.filter(email__iexact=value).exists():
+            raise serializers.ValidationError("An account with this email already exists.")
+        return value
+
+    def validate(self, attrs):
+        name = attrs["name"].strip()
+        if not name:
+            raise serializers.ValidationError({"name": "Please enter your name."})
+        attrs["name"] = name
+        user = User(username=attrs["phone_number"], email=attrs["email"], phone_number=attrs["phone_number"])
+        try:
+            validate_password(attrs["password"], user=user)
+        except DjangoValidationError as error:
+            raise serializers.ValidationError({"password": list(error.messages)}) from error
+        return attrs
+
+    def create(self, validated_data):
+        name = validated_data.pop("name")
+        password = validated_data.pop("password")
+        first_name, _, last_name = name.partition(" ")
+        user = User(
+            username=validated_data["phone_number"],
+            first_name=first_name,
+            last_name=last_name,
+            email=validated_data["email"],
+            phone_number=validated_data["phone_number"],
+            role=User.Role.CUSTOMER,
+        )
+        user.set_password(password)
+        user.save()
+        return user
+
+    def to_representation(self, instance):
+        return {"detail": "Customer account created successfully."}
+
+
 class ChangePasswordSerializer(serializers.Serializer):
     current_password = serializers.CharField(write_only=True, trim_whitespace=False)
     new_password = serializers.CharField(write_only=True, trim_whitespace=False, min_length=8)

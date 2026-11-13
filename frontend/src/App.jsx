@@ -5,6 +5,8 @@ import { useAuth } from "./context/AuthContext.jsx";
 import ProtectedRoute from "./routes/ProtectedRoute.jsx";
 
 const Login = lazy(() => import("./pages/Login.jsx"));
+const Storefront = lazy(() => import("./pages/Storefront.jsx"));
+const CustomerSignup = lazy(() => import("./pages/CustomerSignup.jsx"));
 const Reports = lazy(() => import("./pages/Reports.jsx"));
 const AdminDashboard = lazy(() => import("./pages/admin/AdminDashboard.jsx"));
 const Products = lazy(() => import("./pages/admin/Products.jsx"));
@@ -31,6 +33,16 @@ function Home() {
   return isAdmin ? <AdminDashboard /> : <ShowroomDashboard />;
 }
 
+function RootEntry() {
+  const { user, loading } = useAuth();
+
+  if (loading) return null;
+  if (user?.role === "admin" || user?.role === "showroom_user") {
+    return <Layout><Home /></Layout>;
+  }
+  return <Storefront />;
+}
+
 export default function App() {
   const { isAdmin } = useAuth();
 
@@ -49,15 +61,9 @@ export default function App() {
     <Suspense fallback={<div className="flex min-h-screen items-center justify-center text-slate-600">Loading workspace…</div>}>
     <Routes>
       <Route path="/login" element={<Login />} />
+      <Route path="/signup" element={<CustomerSignup />} />
 
-      <Route
-        path="/"
-        element={
-          <ProtectedRoute>
-            <Layout><Home /></Layout>
-          </ProtectedRoute>
-        }
-      />
+      <Route path="/" element={<RootEntry />} />
 
       <Route
         path="/showrooms"

@@ -61,7 +61,6 @@ class RootStatusTests(SimpleTestCase):
         protected_routes = (
             "me",
             "showroom-list",
-            "product-list",
             "daily-stock-list",
             "daily-balance-list",
             "dashboard",
