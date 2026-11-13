@@ -2,7 +2,7 @@ import axios from "axios";
 
 const configuredApiUrl = import.meta.env.VITE_API_URL?.trim();
 const defaultApiUrl = import.meta.env.PROD
-  ? "https://mahir-showroom-api.onrender.com/api"
+  ? "https://sales-and-stock-management.onrender.com/api"
   : "http://localhost:8000/api";
 const configuredBaseUrl = (configuredApiUrl || defaultApiUrl).replace(/\/+$/, "");
 
