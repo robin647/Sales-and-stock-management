@@ -29,8 +29,8 @@ Product image uploads are saved under `backend/media/products/`. The relative im
 
 ## Neon Production Database
 
-1. In Neon, open the production branch and copy both the **pooled** and **direct** PostgreSQL connection strings. The pooled endpoint hostname contains `-pooler`; use the direct endpoint for migrations.
-2. In Render, open the `mahir-showroom-api` service environment and set `DATABASE_URL` to the pooled Neon URL and, preferably, `MIGRATION_DATABASE_URL` to the direct Neon URL. The Render start command temporarily uses the direct URL for migrations when configured; if it is absent, it falls back to `DATABASE_URL`, then starts Gunicorn with the pooled URL.
+1. In Neon, open the production branch and copy the PostgreSQL connection string used by the live Render service. Neon offers direct and pooled URLs; use the existing working production `DATABASE_URL` so migrations and the API use the same configured database.
+2. In Render, open the `sales-and-stock-management` service environment and confirm its existing `DATABASE_URL` points to the Neon production database. No additional migration URL variable is required.
 3. Set `ALLOWED_HOSTS` to the Render API hostname and `CORS_ALLOWED_ORIGINS` to the deployed frontend origin. In Vercel's project environment, set `VITE_API_URL` to `https://<render-api-host>/api` and redeploy the frontend.
 4. Keep `LOCAL_DATABASE_URL` local only. Render's production settings use `DATABASE_URL`; no Neon credentials belong in GitHub or `.env.example`.
 5. The Render start command runs `python manage.py migrate --noinput` before Gunicorn starts. Check Render deploy logs to confirm the accounts and products migrations completed.
