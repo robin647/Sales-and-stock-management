@@ -34,6 +34,8 @@ function readSavedCart() {
 
 export default function Storefront() {
   const headerRef = useRef(null);
+  const searchInputRef = useRef(null);
+  const [mobileSearchOpen, setMobileSearchOpen] = useState(false);
   const { user, logout } = useAuth();
   const { theme, toggleTheme } = useTheme();
   const navigate = useNavigate();
@@ -53,6 +55,18 @@ export default function Storefront() {
   const [favoritesOnly, setFavoritesOnly] = useState(false);
 
   useEffect(() => {
+    if (mobileSearchOpen) searchInputRef.current?.focus({ preventScroll: true });
+  }, [mobileSearchOpen]);
+
+  function toggleSearch() {
+    if (window.matchMedia("(max-width: 680px)").matches) {
+      setMobileSearchOpen(open => !open);
+    } else {
+      searchInputRef.current?.focus();
+    }
+  }
+
+  useEffect(() => {
     const header = headerRef.current;
     if (!header) return;
     const updateOffset = () => header.closest(".storefront")?.style.setProperty("--store-header-offset", `${Math.ceil(header.getBoundingClientRect().height) + 32}px`);
@@ -65,7 +79,7 @@ export default function Storefront() {
   useEffect(() => { shopApi.settings().then(res => setShopSettings(res.data)).catch(() => {}); }, []);
   useEffect(() => { localStorage.setItem("mahir-favorites", JSON.stringify(favorites)); }, [favorites]);
   useEffect(() => {
-    const close = event => { if (event.key === "Escape") { setDetail(null); setCartOpen(false); } };
+    const close = event => { if (event.key === "Escape") { setDetail(null); setCartOpen(false); setMobileSearchOpen(false); } };
     document.addEventListener("keydown", close);
     return () => document.removeEventListener("keydown", close);
   }, []);
@@ -147,7 +161,7 @@ export default function Storefront() {
         <Link className="store-brand" to="/" aria-label="Mahir Sherwani home"><span className="brand-mark">M</span><span>MAHIR <i>SHERWANI</i></span></Link>
         <nav className="store-nav" aria-label="Main navigation"><a href="#collection" onClick={() => { setCategory("All styles"); setQuery(""); }}>Collection</a><a href="#edits">Occasion edits</a><a href="#story">Our story</a><a href="#offers">Discover</a></nav>
         <div className="store-actions">
-          <label className="store-search"><svg viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="1.7" aria-hidden="true"><circle cx="10.5" cy="10.5" r="6.5" /><path d="m16 16 4.5 4.5" /></svg><input aria-label="Search products" placeholder="Search styles" value={query} onChange={(event) => { setQuery(event.target.value); document.getElementById("collection")?.scrollIntoView({ behavior: "smooth" }); }} /></label>
+          <div className={`store-search${mobileSearchOpen ? " is-open" : ""}${query ? " has-query" : ""}`}><button className="store-search-toggle" type="button" aria-label={mobileSearchOpen ? "Close search" : "Open product search"} aria-expanded={mobileSearchOpen} aria-controls="store-product-search" onClick={toggleSearch}><svg viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="1.7" aria-hidden="true">{mobileSearchOpen ? <path d="m6 6 12 12M18 6 6 18" /> : <><circle cx="10.5" cy="10.5" r="6.5" /><path d="m16 16 4.5 4.5" /></>}</svg></button><input id="store-product-search" ref={searchInputRef} aria-label="Search products" placeholder="Search styles" value={query} onKeyDown={event => { if (event.key === "Enter" && window.matchMedia("(max-width: 680px)").matches) { event.currentTarget.blur(); setMobileSearchOpen(false); } }} onChange={(event) => { setQuery(event.target.value); document.getElementById("collection")?.scrollIntoView({ behavior: "smooth" }); }} /></div>
           <button className="store-icon-button theme-toggle" type="button" title={`Switch to ${theme === "dark" ? "light" : "dark"} theme`} aria-label={`Switch to ${theme === "dark" ? "light" : "dark"} theme`} onClick={toggleTheme}>{theme === "dark" ? "☼" : "◐"}</button>
           {user ? <button className="store-account" type="button" onClick={() => { logout(); window.location.reload(); }}>Sign out</button> : <Link className="store-account" to="/login">Login</Link>}
           {user?.role === "customer" ? <Link className="store-signup" to="/my-orders">My orders</Link> : user?.role === "admin" ? <Link className="store-signup" to="/admin">Admin panel</Link> : <Link className="store-signup" to="/signup">Sign up</Link>}
