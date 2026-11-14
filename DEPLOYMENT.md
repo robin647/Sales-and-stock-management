@@ -51,6 +51,20 @@ Confirm `products.0003_product_discount_price` and `products.0004_product_image`
 
 ## Uploaded Media On Render
 
+### Legacy inventory migration collision
+
+If migration stops with `relation "inventory_factorystock" already exists`, an older database may record `inventory.0002_factorystock_showroomstock_stocktransfer` instead of the current inventory migration. Do not blindly fake the new migration: the old schema may be missing `inventory_stockadjustment`.
+
+Deploy the repair command, then run against the affected database:
+
+```sh
+python manage.py repair_legacy_inventory
+python manage.py migrate --noinput
+python manage.py migrate --check
+```
+
+The repair requires the known legacy migration, validates existing table columns, types, keys and relationships, creates the missing adjustment table, ensures showroom/product uniqueness, and records the current migration in one transaction. Existing stock rows are retained. Unexpected schema differences stop the repair before it changes the database. Run the commands separately for local and Render databases; repairing a local database does not update Neon.
+
 `render.yaml` mounts a persistent disk at `/var/data` and sets `MEDIA_ROOT=/var/data/media`. Django stores uploaded binaries there and stores only their relative paths in Neon. The `/media/` endpoint serves those files through the API. The disk survives application deploys; keep its mount path and `MEDIA_ROOT` aligned. Files in a developer's ignored local `backend/media/` directory are not included in Git and must be uploaded to the deployed app separately.
 
 ## Deploy From GitHub

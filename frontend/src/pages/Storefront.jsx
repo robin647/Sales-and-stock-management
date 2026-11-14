@@ -35,7 +35,8 @@ export default function Storefront() {
   const navigate = useNavigate();
   const [products, setProducts] = useState([]);
   const [loading, setLoading] = useState(true);
-  const [loadError, setLoadError] = useState(false);
+  const [loadError, setLoadError] = useState("");
+  const [catalogAttempt, setCatalogAttempt] = useState(0);
   const [query, setQuery] = useState("");
   const [category, setCategory] = useState("All styles");
   const [cart, setCart] = useState(readSavedCart);
@@ -55,12 +56,19 @@ export default function Storefront() {
 
   useEffect(() => {
     let active = true;
+    setLoading(true);
+    setLoadError("");
     productApi.listAll({ is_active: true })
       .then((rows) => { if (active) setProducts(rows); })
-      .catch(() => { if (active) setLoadError(true); })
+      .catch((error) => {
+        if (!active) return;
+        setLoadError(error.response?.status >= 500
+          ? "The product service is temporarily unavailable. Please try again shortly."
+          : "We could not load the collection. Check your connection and try again.");
+      })
       .finally(() => { if (active) setLoading(false); });
     return () => { active = false; };
-  }, []);
+  }, [catalogAttempt]);
 
   const categories = useMemo(() => ["All styles", ...new Set(products.map((item) => item.category_name).filter(Boolean))], [products]);
   const filtered = useMemo(() => products.filter((item) => {
@@ -133,14 +141,14 @@ export default function Storefront() {
         <section id="offers" className="offer-band"><div><span className="eyebrow">THE OCCASION EDIT</span><h2>Make every entrance count.</h2><p>Discover handpicked looks for celebrations, gatherings and everything in between.</p></div><a href="#collection">Find your look <span aria-hidden="true">↗</span></a><div className="offer-stamp">NEW<br />SEASON</div></section>
 
         <section id="collection" className="collection-section">
-          <div className="collection-heading"><div><span className="eyebrow">THE MAHIR COLLECTION</span><h2>Pieces to keep close</h2></div><span className="product-count">{filtered.length} styles</span></div>
+          <div className="collection-heading"><div><span className="eyebrow">THE MAHIR COLLECTION</span><h2>Pieces to keep close</h2></div><span className="product-count" role="status">{loading ? "Loading collection…" : loadError ? "Collection unavailable" : `${filtered.length} styles`}</span></div>
           <div className="collection-tools"><div className="category-filters" aria-label="Filter by category">{categories.map((item) => <button key={item} type="button" className={category === item ? "active" : ""} onClick={() => setCategory(item)}>{item}</button>)}</div><span className="collection-hint">Designed for the days that matter</span></div>
-          {loading ? <div className="catalog-message">Curating the collection…</div> : loadError ? <div className="catalog-message">We could not load the collection right now. Please refresh to try again.</div> : filtered.length ? <div className="product-grid">{filtered.map((product, index) => {
+          {loading ? <div className="catalog-message" role="status">Curating the collection…</div> : loadError ? <div className="catalog-message" role="alert">{loadError}</div> : filtered.length ? <div className="product-grid">{filtered.map((product, index) => {
             const price = productPrice(product);
             const discount = price.regular > price.current ? Math.round((1 - price.current / price.regular) * 100) : 0;
             return <article className="product-card" key={product.id}><div className="product-image-wrap"><img src={product.image || PRODUCT_IMAGES[index % PRODUCT_IMAGES.length]} alt={`${product.name} collection style`} loading="lazy" /><span className="product-tag">{discount ? `${discount}% OFF` : index < 2 ? "NEW ARRIVAL" : "MAHIR EDIT"}</span><button type="button" aria-label={`Add ${product.name} to bag`} className="quick-add" onClick={() => { addToCart(product); setCartOpen(true); }}>+</button></div><div className="product-details"><div className="product-category">{product.category_name || "MAHIR COLLECTION"}{product.size ? <span> · {product.size}</span> : null}</div><h3>{product.name}</h3><div className="product-prices"><strong>{money(price.current)}</strong>{price.regular > price.current ? <><del>{money(price.regular)}</del><span>Save {money(price.regular - price.current)}</span></> : null}</div></div></article>;
           })}</div> : <div className="catalog-message">{products.length ? "No styles match your search." : "New styles are being added to the collection. Check back soon."}</div>}
-          {loadError && <button className="retry-button" type="button" onClick={() => window.location.reload()}>Try again</button>}
+          {!loading && loadError && <button className="retry-button" type="button" onClick={() => setCatalogAttempt((attempt) => attempt + 1)}>Try again</button>}
         </section>
         <section id="story" className="brand-story"><span className="eyebrow">THE MAHIR PHILOSOPHY</span><h2>Some things never<br />go out of <em>tradition.</em></h2><p>The quiet confidence of a beautiful fit. The character in every detail. We bring together timeless style and a personal touch, so you can feel like yourself on the days that matter.</p><a className="text-link" href="https://wa.me/8801781879276" target="_blank" rel="noopener noreferrer">Let us help you find your look ↗</a><span className="story-monogram" aria-hidden="true">M</span></section>
       </main>
