@@ -25,11 +25,11 @@ export default function Layout({ children }) {
       {menuOpen && <button aria-label="Close menu" onClick={() => setMenuOpen(false)} className="fixed inset-0 z-30 bg-slate-950/45 md:hidden" />}
       <aside className={`app-sidebar fixed inset-y-0 left-0 z-40 w-[272px] border-r flex flex-col transition-transform duration-200 md:static md:translate-x-0 ${menuOpen ? "translate-x-0" : "-translate-x-full"}`}>
         <div className="app-sidebar-brand px-5 py-5 border-b">
-          <NavLink to="/" aria-label="Mahir Sherwani dashboard" className="inline-flex items-center gap-2.5 no-underline" onClick={() => setMenuOpen(false)}>
-            <span aria-hidden="true" className="grid h-[43px] w-[43px] place-items-center rounded-t-[50%] border border-[#a67c45] text-[28px] leading-none text-[#a67c45]" style={{ fontFamily: "Georgia, serif" }}>M</span>
-            <span className="grid gap-1 font-sans text-[13px] font-bold leading-none tracking-[2px] text-[#1d2924] dark:text-[#edf1ec]">
-              <span>MAHIR</span>
-              <span className="text-[9px] font-medium tracking-[3px] text-[#a67c45] dark:text-[#d7b47e]">SHERWANI</span>
+          <NavLink to="/" aria-label="Mahir Sherwani dashboard" className="sidebar-logo" onClick={() => setMenuOpen(false)}>
+            <span aria-hidden="true" className="sidebar-logo-mark">M</span>
+            <span className="sidebar-logo-wordmark">
+              <span className="sidebar-logo-name">MAHIR</span>
+              <span className="sidebar-logo-subtitle">SHERWANI</span>
             </span>
           </NavLink>
           <div className="text-xs text-gray-500 mt-3 pl-1">

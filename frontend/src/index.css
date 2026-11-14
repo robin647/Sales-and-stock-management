@@ -1404,3 +1404,55 @@ main a:focus-visible {
     padding: 0.35rem 0.6rem;
   }
 }
+
+/* Keep the sidebar wordmark legible on both sidebar themes. */
+.app-sidebar-brand .sidebar-logo {
+  display: flex;
+  align-items: center;
+  gap: 13px;
+  width: 100%;
+  padding: 15px 13px;
+  border: 1px solid #36594a;
+  border-radius: 12px;
+  background: #163b2f;
+  color: #fffaf0;
+  text-decoration: none;
+  box-shadow: 0 5px 15px rgba(16, 45, 35, .12);
+}
+.app-sidebar-brand .sidebar-logo-mark {
+  display: grid;
+  place-items: center;
+  flex: 0 0 43px;
+  height: 49px;
+  border: 1px solid #e1bd7f;
+  border-radius: 50% 50% 0 0;
+  color: #f0d39f;
+  background: #204b3b;
+  font: 30px/1 Georgia, serif;
+}
+.app-sidebar-brand .sidebar-logo-wordmark {
+  display: grid;
+  gap: 8px;
+  font-family: Arial, sans-serif;
+  line-height: 1;
+}
+.app-sidebar-brand .sidebar-logo-name {
+  color: #fffaf0;
+  font-size: 20px;
+  font-weight: 700;
+  letter-spacing: 2.5px;
+}
+.app-sidebar-brand .sidebar-logo-subtitle {
+  color: #f0d39f;
+  font-size: 11px;
+  font-weight: 600;
+  letter-spacing: 2.5px;
+}
+.app-sidebar-brand .sidebar-logo:focus-visible {
+  outline: 2px solid #c39a58;
+  outline-offset: 4px;
+}
+.dark .app-sidebar-brand .sidebar-logo {
+  background: #102d23;
+  border-color: #53715e;
+}
