@@ -1,0 +1,13 @@
+<svg xmlns="http://www.w3.org/2000/svg" viewBox="0 0 48 48">
+  <title>Mahir Sherwani</title>
+  <style>
+    .mark { fill: #f1ecdf; stroke: #a67c45; }
+    .letter { fill: #a67c45; }
+    @media (prefers-color-scheme: dark) {
+      .mark { fill: #25372b; stroke: #d7b47e; }
+      .letter { fill: #d7b47e; }
+    }
+  </style>
+  <path class="mark" d="M4 45V23a20 20 0 0 1 40 0v22Z" stroke-width="2"/>
+  <text class="letter" x="24" y="36" text-anchor="middle" font-family="Georgia, 'Times New Roman', serif" font-size="33">M</text>
+</svg>
