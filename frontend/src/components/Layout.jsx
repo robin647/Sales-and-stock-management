@@ -25,13 +25,13 @@ export default function Layout({ children }) {
       {menuOpen && <button aria-label="Close menu" onClick={() => setMenuOpen(false)} className="fixed inset-0 z-30 bg-slate-950/45 md:hidden" />}
       <aside className={`app-sidebar fixed inset-y-0 left-0 z-40 w-[272px] border-r flex flex-col transition-transform duration-200 md:static md:translate-x-0 ${menuOpen ? "translate-x-0" : "-translate-x-full"}`}>
         <div className="app-sidebar-brand px-5 py-5 border-b">
-          <div className="flex items-center gap-3">
-            <div className="flex h-10 w-10 items-center justify-center rounded-xl bg-gradient-to-br from-brand-500 to-brand-700 text-sm font-bold tracking-wide text-white shadow-md shadow-brand-500/20">MS</div>
-            <div>
-              <div className="font-bold tracking-tight text-gray-900">Mahir Sherwani</div>
-              <div className="mt-0.5 text-[11px] font-medium uppercase tracking-[.12em] text-brand-600">Stock &amp; Sales</div>
-            </div>
-          </div>
+          <NavLink to="/" aria-label="Mahir Sherwani dashboard" className="inline-flex items-center gap-2.5 no-underline" onClick={() => setMenuOpen(false)}>
+            <span aria-hidden="true" className="grid h-[43px] w-[43px] place-items-center rounded-t-[50%] border border-[#a67c45] text-[28px] leading-none text-[#a67c45]" style={{ fontFamily: "Georgia, serif" }}>M</span>
+            <span className="grid gap-1 font-sans text-[13px] font-bold leading-none tracking-[2px] text-[#1d2924] dark:text-[#edf1ec]">
+              <span>MAHIR</span>
+              <span className="text-[9px] font-medium tracking-[3px] text-[#a67c45] dark:text-[#d7b47e]">SHERWANI</span>
+            </span>
+          </NavLink>
           <div className="text-xs text-gray-500 mt-3 pl-1">
             {isAdmin ? "Admin Panel" : user?.showroomName}
           </div>
