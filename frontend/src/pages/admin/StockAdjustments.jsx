@@ -5,6 +5,7 @@ const listData = (response) => response.data.results || response.data;
 
 export default function StockAdjustments() {
   const [products, setProducts] = useState([]);
+  const [productCodeSearch, setProductCodeSearch] = useState("");
   const [showrooms, setShowrooms] = useState([]);
   const [stocks, setStocks] = useState({});
   const [history, setHistory] = useState([]);
@@ -31,6 +32,10 @@ export default function StockAdjustments() {
 
   const stockKey = form.location === "factory" ? `factory-${form.product}` : `showroom-${form.showroom}-${form.product}`;
   const currentQuantity = stocks[stockKey] ?? 0;
+  const codeQuery = productCodeSearch.trim().toLowerCase();
+  const matchingProducts = codeQuery
+    ? products.filter((product) => String(product.code || "").toLowerCase().includes(codeQuery))
+    : [];
 
   async function submit(event) {
     event.preventDefault();
@@ -57,6 +62,19 @@ export default function StockAdjustments() {
         <p className="text-sm text-gray-500 mt-1">Choose one inventory location. Other showrooms remain unchanged.</p>
       </div>
       <form onSubmit={submit} className="grid gap-4 rounded-xl border border-gray-200 bg-white p-4 sm:grid-cols-2 lg:grid-cols-3">
+        <div className="sm:col-span-2 lg:col-span-3">
+          <label className="text-sm text-gray-600" htmlFor="stock-product-code">Search by product code</label>
+          <input id="stock-product-code" type="search" value={productCodeSearch} onChange={(event) => setProductCodeSearch(event.target.value)} placeholder="Enter product code" className="mt-1 w-full rounded-lg border border-gray-300 px-3 py-2 text-sm text-gray-900" />
+          {codeQuery && (
+            <div className="mt-2 max-h-48 overflow-y-auto rounded-lg border border-gray-200">
+              {matchingProducts.length ? matchingProducts.map((product) => (
+                <button key={product.id} type="button" onClick={() => { setForm((current) => ({ ...current, product: String(product.id) })); setProductCodeSearch(""); }} className={`block w-full px-3 py-2 text-left text-sm hover:bg-gray-50 ${String(product.id) === form.product ? "bg-gray-50 font-semibold" : ""}`}>
+                  {product.code} · {product.name}{product.size ? ` · ${product.size}` : ""}
+                </button>
+              )) : <p role="status" className="px-3 py-2 text-sm text-gray-500">No products found for this code.</p>}
+            </div>
+          )}
+        </div>
         <label className="text-sm text-gray-600">Product
           <select required value={form.product} onChange={(event) => setForm({ ...form, product: event.target.value })} className="mt-1 w-full rounded-lg border border-gray-300 px-3 py-2 text-gray-900">
             {products.map((product) => <option key={product.id} value={product.id}>{product.name}{product.code ? ` · ${product.code}` : ""}{product.size ? ` · ${product.size}` : ""}</option>)}
