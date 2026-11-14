@@ -1,0 +1,28 @@
+.barcode-print-root { position:fixed; inset:0; z-index:100; display:flex; justify-content:center; align-items:center; padding:20px; background:#10271dcc; }
+.barcode-dialog { display:flex; flex-direction:column; width:min(1100px,100%); max-height:calc(100dvh - 40px); overflow:hidden; border-radius:18px; background:var(--surface); box-shadow:0 25px 70px #0004; }
+.barcode-dialog-heading { display:flex; justify-content:space-between; gap:20px; align-items:center; padding:22px 25px; border-bottom:1px solid var(--border); }
+.barcode-dialog-heading h2 { margin:8px 0 5px; }
+.barcode-dialog-heading p { margin:0; }
+.barcode-close { flex:0 0 36px; height:36px; border:1px solid var(--border); border-radius:50%; background:var(--surface-soft); color:var(--text); font-size:24px; cursor:pointer; }
+.barcode-controls { display:flex; align-items:flex-end; flex-wrap:wrap; gap:15px; padding:18px 25px; }
+.barcode-controls label { display:grid; gap:7px; color:var(--text-muted); font-size:12px; }
+.barcode-controls input { width:110px; }
+.barcode-guidance { padding:0 25px 16px; color:var(--text-muted); font-size:11px; line-height:1.7; }
+.barcode-warning { margin:0 25px 15px; }
+.barcode-preview { overflow:auto; padding:25px; border-top:1px solid var(--border); background:var(--surface-soft); }
+.barcode-sheet { display:grid; grid-template-columns:repeat(auto-fill,var(--label-width)); gap:3mm; }
+.barcode-label { display:flex; flex-direction:column; align-items:center; justify-content:center; flex-shrink:0; width:var(--label-width); height:var(--label-height); padding:2mm; overflow:hidden; background:#fff!important; color:#000!important; box-sizing:border-box; border:1px dashed #bbb; font-family:Arial,"Hind Siliguri",sans-serif; text-align:center; }
+.barcode-product-name { display:-webkit-box; -webkit-line-clamp:2; -webkit-box-orient:vertical; width:100%; overflow:hidden; font-size:8pt; font-weight:600; line-height:1.15; margin-bottom:1mm; overflow-wrap:anywhere; }
+.product-barcode { display:block; width:100%; height:var(--barcode-height); flex-shrink:0; }
+.barcode-product-code { max-width:100%; font:7.5pt/1.2 "Courier New",monospace; margin-top:.7mm; overflow-wrap:anywhere; }
+.barcode-product-price { font-size:10pt; font-weight:700; line-height:1.2; margin-top:.8mm; }
+@media(max-width:600px) { .barcode-print-root { padding:8px; } .barcode-dialog { max-height:calc(100dvh - 16px); } .barcode-dialog-heading,.barcode-controls { padding:17px; } .barcode-controls { gap:12px; } .barcode-controls label { flex:1; min-width:120px; } .barcode-controls label input,.barcode-controls label select { width:100%; } .barcode-controls .c-button { width:100%; } .barcode-preview { padding:16px; } .barcode-guidance { padding:0 17px 15px; } }
+@media print {
+  html:has(.barcode-print-root),body:has(.barcode-print-root) { height:auto!important; min-height:0!important; overflow:visible!important; margin:0!important; padding:0!important; background:#fff!important; }
+  body:has(.barcode-print-root)>*:not(.barcode-print-root) { display:none!important; }
+  .barcode-print-root { position:static!important; display:block!important; inset:auto!important; padding:0!important; background:#fff!important; }
+  .barcode-dialog { display:block!important; width:auto!important; max-height:none!important; overflow:visible!important; border:0!important; border-radius:0!important; box-shadow:none!important; background:#fff!important; }
+  .barcode-dialog-heading,.barcode-controls,.barcode-guidance,.barcode-warning { display:none!important; }
+  .barcode-preview { padding:0!important; border:0!important; overflow:visible!important; background:#fff!important; }
+  .barcode-label { border:0!important; break-inside:avoid; page-break-inside:avoid; print-color-adjust:exact; -webkit-print-color-adjust:exact; }
+}

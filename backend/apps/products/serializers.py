@@ -42,6 +42,19 @@ class ProductSerializer(serializers.ModelSerializer):
             raise serializers.ValidationError("Selling price cannot be negative.")
         return value
 
+    def validate_code(self, value):
+        if self.instance and value == self.instance.code:
+            return value
+        if value and any(ord(character) < 32 or ord(character) > 126 for character in value):
+            raise serializers.ValidationError("Use English letters, numbers and printable symbols for barcode-compatible codes.")
+        if value:
+            matches = Product.objects.filter(code__iexact=value)
+            if self.instance:
+                matches = matches.exclude(pk=self.instance.pk)
+            if matches.exists():
+                raise serializers.ValidationError("This product code is already in use. Choose a unique code.")
+        return value
+
     def validate(self, attrs):
         regular_price = attrs.get("selling_price", getattr(self.instance, "selling_price", None))
         if "discount_percentage" in attrs:

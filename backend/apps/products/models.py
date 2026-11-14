@@ -1,5 +1,5 @@
 from django.core.validators import MinValueValidator
-from django.db import models
+from django.db import models, transaction
 
 class ProductCategory(models.Model):
     name = models.CharField(max_length=100, unique=True)
@@ -35,6 +35,28 @@ class Product(models.Model):
 
     def __str__(self):
         return f"{self.name} ({self.size})" if self.size else self.name
+
+    def save(self, *args, **kwargs):
+        if self.code and self.code.strip():
+            return super().save(*args, **kwargs)
+        using = kwargs.get("using") or self._state.db or "default"
+        with transaction.atomic(using=using):
+            creating = self._state.adding
+            if creating:
+                super().save(*args, **kwargs)
+            base = f"MS-{self.pk:06d}"
+            candidate, suffix = base, 1
+            queryset = type(self).objects.using(using).exclude(pk=self.pk)
+            while queryset.filter(code__iexact=candidate).exists():
+                candidate = f"{base}-{suffix}"
+                suffix += 1
+            self.code = candidate
+            if creating:
+                type(self).objects.using(using).filter(pk=self.pk).update(code=candidate)
+            else:
+                if kwargs.get("update_fields") is not None:
+                    kwargs["update_fields"] = set(kwargs["update_fields"]) | {"code"}
+                super().save(*args, **kwargs)
 
 
 class ProductPhoto(models.Model):

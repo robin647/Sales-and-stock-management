@@ -85,6 +85,14 @@ Never commit `.env.local`, `backend/.env`, Neon connection strings, uploaded cus
 
 ## Commerce rollout (Vercel + Render + Neon Free)
 
+### Product codes and barcode labels
+
+New products automatically receive a code such as `MS-000123`, derived from their database ID. If that code was already used by a legacy custom code, a numeric suffix is added. Existing nonblank codes are preserved; `products.0006_populate_product_codes` fills blank codes during startup migration. Normal edits retain their code. New/changed custom codes must use printable ASCII and cannot duplicate an existing code (case-insensitive validation); legacy codes remain editable without being silently rewritten.
+
+In **Products & Categories**, click a row's **Barcode** button, or select products with checkboxes and choose **Print barcodes**. Barcode studio generates vector Code 128 labels locally in the browser with product name/size above the bars and code plus current offer/sale price below. Choose 50×30, 70×40 or 100×50 mm labels, A4 or thermal paper, and copies per product (maximum 500 labels per print). **Print / Save PDF** opens the browser print dialog. Use Actual size / 100% scale, disable browser headers/footers, and select matching paper dimensions for a thermal printer. Print CSS isolates labels from the rest of the admin application.
+
+No barcode web service, subscription or new backend endpoint is required. Codes that are missing, non-ASCII, duplicated across products, or too long for the chosen label size show an error instead of printing a misleading barcode. Deploy backend first so blank legacy products receive codes before using the updated frontend.
+
 ### Customer directory
 
 Admin sidebar **Customers** opens `/admin/customers`. The directory supports name/email/phone search, account status and order filters, pagination, account/contact information, delivered product spend and complete paginated order details. Password hashes and permission data are not returned.
