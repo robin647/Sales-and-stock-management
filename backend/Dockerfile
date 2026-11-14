@@ -22,4 +22,4 @@ RUN SECRET_KEY="static-build-only-not-runtime-key-0123456789abcdef" \
 
 EXPOSE 8000
 
-CMD ["gunicorn", "config.wsgi:application", "--bind", "0.0.0.0:8000", "--worker-class", "gthread", "--workers", "3", "--threads", "4", "--timeout", "60", "--max-requests", "1000", "--max-requests-jitter", "100"]
+CMD ["python", "start.py"]

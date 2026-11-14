@@ -33,7 +33,21 @@ Product image uploads are saved under `backend/media/products/`. The relative im
 2. In Render, open the `sales-and-stock-management` service environment and confirm its existing `DATABASE_URL` points to the Neon production database. No additional migration URL variable is required.
 3. Set `ALLOWED_HOSTS` to the Render API hostname and `CORS_ALLOWED_ORIGINS` to the deployed frontend origin. In Vercel's project environment, set `VITE_API_URL` to `https://<render-api-host>/api` and redeploy the frontend.
 4. Keep `LOCAL_DATABASE_URL` local only. Render's production settings use `DATABASE_URL`; no Neon credentials belong in GitHub or `.env.example`.
-5. The Render start command runs `python manage.py migrate --noinput` before Gunicorn starts. Check Render deploy logs to confirm the accounts and products migrations completed.
+5. Set the Render service's **Start Command** to `python start.py` (with root directory `backend`). Existing manually configured services may retain their old command even after `render.yaml` changes. The startup script applies migrations and checks for pending schema changes before starting Gunicorn. Check deploy logs to confirm the accounts and products migrations completed.
+
+### Product catalog returns HTTP 500
+
+If `/api/products/categories/` works but `/api/products/?is_active=true&page_size=100&page=1` returns 500, inspect the Render traceback. A missing `products_product.image` or `discount_price` column means the deployed code and database schema are out of sync.
+
+In the Render Shell (from the backend directory), run:
+
+```sh
+python manage.py showmigrations products
+python manage.py migrate --noinput
+python manage.py migrate --check
+```
+
+Confirm `products.0003_product_discount_price` and `products.0004_product_image` are applied, then retry the product URL. Use `python start.py` as the Start Command and redeploy to keep future releases synchronized. If migrations are already applied, use the actual request traceback to investigate; do not reset the database or fake migrations.
 
 ## Uploaded Media On Render
 

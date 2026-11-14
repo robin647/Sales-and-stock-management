@@ -34,6 +34,23 @@ class PublicCatalogTests(TestCase):
         response = self.client.post(reverse("product-list"), {}, format="json")
         self.assertEqual(response.status_code, 403)
 
+    def test_storefront_request_returns_paginated_products_with_images(self):
+        self.active_product.image = "products/2026/11/panjabi.jpg"
+        self.active_product.save(update_fields=["image"])
+
+        response = self.client.get(
+            reverse("product-list"),
+            {"is_active": "true", "page_size": 100, "page": 1},
+        )
+
+        self.assertEqual(response.status_code, 200)
+        self.assertEqual(response.data["count"], 1)
+        product = response.data["results"][0]
+        self.assertEqual(product["id"], self.active_product.id)
+        self.assertEqual(product["category_name"], "Panjabi")
+        self.assertTrue(product["image"].endswith("/media/products/2026/11/panjabi.jpg"))
+        self.assertEqual(str(product["discount_price"]), "4200.00")
+
     def test_discount_price_must_be_less_than_regular_price(self):
         from apps.accounts.models import User
 
