@@ -69,6 +69,14 @@ The repair requires the known legacy migration, validates existing table columns
 
 ## Deploy From GitHub
 
+If startup reports `corsheaders.E014`, remove the trailing slash from Render's `CORS_ALLOWED_ORIGINS`: use `https://sales-and-stock-management-s7d7.vercel.app` with no path. Settings normalize surrounding whitespace and trailing slashes, but actual URL paths remain invalid. This system-check error prevents migrations and Gunicorn startup, so Render may subsequently report a port scan timeout.
+
+For the existing **Docker** Render service, Dockerfile `CMD` starts `python start.py`. The Python runtime `startCommand` in `render.yaml` does not configure an existing Docker service. If Render Settings has a **Docker Command** override, set it to `python start.py` (or clear it to use the Dockerfile CMD). With Root Directory `backend`, use Dockerfile Path `./Dockerfile` and Docker Build Context Directory `.`.
+
+Startup now detects the specific old inventory migration and runs the validated legacy repair before applying all remaining migrations. Fresh databases and databases already repaired skip that repair. A validation or migration error still stops startup and is printed in the deploy logs.
+
+If a new deployment fails while an earlier commit remains Live, inspect the failed deployment's final build/runtime logs. The Live commit's API errors do not establish why the new build failed. Check the deployed commit ID after pushing the startup fix and deploying the latest commit.
+
 1. Commit and push the migrations, backend, frontend, and `render.yaml` changes to the GitHub branch connected to Render and Vercel.
 2. Render builds the API and deploys after the migration command succeeds. Vercel builds the frontend after push.
 3. Check Render deploy logs for successful migrations and Vercel deployment status, then open the deployed frontend URL.

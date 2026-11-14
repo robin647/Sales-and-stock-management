@@ -160,7 +160,11 @@ SIMPLE_JWT = {
     "BLACKLIST_AFTER_ROTATION": True,
 }
 
-CORS_ALLOWED_ORIGINS = env.list("CORS_ALLOWED_ORIGINS", default=[])
+CORS_ALLOWED_ORIGINS = list(dict.fromkeys(
+    origin.strip().rstrip("/")
+    for origin in env.list("CORS_ALLOWED_ORIGINS", default=[])
+    if origin.strip()
+))
 VERCEL_FRONTEND_ORIGIN = "https://sales-and-stock-management-s7d7.vercel.app"
 if VERCEL_FRONTEND_ORIGIN not in CORS_ALLOWED_ORIGINS:
     CORS_ALLOWED_ORIGINS.append(VERCEL_FRONTEND_ORIGIN)
