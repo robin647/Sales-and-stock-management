@@ -25,14 +25,14 @@ const MODES = {
 };
 
 export default function Login() {
-  const [mode, setMode] = useState("admin");
+  const location = useLocation();
+  const [mode, setMode] = useState(() => location.state?.customerCreated ? "customer" : "admin");
   const [username, setUsername] = useState("");
   const [password, setPassword] = useState("");
   const [error, setError] = useState("");
   const [loading, setLoading] = useState(false);
   const { login, loginShowroom, logout } = useAuth();
   const navigate = useNavigate();
-  const location = useLocation();
 
   const copy = MODES[mode];
 

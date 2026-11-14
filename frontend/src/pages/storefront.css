@@ -119,6 +119,10 @@
 .checkout-button { width: 100%; display: flex; justify-content: space-between; align-items: center; border: 0; padding: 14px 16px; color: white; background: #194b3d; font-size: 12px; }
 .checkout-button span { font-size: 17px; }
 .cart-summary > small { display: block; margin-top: 10px; color: var(--store-muted); font-size: 10px; text-align: center; }
+.order-auth-prompt { margin-top: 16px; border-top: 1px solid var(--store-line); padding-top: 15px; }
+.order-auth-prompt > strong { color: var(--store-ink); font: 18px Georgia, serif; }
+.order-auth-prompt > p { margin: 6px 0 14px; color: var(--store-muted); font-size: 11px; }
+.signup-order-button { width: 100%; margin-top: 8px; border: 1px solid var(--store-green); padding: 12px 15px; color: var(--store-green); background: transparent; font-size: 11px; }
 .empty-cart { display: grid; place-items: center; align-content: center; flex: 1; gap: 12px; color: var(--store-muted); text-align: center; }
 .empty-cart > span { color: var(--store-gold); font-size: 42px; }
 .empty-cart > svg { width: 38px; height: 38px; color: var(--store-gold); }
@@ -180,4 +184,136 @@
   .product-prices span { width: 100%; }
   .store-footer { grid-template-columns: 1fr; justify-items: center; gap: 12px; padding: 25px 15px; text-align: center; }
   .store-footer > div { justify-content: center; flex-wrap: wrap; gap: 10px 15px; }
+}
+/* Editorial storefront refresh */
+.storefront { --store-paper: #faf8f2; --store-gold: #a67c45; font-family: Arial, "Hind Siliguri", sans-serif; }
+.storefront a { text-decoration: none; }
+.storefront button { cursor: pointer; }
+.storefront :is(a, button, input):focus-visible { outline: 2px solid var(--store-gold); outline-offset: 5px; }
+.store-promo { min-height: 36px; letter-spacing: .4px; }
+.store-header { min-height: 96px; }
+.brand-mark { width: 43px; height: 43px; border-radius: 50% 50% 0 0; font-size: 28px; }
+.store-brand { letter-spacing: 2px; }
+.store-brand i { letter-spacing: 3px; }
+.store-nav a { font-size: 12px; padding: 12px 0; }
+.store-hero { margin: 22px 3% 0; padding: 0 0 0 5%; min-height: 650px; grid-template-columns: 1.05fr 1fr; background: #eeece2; overflow: hidden; }
+.hero-copy { padding: 65px 30px 80px 0; }
+.eyebrow { font-size: 10px; letter-spacing: 2px; }
+.hero-copy h1 { font-size: clamp(48px, 5.8vw, 88px); line-height: 1.04; letter-spacing: -3px; margin: 24px 0; }
+.hero-copy h1 em { color: var(--store-gold); }
+.hero-copy > p { font-size: 14px; line-height: 1.9; max-width: 335px; }
+.hero-links { display: flex; gap: 24px; align-items: center; flex-wrap: wrap; margin-top: 30px; }
+.hero-links .primary-link { margin: 0; padding: 18px 23px; gap: 24px; }
+.hero-secondary { color: var(--store-ink); font-size: 11px; border-bottom: 1px solid var(--store-gold); padding: 7px 0; }
+.hero-note { font-size: 8px; letter-spacing: 1px; bottom: 28px; }
+.hero-photo { min-height: 650px; border-radius: 46% 46% 0 0; margin: 28px 28px 0 0; background-color: #64735e; }
+.hero-photo-caption { left: 28px; right: auto; text-align: left; bottom: 34px; }
+.hero-photo-caption strong { font-size: 34px; }
+.hero-photo-caption span { letter-spacing: 2px; }
+.hero-vertical { top: 45%; }
+.store-benefits { margin: 0 5.2%; min-height: 115px; }
+.store-benefits strong { font-size: 13px; margin-bottom: 5px; }
+.store-benefits small { font-size: 11px; }
+.occasion-section { padding: 70px 5.2% 0; scroll-margin-top: 24px; }
+.collection-heading { border: 0; padding-bottom: 25px; }
+.collection-heading h2 { font-size: clamp(30px, 3vw, 43px); letter-spacing: -1px; margin-top: 10px; }
+.text-link { color: var(--store-green); border-bottom: 1px solid var(--store-gold); padding-bottom: 8px; font-size: 12px; }
+.occasion-grid { display: grid; grid-template-columns: 1.15fr 1fr 1fr; gap: 20px; }
+.occasion-card { position: relative; min-height: 340px; overflow: hidden; background: #36483c; color: white; }
+.occasion-card::after { content: ""; position: absolute; inset: 0; background: linear-gradient(transparent 25%, #12261ce6); }
+.occasion-card img { width: 100%; height: 100%; position: absolute; object-fit: cover; transition: transform .6s; }
+.occasion-card:hover img { transform: scale(1.05); }
+.occasion-copy { position: absolute; bottom: 27px; left: 25px; right: 40px; z-index: 1; }
+.occasion-copy > span { color: #e0c49a; font-size: 8px; letter-spacing: 1.7px; }
+.occasion-copy h3 { color: white; font: 29px Georgia, serif; margin: 12px 0 8px; }
+.occasion-copy p { font-size: 11px; color: #e1e4da; margin: 0; }
+.occasion-arrow { position: absolute; bottom: 28px; right: 22px; z-index: 1; font-size: 23px; }
+.offer-band { margin-top: 55px; margin-bottom: 65px; min-height: 190px; background: #193f32; }
+.offer-band::after { content: "M"; font: 240px Georgia, serif; position: absolute; right: 21%; color: #ffffff05; pointer-events: none; }
+.offer-band p { line-height: 1.8; }
+.collection-tools { border-top: 1px solid var(--store-line); padding: 16px 0; margin-bottom: 10px; }
+.category-filters button { border: 1px solid var(--store-line); border-radius: 30px; padding: 10px 17px; }
+.category-filters button.active { color: #fff; background: #214f40; border-color: #214f40; }
+.product-grid { gap: 38px 23px; }
+.product-image-wrap { border-radius: 3px; }
+.product-tag { font-size: 9px; letter-spacing: .7px; padding: 8px 10px; }
+.quick-add { width: 42px; height: 42px; box-shadow: 0 3px 18px #0002; }
+.product-details { padding-top: 17px; }
+.product-category { letter-spacing: 1px; }
+.product-details h3 { font-size: 20px; margin: 9px 0 12px; }
+.product-prices strong { font-size: 14px; }
+.brand-story { position: relative; overflow: hidden; padding: 65px 24px 72px; text-align: center; background: #eeece2; }
+.brand-story h2 { position: relative; z-index: 1; font: 46px/1.15 Georgia, serif; color: var(--store-ink); margin: 22px 0; }
+.brand-story h2 em { color: var(--store-gold); }
+.brand-story p { position: relative; z-index: 1; max-width: 490px; margin: 0 auto 27px; font-size: 13px; line-height: 1.9; color: var(--store-muted); }
+.story-monogram { position: absolute; right: 5%; top: -55px; font: 400px Georgia, serif; color: #a67c450a; pointer-events: none; }
+.store-footer { padding-top: 40px; padding-bottom: 40px; }
+.dark .brand-story { background: #26342c; }
+.dark .store-signup { background: #285d49; }
+@media (max-width: 1050px) {
+  .store-header { padding-top: 18px; }
+  .store-hero { min-height: 560px; }
+  .hero-photo { min-height: 560px; margin-right: 18px; }
+  .hero-links { gap: 15px; }
+  .occasion-card { min-height: 290px; }
+  .occasion-copy { left: 18px; }
+  .occasion-copy h3 { font-size: 24px; }
+}
+@media (max-width: 680px) {
+  .store-promo { font-size: 8px; }
+  .store-header { padding: 16px 16px 0; gap: 15px 8px; }
+  .store-actions { gap: 8px; flex-wrap: wrap; }
+  .store-brand { font-size: 10px; letter-spacing: 1px; gap: 7px; }
+  .store-brand i { font-size: 8px; letter-spacing: 1.5px; }
+  .brand-mark { width: 32px; height: 36px; font-size: 22px; }
+  .store-actions .store-search { grid-column: 1 / -1; grid-row: 2; width: 100%; border: 1px solid var(--store-line); padding: 0 12px; border-radius: 3px; }
+  .store-actions { display: contents; }
+  .store-search input { position: static; width: 100%; opacity: 1; pointer-events: auto; border: 0; padding: 11px 0; font-size: 12px; }
+  .store-header > .store-nav { grid-row: 3; justify-content: space-between; gap: 14px; margin-top: 0; }
+  .store-actions > :not(.store-search) { grid-row: 1; }
+  .store-header { display: flex; flex-wrap: wrap; }
+  .store-brand { margin-right: auto; }
+  .store-actions .store-search { order: 2; width: 100%; }
+  .store-nav { order: 3; width: calc(100% + 32px); flex: 0 0 calc(100% + 32px); }
+  .store-nav a { padding: 0; font-size: 10px; }
+  .store-hero { margin: 0; padding: 0; grid-template-columns: 1fr; }
+  .hero-copy { min-height: 420px; padding: 42px 24px 65px; }
+  .hero-copy h1 { font-size: 58px; letter-spacing: -2px; margin: 20px 0; }
+  .hero-copy > p { font-size: 13px; max-width: 330px; }
+  .hero-links { gap: 18px; margin-top: 24px; }
+  .hero-links .primary-link { padding: 15px 16px; font-size: 10px; gap: 18px; }
+  .hero-secondary { font-size: 10px; }
+  .hero-note { bottom: 22px; font-size: 7px; }
+  .hero-photo { min-height: 410px; margin: 0 22px; border-radius: 45% 45% 0 0; }
+  .hero-photo-caption strong { font-size: 29px; }
+  .store-benefits { margin: 0; min-height: 95px; }
+  .store-benefits strong { font-size: 10px; }
+  .store-benefits small { font-size: 8px; }
+  .occasion-section { padding: 42px 16px 0; }
+  .collection-heading { gap: 15px; align-items: center; }
+  .collection-heading h2 { font-size: 29px; }
+  .eyebrow { font-size: 8px; letter-spacing: 1.5px; }
+  .collection-heading .text-link { font-size: 10px; min-width: 75px; }
+  .occasion-grid { grid-template-columns: 1fr 1fr; gap: 12px; }
+  .occasion-card:first-child { grid-column: 1 / -1; min-height: 310px; }
+  .occasion-card { min-height: 245px; }
+  .occasion-copy { left: 14px; bottom: 20px; right: 15px; }
+  .occasion-copy h3 { font-size: 23px; }
+  .occasion-copy p { font-size: 10px; line-height: 1.6; }
+  .occasion-copy > span { font-size: 7px; letter-spacing: 1px; }
+  .occasion-arrow { right: 12px; bottom: 12px; font-size: 17px; }
+  .offer-band { margin-top: 32px; margin-bottom: 38px; }
+  .product-grid { gap: 27px 12px; }
+  .product-details h3 { font-size: 17px; }
+  .product-category { font-size: 8px; letter-spacing: .5px; }
+  .product-tag { font-size: 7px; padding: 6px; }
+  .quick-add { width: 34px; height: 34px; }
+  .category-filters button { padding: 8px 12px; }
+  .brand-story { padding: 45px 22px; }
+  .brand-story h2 { font-size: 37px; }
+  .store-footer { padding: 30px 16px; }
+  .store-footer .store-brand { margin: 0; }
+}
+@media (prefers-reduced-motion: reduce) {
+  .storefront *, .storefront *::before, .storefront *::after { animation: none !important; transition: none !important; scroll-behavior: auto !important; }
 }
