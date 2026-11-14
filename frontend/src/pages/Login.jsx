@@ -69,7 +69,8 @@ export default function Login() {
         setError("This is a customer account. Switch to the Customer tab.");
         return;
       }
-      navigate(user?.role === "customer" && ["/checkout", "/my-orders"].includes(location.state?.returnTo) ? location.state.returnTo : "/");
+      const destination = user?.role === "admin" ? "/admin" : user?.role === "showroom_user" ? "/showroom" : ["/checkout", "/my-orders"].includes(location.state?.returnTo) ? location.state.returnTo : "/";
+      navigate(destination, { replace: true });
     } catch (err) {
       setError(
         err.response?.data?.detail ||

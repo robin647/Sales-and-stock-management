@@ -138,7 +138,7 @@ export default function Storefront() {
           <label className="store-search"><span aria-hidden="true">⌕</span><input aria-label="Search products" placeholder="Search styles" value={query} onChange={(event) => { setQuery(event.target.value); document.getElementById("collection")?.scrollIntoView({ behavior: "smooth" }); }} /></label>
           <button className="store-icon-button theme-toggle" type="button" title={`Switch to ${theme === "dark" ? "light" : "dark"} theme`} aria-label={`Switch to ${theme === "dark" ? "light" : "dark"} theme`} onClick={toggleTheme}>{theme === "dark" ? "☼" : "◐"}</button>
           {user ? <button className="store-account" type="button" onClick={() => { logout(); window.location.reload(); }}>Sign out</button> : <Link className="store-account" to="/login">Login</Link>}
-          {user?.role === "customer" ? <Link className="store-signup" to="/my-orders">My orders</Link> : user?.role === "admin" ? <Link className="store-signup" to="/">Admin panel</Link> : <Link className="store-signup" to="/signup">Sign up</Link>}
+          {user?.role === "customer" ? <Link className="store-signup" to="/my-orders">My orders</Link> : user?.role === "admin" ? <Link className="store-signup" to="/admin">Admin panel</Link> : <Link className="store-signup" to="/signup">Sign up</Link>}
           <button className="store-icon-button cart-trigger" type="button" aria-label={`Open bag, ${cartCount} items`} onClick={() => setCartOpen(true)}><svg viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="1.5" strokeLinecap="round" strokeLinejoin="round" aria-hidden="true"><path d="M5 8h14l1 13H4L5 8Z" /><path d="M9 8V6a3 3 0 0 1 6 0v2" /></svg><b>{cartCount}</b></button>
         </div>
       </header>

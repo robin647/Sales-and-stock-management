@@ -1411,23 +1411,20 @@ main a:focus-visible {
   align-items: center;
   gap: 13px;
   width: 100%;
-  padding: 15px 13px;
-  border: 1px solid #36594a;
-  border-radius: 12px;
-  background: #163b2f;
-  color: #fffaf0;
+  padding: 0;
+  background: transparent;
+  color: #000;
   text-decoration: none;
-  box-shadow: 0 5px 15px rgba(16, 45, 35, .12);
 }
 .app-sidebar-brand .sidebar-logo-mark {
   display: grid;
   place-items: center;
   flex: 0 0 43px;
   height: 49px;
-  border: 1px solid #e1bd7f;
+  border: 1px solid #a67c45;
   border-radius: 50% 50% 0 0;
-  color: #f0d39f;
-  background: #204b3b;
+  color: #a67c45;
+  background: transparent;
   font: 30px/1 Georgia, serif;
 }
 .app-sidebar-brand .sidebar-logo-wordmark {
@@ -1437,13 +1434,13 @@ main a:focus-visible {
   line-height: 1;
 }
 .app-sidebar-brand .sidebar-logo-name {
-  color: #fffaf0;
+  color: #000;
   font-size: 20px;
   font-weight: 700;
   letter-spacing: 2.5px;
 }
 .app-sidebar-brand .sidebar-logo-subtitle {
-  color: #f0d39f;
+  color: #94672e;
   font-size: 11px;
   font-weight: 600;
   letter-spacing: 2.5px;
@@ -1452,7 +1449,13 @@ main a:focus-visible {
   outline: 2px solid #c39a58;
   outline-offset: 4px;
 }
-.dark .app-sidebar-brand .sidebar-logo {
-  background: #102d23;
-  border-color: #53715e;
+.dark .app-sidebar-brand .sidebar-logo-name {
+  color: #fff;
+}
+.dark .app-sidebar-brand .sidebar-logo-mark,
+.dark .app-sidebar-brand .sidebar-logo-subtitle {
+  color: #f0d39f;
+}
+.dark .app-sidebar-brand .sidebar-logo-mark {
+  border-color: #e1bd7f;
 }

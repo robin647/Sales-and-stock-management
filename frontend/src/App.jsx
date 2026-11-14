@@ -30,21 +30,6 @@ const StockEntry = lazy(() => import("./pages/showroom/StockEntry.jsx"));
 import { WhatsAppButton } from "./components/SiteFooter.jsx";
 import AIAssistantButton from "./components/AIAssistantButton.jsx";
 
-function Home() {
-  const { isAdmin } = useAuth();
-  return isAdmin ? <AdminDashboard /> : <ShowroomDashboard />;
-}
-
-function RootEntry() {
-  const { user, loading } = useAuth();
-
-  if (loading) return null;
-  if (user?.role === "admin" || user?.role === "showroom_user") {
-    return <Layout><Home /></Layout>;
-  }
-  return <Storefront />;
-}
-
 export default function App() {
   const { isAdmin } = useAuth();
 
@@ -65,7 +50,9 @@ export default function App() {
       <Route path="/login" element={<Login />} />
       <Route path="/signup" element={<CustomerSignup />} />
 
-      <Route path="/" element={<RootEntry />} />
+      <Route path="/" element={<Storefront />} />
+      <Route path="/admin" element={<ProtectedRoute requireAdmin><Layout><AdminDashboard /></Layout></ProtectedRoute>} />
+      <Route path="/showroom" element={<ProtectedRoute requireShowroom><Layout><ShowroomDashboard /></Layout></ProtectedRoute>} />
       <Route path="/shop" element={<Storefront />} />
       <Route path="/checkout" element={<ShopAccount />} />
       <Route path="/my-orders" element={<ShopAccount />} />

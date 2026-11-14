@@ -25,7 +25,7 @@ export default function Layout({ children }) {
       {menuOpen && <button aria-label="Close menu" onClick={() => setMenuOpen(false)} className="fixed inset-0 z-30 bg-slate-950/45 md:hidden" />}
       <aside className={`app-sidebar fixed inset-y-0 left-0 z-40 w-[272px] border-r flex flex-col transition-transform duration-200 md:static md:translate-x-0 ${menuOpen ? "translate-x-0" : "-translate-x-full"}`}>
         <div className="app-sidebar-brand px-5 py-5 border-b">
-          <NavLink to="/" aria-label="Mahir Sherwani dashboard" className="sidebar-logo" onClick={() => setMenuOpen(false)}>
+          <NavLink to={isAdmin ? "/admin" : "/showroom"} aria-label="Mahir Sherwani dashboard" className="sidebar-logo" onClick={() => setMenuOpen(false)}>
             <span aria-hidden="true" className="sidebar-logo-mark">M</span>
             <span className="sidebar-logo-wordmark">
               <span className="sidebar-logo-name">MAHIR</span>
@@ -39,7 +39,7 @@ export default function Layout({ children }) {
         <nav className="flex-1 overflow-y-auto p-3 space-y-1">
           {isAdmin ? (
             <>
-              <NavLink onClick={() => setMenuOpen(false)} to="/" end className={linkClass}>Dashboard</NavLink>
+              <NavLink onClick={() => setMenuOpen(false)} to="/admin" end className={linkClass}>Dashboard</NavLink>
               <NavLink onClick={() => setMenuOpen(false)} to="/showrooms" className={linkClass}>Showrooms</NavLink>
               <div className="px-3 pt-4 pb-1 text-[10px] font-semibold uppercase tracking-widest text-gray-400">Online store</div>
               <NavLink onClick={() => setMenuOpen(false)} to="/products" className={linkClass}>Products & Categories</NavLink>
@@ -60,7 +60,7 @@ export default function Layout({ children }) {
             </>
           ) : (
             <>
-              <NavLink onClick={() => setMenuOpen(false)} to="/" end className={linkClass}>Dashboard</NavLink>
+              <NavLink onClick={() => setMenuOpen(false)} to="/showroom" end className={linkClass}>Dashboard</NavLink>
               <NavLink onClick={() => setMenuOpen(false)} to="/stock" className={linkClass}>Stock Entry</NavLink>
               <NavLink onClick={() => setMenuOpen(false)} to="/balance" className={linkClass}>Balance Entry</NavLink>
               <NavLink onClick={() => setMenuOpen(false)} to="/change-password" className={linkClass}>Change Password</NavLink>
