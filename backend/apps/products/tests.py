@@ -118,3 +118,61 @@ class CatalogManagementTests(TestCase):
         self.client.force_authenticate(None)
         self.assertEqual(self.client.get(reverse("product-list"), {"storefront": "true"}).data["count"], 0)
         self.assertEqual(self.client.get(reverse("product-list")).data["count"], 1)
+
+
+class ProductPopularityTests(TestCase):
+    def setUp(self):
+        from datetime import timedelta
+        from django.utils import timezone
+        self.client = APIClient()
+        self.category = ProductCategory.objects.create(name="Popular collection")
+        self.old = Product.objects.create(name="Old favourite", category=self.category, selling_price=100, is_featured=True)
+        self.new = Product.objects.create(name="New arrival", category=self.category, selling_price=100)
+        Product.objects.filter(pk=self.old.pk).update(created_at=timezone.now() - timedelta(days=60))
+
+    def order(self, product, status="confirmed", quantity=1):
+        from uuid import uuid4
+        from apps.shop.models import Order, OrderItem
+        order = Order.objects.create(request_key=uuid4(), recipient_name="Shopper", phone="01712345678",
+            address="Dhaka", city="Dhaka", subtotal=quantity * 100, shipping_fee=0, total=quantity * 100, status=status)
+        OrderItem.objects.create(order=order, product=product, product_name=product.name,
+            quantity=quantity, unit_price=100, line_total=quantity * 100)
+        return order
+
+    def catalog(self, **params):
+        response = self.client.get(reverse("product-list"), {"storefront": "true", **params})
+        self.assertEqual(response.status_code, 200, response.data)
+        return response.data
+
+    def test_more_orders_rank_before_new_arrivals_and_quantity_is_not_order_count(self):
+        self.order(self.old, quantity=100)
+        self.order(self.new, "confirmed")
+        self.order(self.new, "delivered")
+        rows = self.catalog()["results"]
+        self.assertEqual([p["id"] for p in rows], [self.new.pk, self.old.pk])
+        self.assertEqual([p["popularity_orders"] for p in rows], [2, 1])
+
+    def test_pending_and_cancelled_orders_do_not_inflate_popularity(self):
+        for status in ("pending", "cancelled", "pending"):
+            self.order(self.new, status)
+        self.order(self.old, "shipped")
+        rows = self.catalog()["results"]
+        self.assertEqual([p["id"] for p in rows], [self.old.pk, self.new.pk])
+        self.assertEqual([p["popularity_orders"] for p in rows], [1, 0])
+
+    def test_equal_popularity_prioritises_new_arrival_over_manual_feature_flag(self):
+        self.order(self.old)
+        self.order(self.new)
+        self.assertEqual([p["id"] for p in self.catalog()["results"]], [self.new.pk, self.old.pk])
+
+    def test_no_orders_falls_back_to_newest_and_ranking_precedes_pagination(self):
+        first = self.catalog(page_size=1)
+        self.assertEqual(first["results"][0]["id"], self.new.pk)
+        self.assertEqual(first["results"][0]["popularity_orders"], 0)
+        self.order(self.old)
+        self.assertEqual(self.catalog(page_size=1)["results"][0]["id"], self.old.pk)
+
+    def test_non_storefront_catalog_keeps_existing_name_order(self):
+        self.order(self.old)
+        response = self.client.get(reverse("product-list"))
+        self.assertEqual([p["id"] for p in response.data["results"]], [self.new.pk, self.old.pk])

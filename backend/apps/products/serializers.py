@@ -26,13 +26,14 @@ class ProductSerializer(serializers.ModelSerializer):
     remove_image = serializers.BooleanField(write_only=True, required=False, default=False)
     discount_percentage = serializers.DecimalField(max_digits=5, decimal_places=2, min_value=Decimal("0"), max_value=Decimal("99.99"), write_only=True, required=False)
     factory_quantity = serializers.IntegerField(read_only=True)
+    popularity_orders = serializers.IntegerField(read_only=True)
 
     class Meta:
         model = Product
         fields = [
             "id", "name", "code", "category", "category_name", "size",
             "selling_price", "discount_price", "discount_percentage", "image", "image_url", "remove_image",
-            "description", "is_featured", "online_enabled", "factory_quantity", "is_active", "initial_stock", "created_at",
+            "description", "is_featured", "online_enabled", "factory_quantity", "popularity_orders", "is_active", "initial_stock", "created_at",
         ]
         read_only_fields = ["id", "created_at"]
 

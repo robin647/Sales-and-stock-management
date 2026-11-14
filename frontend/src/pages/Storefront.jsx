@@ -1,10 +1,11 @@
-import { useEffect, useMemo, useState } from "react";
+import { useEffect, useMemo, useRef, useState } from "react";
 import { Link, useNavigate } from "react-router-dom";
 import { productApi, shopApi } from "../api/endpoints";
 import { useAuth } from "../context/AuthContext.jsx";
 import { useTheme } from "../context/ThemeContext.jsx";
 import "./storefront.css";
 import "./admin/commerce.css";
+import { compareFeaturedProducts } from "../utils/storefrontSort";
 
 const HERO_IMAGE = "https://images.pexels.com/photos/19168798/pexels-photo-19168798/free-photo-of-groom-in-traditional-clothes.jpeg?auto=compress&w=1400";
 const PRODUCT_IMAGES = [
@@ -32,6 +33,7 @@ function readSavedCart() {
 }
 
 export default function Storefront() {
+  const headerRef = useRef(null);
   const { user, logout } = useAuth();
   const { theme, toggleTheme } = useTheme();
   const navigate = useNavigate();
@@ -49,6 +51,16 @@ export default function Storefront() {
   const [shopSettings, setShopSettings] = useState(null);
   const [favorites, setFavorites] = useState(() => { try { const saved = JSON.parse(localStorage.getItem("mahir-favorites") || "[]"); return Array.isArray(saved) ? saved : []; } catch { return []; } });
   const [favoritesOnly, setFavoritesOnly] = useState(false);
+
+  useEffect(() => {
+    const header = headerRef.current;
+    if (!header) return;
+    const updateOffset = () => header.closest(".storefront")?.style.setProperty("--store-header-offset", `${Math.ceil(header.getBoundingClientRect().height) + 32}px`);
+    updateOffset();
+    const observer = new ResizeObserver(updateOffset);
+    observer.observe(header);
+    return () => observer.disconnect();
+  }, []);
 
   useEffect(() => { shopApi.settings().then(res => setShopSettings(res.data)).catch(() => {}); }, []);
   useEffect(() => { localStorage.setItem("mahir-favorites", JSON.stringify(favorites)); }, [favorites]);
@@ -91,7 +103,7 @@ export default function Storefront() {
     const matchesCategory = category === "All styles" || item.category_name === category;
     const matchesSearch = `${item.name} ${item.code} ${item.category_name} ${item.size}`.toLowerCase().includes(query.toLowerCase());
     return matchesCategory && matchesSearch && (!favoritesOnly || favorites.includes(item.id));
-  }).sort((a, b) => sort === "price-low" ? productPrice(a).current - productPrice(b).current : sort === "price-high" ? productPrice(b).current - productPrice(a).current : sort === "newest" ? new Date(b.created_at) - new Date(a.created_at) : Number(b.is_featured) - Number(a.is_featured)), [category, products, query, sort, favoritesOnly, favorites]);
+  }).sort((a, b) => sort === "price-low" ? productPrice(a).current - productPrice(b).current : sort === "price-high" ? productPrice(b).current - productPrice(a).current : sort === "newest" ? new Date(b.created_at) - new Date(a.created_at) : compareFeaturedProducts(a, b)), [category, products, query, sort, favoritesOnly, favorites]);
   const cartItems = products.filter((product) => cart[product.id]);
   const cartCount = Object.values(cart).reduce((sum, quantity) => sum + quantity, 0);
   const cartTotal = cartItems.reduce((sum, product) => sum + productPrice(product).current * cart[product.id], 0);
@@ -131,11 +143,11 @@ export default function Storefront() {
   return (
     <div className="storefront">
       <div className="store-promo"><span>Cash on Delivery · Delivery charge paid in advance</span><a href="#collection">Shop the collection <span aria-hidden="true">↗</span></a></div>
-      <header className="store-header">
+      <header ref={headerRef} className="store-header">
         <Link className="store-brand" to="/" aria-label="Mahir Sherwani home"><span className="brand-mark">M</span><span>MAHIR <i>SHERWANI</i></span></Link>
         <nav className="store-nav" aria-label="Main navigation"><a href="#collection" onClick={() => { setCategory("All styles"); setQuery(""); }}>Collection</a><a href="#edits">Occasion edits</a><a href="#story">Our story</a><a href="#offers">Discover</a></nav>
         <div className="store-actions">
-          <label className="store-search"><span aria-hidden="true">⌕</span><input aria-label="Search products" placeholder="Search styles" value={query} onChange={(event) => { setQuery(event.target.value); document.getElementById("collection")?.scrollIntoView({ behavior: "smooth" }); }} /></label>
+          <label className="store-search"><svg viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="1.7" aria-hidden="true"><circle cx="10.5" cy="10.5" r="6.5" /><path d="m16 16 4.5 4.5" /></svg><input aria-label="Search products" placeholder="Search styles" value={query} onChange={(event) => { setQuery(event.target.value); document.getElementById("collection")?.scrollIntoView({ behavior: "smooth" }); }} /></label>
           <button className="store-icon-button theme-toggle" type="button" title={`Switch to ${theme === "dark" ? "light" : "dark"} theme`} aria-label={`Switch to ${theme === "dark" ? "light" : "dark"} theme`} onClick={toggleTheme}>{theme === "dark" ? "☼" : "◐"}</button>
           {user ? <button className="store-account" type="button" onClick={() => { logout(); window.location.reload(); }}>Sign out</button> : <Link className="store-account" to="/login">Login</Link>}
           {user?.role === "customer" ? <Link className="store-signup" to="/my-orders">My orders</Link> : user?.role === "admin" ? <Link className="store-signup" to="/admin">Admin panel</Link> : <Link className="store-signup" to="/signup">Sign up</Link>}
@@ -164,7 +176,7 @@ export default function Storefront() {
           {loading ? <div className="catalog-message" role="status">Curating the collection…</div> : loadError ? <div className="catalog-message" role="alert">{loadError}</div> : filtered.length ? <div className="product-grid">{filtered.map((product, index) => {
             const price = productPrice(product);
             const discount = price.regular > price.current ? Math.round((1 - price.current / price.regular) * 100) : 0;
-            return <article className="product-card" key={product.id}><div className="product-image-wrap"><button className="product-view" type="button" aria-label={`View ${product.name}`} onClick={() => setDetail(product)}><img src={product.image || PRODUCT_IMAGES[index % PRODUCT_IMAGES.length]} alt={`${product.name} collection style`} loading="lazy" /></button><button className="product-favorite" type="button" aria-label={`Save ${product.name}`} aria-pressed={favorites.includes(product.id)} onClick={() => toggleFavorite(product.id)}>{favorites.includes(product.id) ? "♥" : "♡"}</button><span className="product-tag">{discount ? `${discount}% OFF` : index < 2 ? "NEW ARRIVAL" : "MAHIR EDIT"}</span><button type="button" aria-label={`Add ${product.name} to bag`} className="quick-add" disabled={product.factory_quantity <= 0} onClick={() => { addToCart(product); setCartOpen(true); }}>+</button></div><div className="product-details"><div className="product-category">{product.category_name || "MAHIR COLLECTION"}{product.size ? <span> · {product.size}</span> : null}</div><h3><button className="product-name-button" onClick={() => setDetail(product)}>{product.name}</button></h3><span className="product-availability">{product.factory_quantity > 0 ? "In stock" : "Out of stock"}</span><div className="product-prices"><strong>{money(price.current)}</strong>{price.regular > price.current ? <><del>{money(price.regular)}</del><span>Save {money(price.regular - price.current)}</span></> : null}</div></div></article>;
+            return <article className="product-card" key={product.id}><div className="product-image-wrap"><button className="product-view" type="button" aria-label={`View ${product.name}`} onClick={() => setDetail(product)}><img src={product.image || PRODUCT_IMAGES[index % PRODUCT_IMAGES.length]} alt={`${product.name} collection style`} loading="lazy" /></button><button className="product-favorite" type="button" aria-label={`Save ${product.name}`} aria-pressed={favorites.includes(product.id)} onClick={() => toggleFavorite(product.id)}>{favorites.includes(product.id) ? "♥" : "♡"}</button><span className="product-tag">{discount ? `${discount}% OFF` : product.popularity_orders > 0 ? "POPULAR" : Date.now() - Date.parse(product.created_at) >= 0 && Date.now() - Date.parse(product.created_at) <= 30 * 86400000 ? "NEW ARRIVAL" : "MAHIR EDIT"}</span><button type="button" aria-label={`Add ${product.name} to bag`} className="quick-add" disabled={product.factory_quantity <= 0} onClick={() => { addToCart(product); setCartOpen(true); }}>+</button></div><div className="product-details"><div className="product-category">{product.category_name || "MAHIR COLLECTION"}{product.size ? <span> · {product.size}</span> : null}</div><h3><button className="product-name-button" onClick={() => setDetail(product)}>{product.name}</button></h3><span className="product-availability">{product.factory_quantity > 0 ? "In stock" : "Out of stock"}</span><div className="product-prices"><strong>{money(price.current)}</strong>{price.regular > price.current ? <><del>{money(price.regular)}</del><span>Save {money(price.regular - price.current)}</span></> : null}</div></div></article>;
           })}</div> : <div className="catalog-message">{products.length ? "No styles match your search." : "New styles are being added to the collection. Check back soon."}</div>}
           {!loading && loadError && <button className="retry-button" type="button" onClick={() => setCatalogAttempt((attempt) => attempt + 1)}>Try again</button>}
         </section>

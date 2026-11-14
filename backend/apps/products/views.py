@@ -1,7 +1,7 @@
 from rest_framework import viewsets, permissions
 from rest_framework.exceptions import PermissionDenied
 from rest_framework.decorators import action
-from django.db.models import IntegerField, Value
+from django.db.models import Count, IntegerField, Q, Value
 from django.db.models.functions import Coalesce
 from django.http import HttpResponse, Http404, HttpResponseNotModified
 
@@ -38,7 +38,12 @@ class ProductViewSet(viewsets.ModelViewSet):
         if not self.request.user.is_authenticated or self.request.user.role != "admin":
             qs = qs.filter(is_active=True)
         if self.request.query_params.get("storefront") == "true":
-            qs = qs.filter(online_enabled=True)
+            qs = qs.filter(online_enabled=True).annotate(popularity_orders=Count(
+                "online_order_items__order",
+                filter=Q(online_order_items__order__status__in=["confirmed", "shipped", "delivered"]),
+                distinct=True,
+            ))
+            return qs.order_by("-popularity_orders", "-created_at", "-pk")
         return qs.order_by("name", "pk")
 
     @action(detail=True, methods=["get"], url_name="photo")
