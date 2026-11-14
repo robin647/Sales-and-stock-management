@@ -8,6 +8,14 @@ export const authApi = {
   changePassword: (data) => api.post("/accounts/password/change/", data),
 };
 
+export const customerApi = {
+  list: (params) => api.get("/accounts/customers/", { params }),
+  summary: () => api.get("/accounts/customers/summary/"),
+  get: (id) => api.get(`/accounts/customers/${id}/`),
+  orders: (id, params) => api.get(`/accounts/customers/${id}/orders/`, { params }),
+  delete: (id) => api.delete(`/accounts/customers/${id}/`),
+};
+
 export const showroomApi = {
   list: () => api.get("/showrooms/"),
   create: (data) => api.post("/showrooms/", data),

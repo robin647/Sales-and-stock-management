@@ -44,7 +44,8 @@ def calculate_discount(code, subtotal, *, lock=False):
 @transaction.atomic
 def place_order(customer, data):
     # Serialize this customer's retries, including concurrent identical submissions.
-    type(customer).objects.select_for_update().get(pk=customer.pk)
+    if not type(customer).objects.select_for_update().filter(pk=customer.pk, is_active=True).exists():
+        raise ValidationError("This customer account is no longer available.")
     existing = Order.objects.filter(request_key=data["request_key"]).first()
     if existing:
         if existing.customer_id != customer.pk:

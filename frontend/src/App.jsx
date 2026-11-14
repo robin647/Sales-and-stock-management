@@ -11,6 +11,7 @@ const Reports = lazy(() => import("./pages/Reports.jsx"));
 const AdminDashboard = lazy(() => import("./pages/admin/AdminDashboard.jsx"));
 const Products = lazy(() => import("./pages/admin/Products.jsx"));
 const CommerceManagement = lazy(() => import("./pages/admin/CommerceManagement.jsx"));
+const Customers = lazy(() => import("./pages/admin/Customers.jsx"));
 const ShopAccount = lazy(() => import("./pages/ShopAccount.jsx"));
 const Showrooms = lazy(() => import("./pages/admin/Showrooms.jsx"));
 const StockAdjustments = lazy(() => import("./pages/admin/StockAdjustments.jsx"));
@@ -52,6 +53,7 @@ export default function App() {
 
       <Route path="/" element={<Storefront />} />
       <Route path="/admin" element={<ProtectedRoute requireAdmin><Layout><AdminDashboard /></Layout></ProtectedRoute>} />
+      <Route path="/admin/customers" element={<ProtectedRoute requireAdmin><Layout><Customers /></Layout></ProtectedRoute>} />
       <Route path="/showroom" element={<ProtectedRoute requireShowroom><Layout><ShowroomDashboard /></Layout></ProtectedRoute>} />
       <Route path="/shop" element={<Storefront />} />
       <Route path="/checkout" element={<ShopAccount />} />

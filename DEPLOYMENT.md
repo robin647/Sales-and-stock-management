@@ -85,6 +85,12 @@ Never commit `.env.local`, `backend/.env`, Neon connection strings, uploaded cus
 
 ## Commerce rollout (Vercel + Render + Neon Free)
 
+### Customer directory
+
+Admin sidebar **Customers** opens `/admin/customers`. The directory supports name/email/phone search, account status and order filters, pagination, account/contact information, delivered product spend and complete paginated order details. Password hashes and permission data are not returned.
+
+Deploy the backend before the frontend so `shop.0003_alter_order_customer` is applied automatically by startup. The migration changes the order/customer relation to nullable `SET_NULL`: deleting a customer removes their account and revokes existing refresh tokens, while existing orders, recipient/contact/address snapshots, order items and payment references remain available in Online orders. Deleting an account does not cancel/refund orders or restore reserved stock. The confirmation dialog requires typing `DELETE` and shows any ongoing order count. Only customer accounts can be deleted through this endpoint; staff/admin accounts are excluded. A newly registered account with the same phone number does not inherit the deleted account's orders.
+
 1. Deploy the backend first. The startup script applies `products.0005` and the `shop` migrations automatically; no manual Shell or paid disk is needed. Wait for the backend deployment to become Live before deploying the updated frontend.
 2. Vercel remains a static React build with `VITE_API_URL=https://sales-and-stock-management.onrender.com/api`. Existing SPA rewrites cover `/shop`, `/checkout`, `/my-orders`, `/products`, and `/online-orders`.
 3. Sign in as Admin. Use **Products & Categories → Categories** to create/rename categories, then **Add product** to set photos, description, size/code, sale price, discount price or percentage, initial factory stock, featured status and online visibility. Later stock changes remain in **Product Stock Adjustment**.
