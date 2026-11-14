@@ -10,6 +10,8 @@ const CustomerSignup = lazy(() => import("./pages/CustomerSignup.jsx"));
 const Reports = lazy(() => import("./pages/Reports.jsx"));
 const AdminDashboard = lazy(() => import("./pages/admin/AdminDashboard.jsx"));
 const Products = lazy(() => import("./pages/admin/Products.jsx"));
+const CommerceManagement = lazy(() => import("./pages/admin/CommerceManagement.jsx"));
+const ShopAccount = lazy(() => import("./pages/ShopAccount.jsx"));
 const Showrooms = lazy(() => import("./pages/admin/Showrooms.jsx"));
 const StockAdjustments = lazy(() => import("./pages/admin/StockAdjustments.jsx"));
 const WholesaleParties = lazy(() => import("./pages/admin/WholesaleParties.jsx"));
@@ -64,6 +66,10 @@ export default function App() {
       <Route path="/signup" element={<CustomerSignup />} />
 
       <Route path="/" element={<RootEntry />} />
+      <Route path="/shop" element={<Storefront />} />
+      <Route path="/checkout" element={<ShopAccount />} />
+      <Route path="/my-orders" element={<ShopAccount />} />
+      <Route path="/online-orders" element={<ProtectedRoute requireAdmin><Layout><CommerceManagement /></Layout></ProtectedRoute>} />
 
       <Route
         path="/showrooms"

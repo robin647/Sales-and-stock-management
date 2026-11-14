@@ -103,8 +103,35 @@ update: (id, data) => api.patch(`/accounts/showroom-users/${id}/`, data),
 };
 
 export const categoryApi = {
-  list: () => api.get("/products/categories/"),
+  list: () => api.get("/products/categories/", { params: { page_size: 100 } }),
+  listAll: () => fetchAllPages("/products/categories/"),
   create: (data) => api.post("/products/categories/", data),
+  update: (id, data) => api.patch(`/products/categories/${id}/`, data),
+  delete: (id) => api.delete(`/products/categories/${id}/`),
+};
+
+export async function fetchAllPages(path, params = {}) {
+  const rows = [];
+  let response = await api.get(path, { params: { ...params, page_size: 100 } });
+  while (response) {
+    rows.push(...(response.data.results || response.data));
+    response = response.data.next ? await api.get(response.data.next) : null;
+  }
+  return rows;
+}
+
+export const shopApi = {
+  settings: () => api.get("/shop/settings/"),
+  updateSettings: (data) => api.patch("/shop/settings/", data),
+  orders: (params) => api.get("/shop/orders/", { params }),
+  quote: (data) => api.post("/shop/orders/quote/", data),
+  placeOrder: (data) => api.post("/shop/orders/", data, { timeout: 75000 }),
+  updateOrder: (id, data) => api.patch(`/shop/orders/${id}/`, data),
+  cancelOrder: (id) => api.post(`/shop/orders/${id}/cancel/`),
+  summary: () => api.get("/shop/orders/summary/"),
+  coupons: () => fetchAllPages("/shop/coupons/"),
+  createCoupon: (data) => api.post("/shop/coupons/", data),
+  updateCoupon: (id, data) => api.patch(`/shop/coupons/${id}/`, data),
 };
 
 export const productApi = {

@@ -1,9 +1,10 @@
 import { useEffect, useMemo, useState } from "react";
 import { Link, useNavigate } from "react-router-dom";
-import { productApi } from "../api/endpoints";
+import { productApi, shopApi } from "../api/endpoints";
 import { useAuth } from "../context/AuthContext.jsx";
 import { useTheme } from "../context/ThemeContext.jsx";
 import "./storefront.css";
+import "./admin/commerce.css";
 
 const HERO_IMAGE = "https://images.pexels.com/photos/19168798/pexels-photo-19168798/free-photo-of-groom-in-traditional-clothes.jpeg?auto=compress&w=1400";
 const PRODUCT_IMAGES = [
@@ -13,7 +14,7 @@ const PRODUCT_IMAGES = [
   "https://images.pexels.com/photos/2060241/pexels-photo-2060241.jpeg?auto=compress&w=800",
 ];
 
-const money = (value) => `৳${Number(value || 0).toLocaleString("en-BD", { maximumFractionDigits: 0 })}`;
+const money = (value) => `৳${Number(value || 0).toLocaleString("en-BD", { maximumFractionDigits: 2 })}`;
 
 function productPrice(product) {
   const regular = Number(product.selling_price || 0);
@@ -23,7 +24,8 @@ function productPrice(product) {
 
 function readSavedCart() {
   try {
-    return JSON.parse(localStorage.getItem("mahir-shopping-bag") || "{}");
+    const saved = JSON.parse(localStorage.getItem("mahir-shopping-bag") || "{}");
+    return Object.fromEntries(Object.entries(saved || {}).filter(([id, quantity]) => /^\d+$/.test(id) && Number.isInteger(quantity) && quantity > 0));
   } catch {
     return {};
   }
@@ -42,6 +44,20 @@ export default function Storefront() {
   const [cart, setCart] = useState(readSavedCart);
   const [cartOpen, setCartOpen] = useState(false);
   const [orderRequiresCustomer, setOrderRequiresCustomer] = useState(false);
+  const [sort, setSort] = useState("featured");
+  const [detail, setDetail] = useState(null);
+  const [shopSettings, setShopSettings] = useState(null);
+  const [favorites, setFavorites] = useState(() => { try { const saved = JSON.parse(localStorage.getItem("mahir-favorites") || "[]"); return Array.isArray(saved) ? saved : []; } catch { return []; } });
+  const [favoritesOnly, setFavoritesOnly] = useState(false);
+
+  useEffect(() => { shopApi.settings().then(res => setShopSettings(res.data)).catch(() => {}); }, []);
+  useEffect(() => { localStorage.setItem("mahir-favorites", JSON.stringify(favorites)); }, [favorites]);
+  useEffect(() => {
+    const close = event => { if (event.key === "Escape") { setDetail(null); setCartOpen(false); } };
+    document.addEventListener("keydown", close);
+    return () => document.removeEventListener("keydown", close);
+  }, []);
+  function toggleFavorite(id) { setFavorites(current => current.includes(id) ? current.filter(value => value !== id) : [...current, id]); }
 
   useEffect(() => {
     localStorage.setItem("mahir-shopping-bag", JSON.stringify(cart));
@@ -58,7 +74,7 @@ export default function Storefront() {
     let active = true;
     setLoading(true);
     setLoadError("");
-    productApi.listAll({ is_active: true })
+    productApi.listAll({ is_active: true, storefront: true })
       .then((rows) => { if (active) setProducts(rows); })
       .catch((error) => {
         if (!active) return;
@@ -74,20 +90,22 @@ export default function Storefront() {
   const filtered = useMemo(() => products.filter((item) => {
     const matchesCategory = category === "All styles" || item.category_name === category;
     const matchesSearch = `${item.name} ${item.code} ${item.category_name} ${item.size}`.toLowerCase().includes(query.toLowerCase());
-    return matchesCategory && matchesSearch;
-  }), [category, products, query]);
+    return matchesCategory && matchesSearch && (!favoritesOnly || favorites.includes(item.id));
+  }).sort((a, b) => sort === "price-low" ? productPrice(a).current - productPrice(b).current : sort === "price-high" ? productPrice(b).current - productPrice(a).current : sort === "newest" ? new Date(b.created_at) - new Date(a.created_at) : Number(b.is_featured) - Number(a.is_featured)), [category, products, query, sort, favoritesOnly, favorites]);
   const cartItems = products.filter((product) => cart[product.id]);
   const cartCount = Object.values(cart).reduce((sum, quantity) => sum + quantity, 0);
   const cartTotal = cartItems.reduce((sum, product) => sum + productPrice(product).current * cart[product.id], 0);
   const cartSavings = cartItems.reduce((sum, product) => sum + (productPrice(product).regular - productPrice(product).current) * cart[product.id], 0);
 
   function addToCart(product) {
-    setCart((current) => ({ ...current, [product.id]: (current[product.id] || 0) + 1 }));
+    if (product.factory_quantity <= 0) return;
+    setCart((current) => ({ ...current, [product.id]: Math.min((current[product.id] || 0) + 1, product.factory_quantity ?? 1000) }));
   }
 
   function changeQuantity(productId, delta) {
     setCart((current) => {
-      const nextQuantity = (current[productId] || 0) + delta;
+      const product = products.find(item => item.id === productId);
+      const nextQuantity = Math.min((current[productId] || 0) + delta, product?.factory_quantity ?? 1000);
       const next = { ...current };
       if (nextQuantity <= 0) delete next[productId];
       else next[productId] = nextQuantity;
@@ -102,7 +120,7 @@ export default function Storefront() {
     }
     const lines = cartItems.map((product) => `${product.name}${product.size ? ` (${product.size})` : ""} x${cart[product.id]} - ${money(productPrice(product).current * cart[product.id])}`);
     const message = `Assalamu alaikum, I would like to order:\n${lines.join("\n")}\nTotal: ${money(cartTotal)}`;
-    window.open(`https://wa.me/8801781879276?text=${encodeURIComponent(message)}`, "_blank", "noopener,noreferrer");
+    window.open(`https://wa.me/${shopSettings?.whatsapp_number || "8801781879276"}?text=${encodeURIComponent(message)}`, "_blank", "noopener,noreferrer");
   }
 
   function continueToCustomerAuth(path) {
@@ -112,7 +130,7 @@ export default function Storefront() {
 
   return (
     <div className="storefront">
-      <div className="store-promo"><span>Complimentary delivery on orders over ৳5,000</span><a href="#collection">Shop the collection <span aria-hidden="true">↗</span></a></div>
+      <div className="store-promo"><span>Cash on Delivery · Delivery charge paid in advance</span><a href="#collection">Shop the collection <span aria-hidden="true">↗</span></a></div>
       <header className="store-header">
         <Link className="store-brand" to="/" aria-label="Mahir Sherwani home"><span className="brand-mark">M</span><span>MAHIR <i>SHERWANI</i></span></Link>
         <nav className="store-nav" aria-label="Main navigation"><a href="#collection" onClick={() => { setCategory("All styles"); setQuery(""); }}>Collection</a><a href="#edits">Occasion edits</a><a href="#story">Our story</a><a href="#offers">Discover</a></nav>
@@ -120,7 +138,7 @@ export default function Storefront() {
           <label className="store-search"><span aria-hidden="true">⌕</span><input aria-label="Search products" placeholder="Search styles" value={query} onChange={(event) => { setQuery(event.target.value); document.getElementById("collection")?.scrollIntoView({ behavior: "smooth" }); }} /></label>
           <button className="store-icon-button theme-toggle" type="button" title={`Switch to ${theme === "dark" ? "light" : "dark"} theme`} aria-label={`Switch to ${theme === "dark" ? "light" : "dark"} theme`} onClick={toggleTheme}>{theme === "dark" ? "☼" : "◐"}</button>
           {user ? <button className="store-account" type="button" onClick={() => { logout(); window.location.reload(); }}>Sign out</button> : <Link className="store-account" to="/login">Login</Link>}
-          <Link className="store-signup" to="/signup">Sign up</Link>
+          {user?.role === "customer" ? <Link className="store-signup" to="/my-orders">My orders</Link> : user?.role === "admin" ? <Link className="store-signup" to="/">Admin panel</Link> : <Link className="store-signup" to="/signup">Sign up</Link>}
           <button className="store-icon-button cart-trigger" type="button" aria-label={`Open bag, ${cartCount} items`} onClick={() => setCartOpen(true)}><svg viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="1.5" strokeLinecap="round" strokeLinejoin="round" aria-hidden="true"><path d="M5 8h14l1 13H4L5 8Z" /><path d="M9 8V6a3 3 0 0 1 6 0v2" /></svg><b>{cartCount}</b></button>
         </div>
       </header>
@@ -142,19 +160,20 @@ export default function Storefront() {
 
         <section id="collection" className="collection-section">
           <div className="collection-heading"><div><span className="eyebrow">THE MAHIR COLLECTION</span><h2>Pieces to keep close</h2></div><span className="product-count" role="status">{loading ? "Loading collection…" : loadError ? "Collection unavailable" : `${filtered.length} styles`}</span></div>
-          <div className="collection-tools"><div className="category-filters" aria-label="Filter by category">{categories.map((item) => <button key={item} type="button" className={category === item ? "active" : ""} onClick={() => setCategory(item)}>{item}</button>)}</div><span className="collection-hint">Designed for the days that matter</span></div>
+          <div className="collection-tools"><div className="category-filters" aria-label="Filter by category">{categories.map((item) => <button key={item} type="button" className={category === item ? "active" : ""} onClick={() => setCategory(item)}>{item}</button>)}</div><div className="store-sort-tools"><button type="button" className={favoritesOnly ? "favorite-filter active" : "favorite-filter"} onClick={() => setFavoritesOnly(!favoritesOnly)} aria-pressed={favoritesOnly}>♡ Saved ({favorites.length})</button><select aria-label="Sort products" value={sort} onChange={e => setSort(e.target.value)}><option value="featured">Featured first</option><option value="newest">Newest arrivals</option><option value="price-low">Price: low to high</option><option value="price-high">Price: high to low</option></select></div></div>
           {loading ? <div className="catalog-message" role="status">Curating the collection…</div> : loadError ? <div className="catalog-message" role="alert">{loadError}</div> : filtered.length ? <div className="product-grid">{filtered.map((product, index) => {
             const price = productPrice(product);
             const discount = price.regular > price.current ? Math.round((1 - price.current / price.regular) * 100) : 0;
-            return <article className="product-card" key={product.id}><div className="product-image-wrap"><img src={product.image || PRODUCT_IMAGES[index % PRODUCT_IMAGES.length]} alt={`${product.name} collection style`} loading="lazy" /><span className="product-tag">{discount ? `${discount}% OFF` : index < 2 ? "NEW ARRIVAL" : "MAHIR EDIT"}</span><button type="button" aria-label={`Add ${product.name} to bag`} className="quick-add" onClick={() => { addToCart(product); setCartOpen(true); }}>+</button></div><div className="product-details"><div className="product-category">{product.category_name || "MAHIR COLLECTION"}{product.size ? <span> · {product.size}</span> : null}</div><h3>{product.name}</h3><div className="product-prices"><strong>{money(price.current)}</strong>{price.regular > price.current ? <><del>{money(price.regular)}</del><span>Save {money(price.regular - price.current)}</span></> : null}</div></div></article>;
+            return <article className="product-card" key={product.id}><div className="product-image-wrap"><button className="product-view" type="button" aria-label={`View ${product.name}`} onClick={() => setDetail(product)}><img src={product.image || PRODUCT_IMAGES[index % PRODUCT_IMAGES.length]} alt={`${product.name} collection style`} loading="lazy" /></button><button className="product-favorite" type="button" aria-label={`Save ${product.name}`} aria-pressed={favorites.includes(product.id)} onClick={() => toggleFavorite(product.id)}>{favorites.includes(product.id) ? "♥" : "♡"}</button><span className="product-tag">{discount ? `${discount}% OFF` : index < 2 ? "NEW ARRIVAL" : "MAHIR EDIT"}</span><button type="button" aria-label={`Add ${product.name} to bag`} className="quick-add" disabled={product.factory_quantity <= 0} onClick={() => { addToCart(product); setCartOpen(true); }}>+</button></div><div className="product-details"><div className="product-category">{product.category_name || "MAHIR COLLECTION"}{product.size ? <span> · {product.size}</span> : null}</div><h3><button className="product-name-button" onClick={() => setDetail(product)}>{product.name}</button></h3><span className="product-availability">{product.factory_quantity > 0 ? "In stock" : "Out of stock"}</span><div className="product-prices"><strong>{money(price.current)}</strong>{price.regular > price.current ? <><del>{money(price.regular)}</del><span>Save {money(price.regular - price.current)}</span></> : null}</div></div></article>;
           })}</div> : <div className="catalog-message">{products.length ? "No styles match your search." : "New styles are being added to the collection. Check back soon."}</div>}
           {!loading && loadError && <button className="retry-button" type="button" onClick={() => setCatalogAttempt((attempt) => attempt + 1)}>Try again</button>}
         </section>
         <section id="story" className="brand-story"><span className="eyebrow">THE MAHIR PHILOSOPHY</span><h2>Some things never<br />go out of <em>tradition.</em></h2><p>The quiet confidence of a beautiful fit. The character in every detail. We bring together timeless style and a personal touch, so you can feel like yourself on the days that matter.</p><a className="text-link" href="https://wa.me/8801781879276" target="_blank" rel="noopener noreferrer">Let us help you find your look ↗</a><span className="story-monogram" aria-hidden="true">M</span></section>
       </main>
 
-      <footer className="store-footer"><Link className="store-brand" to="/"><span className="brand-mark">M</span><span>MAHIR <i>SHERWANI</i></span></Link><p>Made for the moments that become memories.</p><div><a href="#collection">Collection</a><Link to="/login">Admin &amp; showroom login</Link><span>© {new Date().getFullYear()} Mahir Sherwani</span></div></footer>
-      {cartOpen && <div className="cart-overlay" role="presentation" onClick={(event) => { if (event.target === event.currentTarget) setCartOpen(false); }}><aside className="cart-panel" aria-label="Shopping bag"><div className="cart-heading"><div><span className="eyebrow">YOUR SELECTION</span><h2>Shopping bag <small>({cartCount})</small></h2></div><button type="button" className="cart-close" aria-label="Close bag" onClick={() => setCartOpen(false)}>×</button></div>{cartItems.length ? <><div className="cart-lines">{cartItems.map((product) => <div className="cart-line" key={product.id}><img src={product.image || PRODUCT_IMAGES[products.indexOf(product) % PRODUCT_IMAGES.length]} alt="" /><div className="cart-line-info"><strong>{product.name}</strong><small>{product.size || product.category_name}</small><div className="quantity-control"><button type="button" aria-label="Decrease quantity" onClick={() => changeQuantity(product.id, -1)}>−</button><span>{cart[product.id]}</span><button type="button" aria-label="Increase quantity" onClick={() => changeQuantity(product.id, 1)}>+</button></div></div><b>{money(productPrice(product).current * cart[product.id])}</b></div>)}</div><div className="cart-summary">{cartSavings > 0 && <p><span>You save</span><strong>{money(cartSavings)}</strong></p>}<p className="cart-total"><span>Estimated total</span><strong>{money(cartTotal)}</strong></p>{orderRequiresCustomer ? <div className="order-auth-prompt"><strong>Sign in to place your order</strong><p>Your bag is saved. Sign in to your customer account or create one to continue.</p><button className="checkout-button" type="button" onClick={() => continueToCustomerAuth("/login")}>Customer login <span aria-hidden="true">→</span></button><button className="signup-order-button" type="button" onClick={() => continueToCustomerAuth("/signup")}>Create customer account</button></div> : <><button className="checkout-button" type="button" onClick={orderOnWhatsApp}>Order on WhatsApp <span aria-hidden="true">↗</span></button><small>Customer sign in is only needed when placing an order.</small></>}</div></> : <div className="empty-cart"><svg viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="1.5" strokeLinecap="round" strokeLinejoin="round" aria-hidden="true"><path d="M5 8h14l1 13H4L5 8Z" /><path d="M9 8V6a3 3 0 0 1 6 0v2" /></svg><p>Your bag is waiting for something special.</p><button type="button" onClick={() => { setCartOpen(false); document.getElementById("collection")?.scrollIntoView({ behavior: "smooth" }); }}>Explore the collection</button></div>}</aside></div>}
+      <footer className="store-footer"><Link className="store-brand" to="/shop"><span className="brand-mark">M</span><span>MAHIR <i>SHERWANI</i></span></Link><p>Made for the moments that become memories.</p><div><a href="#collection">Collection</a><Link to="/my-orders">Track my orders</Link><Link to="/login">Admin &amp; showroom login</Link><span>© {new Date().getFullYear()} Mahir Sherwani</span></div></footer>
+      {detail && <div className="c-modal-backdrop commerce" onClick={e => { if (e.target === e.currentTarget) setDetail(null); }}><section className="c-modal" role="dialog" aria-modal="true" aria-labelledby="product-detail-title"><div className="c-modal-heading"><h2 id="product-detail-title">{detail.name}</h2><button autoFocus aria-label="Close product details" onClick={() => setDetail(null)}>×</button></div><div className="c-form c-editor-grid"><div className="product-detail-photo"><img src={detail.image || PRODUCT_IMAGES[0]} alt={detail.name} /></div><div><span className="c-badge">{detail.category_name}</span><h2>{detail.name}</h2><p>{detail.size ? `Size: ${detail.size}` : "Standard size"}{detail.code ? ` · ${detail.code}` : ""}</p><h2>{money(productPrice(detail).current)}</h2>{detail.discount_price && <p><del>{money(detail.selling_price)}</del> · Save {money(Number(detail.selling_price) - Number(detail.discount_price))}</p>}<p className="product-description">{detail.description || "Contact us for fabric, fit and sizing details."}</p><p>{detail.factory_quantity > 0 ? `${detail.factory_quantity} available` : "Currently out of stock"}</p><div className="commerce-actions"><button disabled={detail.factory_quantity <= 0} className="c-button" onClick={() => { addToCart(detail); setDetail(null); setCartOpen(true); }}>Add to bag</button><button className="c-button secondary" onClick={() => toggleFavorite(detail.id)}>{favorites.includes(detail.id) ? "♥ Saved" : "♡ Save"}</button></div><p className="c-help">Cash on Delivery for products. Delivery charge is paid in advance.</p></div></div></section></div>}
+      {cartOpen && <div className="cart-overlay" role="presentation" onClick={(event) => { if (event.target === event.currentTarget) setCartOpen(false); }}><aside className="cart-panel" aria-label="Shopping bag"><div className="cart-heading"><div><span className="eyebrow">YOUR SELECTION</span><h2>Shopping bag <small>({cartCount})</small></h2></div><button type="button" className="cart-close" aria-label="Close bag" onClick={() => setCartOpen(false)}>×</button></div>{cartItems.length ? <><div className="cart-lines">{cartItems.map((product) => <div className="cart-line" key={product.id}><img src={product.image || PRODUCT_IMAGES[products.indexOf(product) % PRODUCT_IMAGES.length]} alt="" /><div className="cart-line-info"><strong>{product.name}</strong><small>{product.size || product.category_name}</small><div className="quantity-control"><button type="button" aria-label="Decrease quantity" onClick={() => changeQuantity(product.id, -1)}>−</button><span>{cart[product.id]}</span><button type="button" aria-label="Increase quantity" onClick={() => changeQuantity(product.id, 1)}>+</button></div></div><b>{money(productPrice(product).current * cart[product.id])}</b></div>)}</div><div className="cart-summary">{cartSavings > 0 && <p><span>You save</span><strong>{money(cartSavings)}</strong></p>}<p className="cart-total"><span>Estimated total</span><strong>{money(cartTotal)}</strong></p>{orderRequiresCustomer ? <div className="order-auth-prompt"><strong>Sign in to place your order</strong><p>Your bag is saved. Sign in to your customer account or create one to continue.</p><button className="checkout-button" type="button" onClick={() => continueToCustomerAuth("/login")}>Customer login <span aria-hidden="true">→</span></button><button className="signup-order-button" type="button" onClick={() => continueToCustomerAuth("/signup")}>Create customer account</button></div> : <><Link className="checkout-button" to="/checkout">Checkout · Cash on Delivery <span aria-hidden="true">→</span></Link><button className="whatsapp-order-button" type="button" onClick={orderOnWhatsApp}>Ask on WhatsApp <span aria-hidden="true">↗</span></button><small>Pay delivery charge first. Pay product price on delivery.</small></>}</div></> : <div className="empty-cart"><svg viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="1.5" strokeLinecap="round" strokeLinejoin="round" aria-hidden="true"><path d="M5 8h14l1 13H4L5 8Z" /><path d="M9 8V6a3 3 0 0 1 6 0v2" /></svg><p>Your bag is waiting for something special.</p><button type="button" onClick={() => { setCartOpen(false); document.getElementById("collection")?.scrollIntoView({ behavior: "smooth" }); }}>Explore the collection</button></div>}</aside></div>}
     </div>
   );
 }

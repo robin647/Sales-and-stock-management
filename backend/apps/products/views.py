@@ -1,5 +1,9 @@
 from rest_framework import viewsets, permissions
 from rest_framework.exceptions import PermissionDenied
+from rest_framework.decorators import action
+from django.db.models import IntegerField, Value
+from django.db.models.functions import Coalesce
+from django.http import HttpResponse, Http404, HttpResponseNotModified
 
 from .models import Product, ProductCategory
 from .serializers import ProductCategorySerializer, ProductSerializer
@@ -30,10 +34,31 @@ class ProductViewSet(viewsets.ModelViewSet):
     filterset_fields = ["category", "is_active"]
 
     def get_queryset(self):
-        qs = Product.objects.select_related("category").all()
+        qs = Product.objects.select_related("category").annotate(factory_quantity=Coalesce("factory_stock__quantity", Value(0), output_field=IntegerField()))
         if not self.request.user.is_authenticated or self.request.user.role != "admin":
             qs = qs.filter(is_active=True)
-        return qs
+        if self.request.query_params.get("storefront") == "true":
+            qs = qs.filter(online_enabled=True)
+        return qs.order_by("name", "pk")
+
+    @action(detail=True, methods=["get"], url_name="photo")
+    def photo(self, request, pk=None):
+        product = self.get_object()
+        etag = f'"{product.photo_version}"'
+        if request.headers.get("If-None-Match") == etag and product.photo_version:
+            response = HttpResponseNotModified()
+            response["ETag"] = etag
+            response["Cache-Control"] = "public, max-age=86400" if product.is_active else "private, no-cache"
+            return response
+        from .models import ProductPhoto
+        photo = ProductPhoto.objects.filter(product=product).first()
+        if not photo:
+            raise Http404
+        response = HttpResponse(bytes(photo.content), content_type="image/webp")
+        response["Cache-Control"] = "public, max-age=86400" if product.is_active else "private, no-cache"
+        response["ETag"] = etag
+        response["X-Content-Type-Options"] = "nosniff"
+        return response
 
     def check_permissions(self, request):
         super().check_permissions(request)

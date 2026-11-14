@@ -17,9 +17,12 @@ def custom_exception_handler(exc, context):
     response = exception_handler(exc, context)
 
     if response is not None:
-        data = {"detail": response.data.get("detail", "Request failed.")}
-        if isinstance(response.data, dict) and "detail" not in response.data:
-            data = {"detail": "Validation failed.", "errors": response.data}
+        if isinstance(response.data, dict):
+            data = {"detail": response.data["detail"]} if "detail" in response.data else {"detail": "Validation failed.", "errors": response.data}
+        elif isinstance(response.data, list):
+            data = {"detail": " ".join(str(message) for message in response.data)}
+        else:
+            data = {"detail": str(response.data)}
         response.data = data
         return response
 

@@ -49,6 +49,7 @@ INSTALLED_APPS = [
     "apps.assistant",
     "apps.swing",
     "apps.producers",
+    "apps.shop",
 ]
 
 MIDDLEWARE = [

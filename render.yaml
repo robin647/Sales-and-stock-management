@@ -1,15 +1,11 @@
 services:
   - type: web
     name: sales-and-stock-management
-    runtime: python
-    rootDir: backend
-    buildCommand: python -m pip install --upgrade 'pip>=26.2.2' && pip install -r requirements.txt && python manage.py collectstatic --noinput
-    startCommand: python start.py
+    runtime: docker
+    plan: free
+    dockerfilePath: ./backend/Dockerfile
+    dockerContext: ./backend
     healthCheckPath: /api/health/
-    disk:
-      name: mahir-showroom-media
-      mountPath: /var/data
-      sizeGB: 1
     envVars:
       - key: DJANGO_SETTINGS_MODULE
         value: config.settings.production
@@ -20,7 +16,9 @@ services:
       - key: DATABASE_URL
         sync: false
       - key: MEDIA_ROOT
-        value: /var/data/media
+        value: /app/media
+      - key: GUNICORN_WORKERS
+        value: "1"
       - key: ALLOWED_HOSTS
         sync: false
       - key: CORS_ALLOWED_ORIGINS

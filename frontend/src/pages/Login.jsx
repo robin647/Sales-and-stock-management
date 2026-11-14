@@ -26,7 +26,7 @@ const MODES = {
 
 export default function Login() {
   const location = useLocation();
-  const [mode, setMode] = useState(() => location.state?.customerCreated ? "customer" : "admin");
+  const [mode, setMode] = useState(() => location.state?.customerCreated || location.state?.returnToOrder ? "customer" : "admin");
   const [username, setUsername] = useState("");
   const [password, setPassword] = useState("");
   const [error, setError] = useState("");
@@ -69,7 +69,7 @@ export default function Login() {
         setError("This is a customer account. Switch to the Customer tab.");
         return;
       }
-      navigate("/");
+      navigate(user?.role === "customer" && ["/checkout", "/my-orders"].includes(location.state?.returnTo) ? location.state.returnTo : "/");
     } catch (err) {
       setError(
         err.response?.data?.detail ||

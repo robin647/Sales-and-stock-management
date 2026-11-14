@@ -44,11 +44,12 @@ api.interceptors.response.use(
       });
     }
 
-    if (error.response?.status === 401 && !originalRequest._retry) {
+    if (error.response?.status === 401 && originalRequest && !originalRequest._retry) {
       const refreshToken = localStorage.getItem("refresh_token");
       if (!refreshToken) {
         if (localStorage.getItem("access_token")) {
-          localStorage.clear();
+          localStorage.removeItem("access_token");
+          localStorage.removeItem("refresh_token");
           window.location.href = "/login";
         }
         return Promise.reject(error);
@@ -71,12 +72,14 @@ api.interceptors.response.use(
           refresh: refreshToken,
         });
         localStorage.setItem("access_token", data.access);
+        if (data.refresh) localStorage.setItem("refresh_token", data.refresh);
         processQueue(null, data.access);
         originalRequest.headers.Authorization = `Bearer ${data.access}`;
         return api(originalRequest);
       } catch (refreshError) {
         processQueue(refreshError, null);
-        localStorage.clear();
+        localStorage.removeItem("access_token");
+        localStorage.removeItem("refresh_token");
         window.location.href = "/login";
         return Promise.reject(refreshError);
       } finally {

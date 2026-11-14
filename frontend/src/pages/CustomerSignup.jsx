@@ -1,5 +1,5 @@
 import { useState } from "react";
-import { Link, useNavigate } from "react-router-dom";
+import { Link, useNavigate, useLocation } from "react-router-dom";
 import { authApi } from "../api/endpoints";
 import { SiteFooter } from "../components/SiteFooter.jsx";
 
@@ -11,6 +11,7 @@ function errorText(error) {
 
 export default function CustomerSignup() {
   const navigate = useNavigate();
+  const location = useLocation();
   const [form, setForm] = useState({ name: "", email: "", phone_number: "", password: "" });
   const [error, setError] = useState("");
   const [loading, setLoading] = useState(false);
@@ -21,7 +22,7 @@ export default function CustomerSignup() {
     setLoading(true);
     try {
       await authApi.signup(form);
-      navigate("/login", { state: { customerCreated: true } });
+      navigate("/login", { state: { customerCreated: true, returnTo: location.state?.returnTo } });
     } catch (requestError) {
       setError(errorText(requestError));
     } finally {

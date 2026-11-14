@@ -317,3 +317,18 @@
 @media (prefers-reduced-motion: reduce) {
   .storefront *, .storefront *::before, .storefront *::after { animation: none !important; transition: none !important; scroll-behavior: auto !important; }
 }
+.store-sort-tools { display:flex; align-items:center; gap:12px; }
+.store-sort-tools select { border:1px solid var(--store-line); padding:9px 11px; color:var(--store-ink); background:var(--store-paper); font:11px Arial,sans-serif; border-radius:6px; }
+.favorite-filter { color:var(--store-muted); background:transparent; border:0; font-size:11px; cursor:pointer; }
+.favorite-filter.active { color:var(--store-gold); }
+.product-view { display:block; border:0; padding:0; width:100%; height:100%; cursor:pointer; }
+.product-favorite { position:absolute; right:12px; top:12px; display:grid; place-items:center; width:32px; height:32px; border:0; border-radius:50%; background:#faf8f2; color:#254b3a; font-size:21px; cursor:pointer; }
+.product-favorite[aria-pressed=true] { color:#ac413c; }
+.product-name-button { padding:0; border:0; text-align:left; background:transparent; color:inherit; cursor:pointer; font:inherit; }
+.product-availability { display:block; margin:-3px 0 10px; color:var(--store-muted); font:9px Arial,sans-serif; }
+.quick-add:disabled { background:#7c8179; cursor:not-allowed; }
+.whatsapp-order-button { width:100%; padding:12px; margin-top:9px; border:1px solid var(--store-line); background:transparent; color:var(--store-green); font-size:11px; }
+.product-detail-photo { background:var(--surface-soft); min-height:320px; }
+.product-detail-photo img { width:100%; height:100%; max-height:470px; object-fit:contain; }
+.product-description { white-space:pre-wrap; }
+@media(max-width:680px) { .store-sort-tools { width:100%; justify-content:space-between; } .collection-tools { gap:15px; } .product-favorite { right:8px; top:8px; width:28px; height:28px; font-size:18px; } }

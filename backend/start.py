@@ -33,7 +33,7 @@ def main():
     os.execvp("gunicorn", [
         "gunicorn", "config.wsgi:application",
         "--bind", f"0.0.0.0:{os.environ.get('PORT', '8000')}",
-        "--worker-class", "gthread", "--workers", "3", "--threads", "4",
+        "--worker-class", "gthread", "--workers", os.environ.get("GUNICORN_WORKERS", "1"), "--threads", "4",
         "--timeout", "60", "--max-requests", "1000",
         "--max-requests-jitter", "100",
     ])
