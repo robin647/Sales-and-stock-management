@@ -59,6 +59,81 @@ class WholesaleApiTests(TestCase):
         self.assertEqual(self.factory_stock.quantity, 25)
         self.assertEqual(self.showroom_stock.quantity, 10)
 
+    def create_adjustment(self, **overrides):
+        response = self.client.post("/api/wholesale/stock-adjustments/", {
+            "product": self.product.id, "location": "factory", "new_quantity": 25,
+            "reason": "Physical count", **overrides,
+        }, format="json")
+        self.assertEqual(response.status_code, 201, response.data)
+        return response.data["id"]
+
+    def test_adjustment_correction_preserves_later_movements_and_sorts_first(self):
+        first = self.create_adjustment()
+        second = self.create_adjustment(new_quantity=30)
+        # A later sale must not be overwritten by the historical correction.
+        FactoryStock.objects.filter(pk=self.factory_stock.pk).update(quantity=27)
+        response = self.client.patch(f"/api/wholesale/stock-adjustments/{first}/", {
+            "new_quantity": 23, "reason": "Corrected count",
+        }, format="json")
+        self.assertEqual(response.status_code, 200, response.data)
+        self.factory_stock.refresh_from_db()
+        self.showroom_stock.refresh_from_db()
+        self.assertEqual(self.factory_stock.quantity, 25)
+        self.assertEqual(self.showroom_stock.quantity, 8)
+        self.assertEqual(response.data["previous_quantity"], 20)
+        self.assertEqual(response.data["difference"], 3)
+        rows = self.client.get("/api/wholesale/stock-adjustments/").data["results"]
+        self.assertEqual([row["id"] for row in rows], [first, second])
+        deleted = self.client.delete(f"/api/wholesale/stock-adjustments/{first}/")
+        self.assertEqual(deleted.status_code, 204)
+        self.factory_stock.refresh_from_db()
+        self.assertEqual(self.factory_stock.quantity, 22)
+        self.assertTrue(StockAdjustment.objects.filter(pk=second).exists())
+
+    def test_adjustment_reason_update_does_not_change_stock(self):
+        adjustment = self.create_adjustment()
+        response = self.client.patch(f"/api/wholesale/stock-adjustments/{adjustment}/", {"reason": "Typo corrected"}, format="json")
+        self.assertEqual(response.status_code, 200, response.data)
+        self.factory_stock.refresh_from_db()
+        self.assertEqual(self.factory_stock.quantity, 25)
+
+    def test_showroom_adjustment_update_and_delete_only_affect_selected_stock(self):
+        adjustment = self.create_adjustment(location="showroom", showroom=self.showroom.pk, new_quantity=12)
+        url = f"/api/wholesale/stock-adjustments/{adjustment}/"
+        response = self.client.patch(url, {"new_quantity": 10}, format="json")
+        self.assertEqual(response.status_code, 200, response.data)
+        self.showroom_stock.refresh_from_db()
+        self.assertEqual(self.showroom_stock.quantity, 10)
+        self.assertEqual(self.client.delete(url).status_code, 204)
+        self.showroom_stock.refresh_from_db()
+        self.factory_stock.refresh_from_db()
+        self.assertEqual(self.showroom_stock.quantity, 8)
+        self.assertEqual(self.factory_stock.quantity, 20)
+
+    def test_negative_stock_corrections_are_atomic(self):
+        adjustment = self.create_adjustment()
+        FactoryStock.objects.filter(pk=self.factory_stock.pk).update(quantity=2)
+        url = f"/api/wholesale/stock-adjustments/{adjustment}/"
+        response = self.client.patch(url, {"new_quantity": 0}, format="json")
+        self.assertEqual(response.status_code, 400, response.data)
+        self.assertEqual(self.client.delete(url).status_code, 400)
+        self.factory_stock.refresh_from_db()
+        self.assertEqual(self.factory_stock.quantity, 2)
+        record = StockAdjustment.objects.get(pk=adjustment)
+        self.assertEqual(record.new_quantity, 25)
+        self.assertEqual(record.difference, 5)
+
+    def test_adjustment_target_cannot_be_reassigned_and_non_admin_cannot_correct(self):
+        adjustment = self.create_adjustment()
+        url = f"/api/wholesale/stock-adjustments/{adjustment}/"
+        response = self.client.patch(url, {"location": "showroom", "showroom": self.showroom.pk}, format="json")
+        self.assertEqual(response.status_code, 400, response.data)
+        self.client.force_authenticate(self.showroom_user)
+        self.assertEqual(self.client.patch(url, {"new_quantity": 20}, format="json").status_code, 403)
+        self.assertEqual(self.client.delete(url).status_code, 403)
+        self.factory_stock.refresh_from_db()
+        self.assertEqual(self.factory_stock.quantity, 25)
+
     def test_invoice_payment_and_return_keep_quantities_and_due_consistent(self):
         invoice_response = self.client.post("/api/wholesale/invoices/", {
             "party": self.party_id,

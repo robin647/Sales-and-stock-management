@@ -13,6 +13,7 @@ from django_filters.rest_framework import DjangoFilterBackend
 from core.permissions import IsStaffUser
 
 from apps.inventory.models import StockAdjustment
+from apps.inventory.services import correct_stock_adjustment
 from core.pagination import StandardPageNumberPagination
 
 from .models import (
@@ -208,14 +209,8 @@ class StockAdjustmentViewSet(AdminOnlyViewSet):
     queryset = StockAdjustment.objects.select_related("product", "showroom", "created_by")
     serializer_class = StockAdjustmentSerializer
 
-    def update(self, request, *args, **kwargs):
-        raise MethodNotAllowed(request.method, detail="Stock adjustment history is immutable.")
-
-    def partial_update(self, request, *args, **kwargs):
-        raise MethodNotAllowed(request.method, detail="Stock adjustment history is immutable.")
-
-    def destroy(self, request, *args, **kwargs):
-        raise MethodNotAllowed(request.method, detail="Stock adjustment history is immutable.")
+    def perform_destroy(self, instance):
+        correct_stock_adjustment(adjustment=instance, delete=True)
 
 class EasyTransactionViewSet(AdminOnlyViewSet):
     http_method_names = ["get", "post", "put", "patch", "delete", "head", "options"]

@@ -1,5 +1,7 @@
 import { useEffect, useState } from "react";
 import { productApi, factoryStockApi, showroomApi, showroomStockApi, stockAdjustmentApi } from "../../api/endpoints";
+import TableActionMenu from "../../components/TableActionMenu.jsx";
+import { errorMessage } from "../../utils/apiError";
 
 const listData = (response) => response.data.results || response.data;
 
@@ -11,6 +13,35 @@ export default function StockAdjustments() {
   const [history, setHistory] = useState([]);
   const [form, setForm] = useState({ product: "", location: "factory", showroom: "", new_quantity: "", reason: "" });
   const [message, setMessage] = useState("");
+  const [editing, setEditing] = useState(null);
+  const [busy, setBusy] = useState(false);
+  const [editForm, setEditForm] = useState({ new_quantity: "", reason: "" });
+
+  async function updateAdjustment(event) {
+    event.preventDefault();
+    if (busy) return;
+    setBusy(true);
+    setMessage("");
+    try {
+      await stockAdjustmentApi.update(editing.id, { ...editForm, new_quantity: Number(editForm.new_quantity) });
+      setEditing(null);
+      setMessage("Adjustment corrected and stock recalculated.");
+      await load();
+    } catch (error) { setMessage(errorMessage(error)); }
+    finally { setBusy(false); }
+  }
+
+  async function deleteAdjustment(row) {
+    if (busy || !window.confirm(`Delete the adjustment for ${row.product_name}? Its stock change (${row.difference > 0 ? "+" : ""}${row.difference}) will be reversed while preserving later stock movements.`)) return;
+    setBusy(true);
+    setMessage("");
+    try {
+      await stockAdjustmentApi.delete(row.id);
+      setMessage("Adjustment deleted and its stock change reversed.");
+      await load();
+    } catch (error) { setMessage(errorMessage(error)); }
+    finally { setBusy(false); }
+  }
 
   async function load() {
     const [productRes, factoryRes, showroomRes, showroomStockRes, historyRes] = await Promise.all([
@@ -39,6 +70,8 @@ export default function StockAdjustments() {
 
   async function submit(event) {
     event.preventDefault();
+    if (busy) return;
+    setBusy(true);
     setMessage("");
     try {
       await stockAdjustmentApi.create({
@@ -51,8 +84,8 @@ export default function StockAdjustments() {
       setForm((current) => ({ ...current, new_quantity: "", reason: "" }));
       await load();
     } catch (error) {
-      setMessage(error.response?.data?.detail || "Could not adjust stock. Check the selected location and values.");
-    }
+      setMessage(errorMessage(error));
+    } finally { setBusy(false); }
   }
 
   return (
@@ -98,16 +131,23 @@ export default function StockAdjustments() {
           <input required value={form.reason} onChange={(event) => setForm({ ...form, reason: event.target.value })} placeholder="e.g. Physical inventory count" className="mt-1 w-full rounded-lg border border-gray-300 px-3 py-2 text-gray-900" />
         </label>
         <div className="flex items-center gap-4 sm:col-span-2 lg:col-span-3">
-          <button className="rounded-lg bg-brand-500 px-4 py-2 text-sm font-medium text-white hover:bg-brand-600">Save adjustment</button>
+          <button disabled={busy} className="rounded-lg bg-brand-500 px-4 py-2 text-sm font-medium text-white hover:bg-brand-600 disabled:opacity-50">Save adjustment</button>
           {form.new_quantity !== "" && <span className="text-sm text-gray-600">Updated: <strong className="text-gray-900">{form.new_quantity} pcs</strong> ({Number(form.new_quantity) - currentQuantity >= 0 ? "+" : ""}{Number(form.new_quantity) - currentQuantity})</span>}
-          {message && <span role="status" className="text-sm text-gray-600">{message}</span>}
         </div>
       </form>
+      {message && <p role="status" className="text-sm text-gray-600">{message}</p>}
+      {editing && <form onSubmit={updateAdjustment} className="space-y-4 rounded-xl border border-gray-200 bg-white p-4">
+        <h2 className="text-sm font-semibold">Update adjustment · {editing.product_name} · {editing.location === "factory" ? "Factory" : editing.showroom_name}</h2>
+        <p className="text-sm text-gray-500">Original quantity: {editing.previous_quantity} pcs. This corrects the original adjustment; later stock movements are preserved.</p>
+        <label className="block text-sm text-gray-600">Corrected quantity<input autoFocus required type="number" min="0" step="1" value={editForm.new_quantity} onChange={event => setEditForm({ ...editForm, new_quantity: event.target.value })} className="mt-1 w-full rounded-lg border border-gray-300 px-3 py-2" /></label>
+        <label className="block text-sm text-gray-600">Reason<input required maxLength={255} value={editForm.reason} onChange={event => setEditForm({ ...editForm, reason: event.target.value })} className="mt-1 w-full rounded-lg border border-gray-300 px-3 py-2" /></label>
+        <div className="flex gap-3"><button disabled={busy} className="rounded-lg bg-brand-500 px-4 py-2 text-sm font-medium text-white disabled:opacity-50">{busy ? "Saving…" : "Save changes"}</button><button type="button" disabled={busy} onClick={() => setEditing(null)} className="rounded-lg border border-gray-300 px-4 py-2 text-sm">Cancel</button></div>
+      </form>}
       <section className="overflow-hidden rounded-xl border border-gray-200 bg-white">
         <h2 className="border-b border-gray-100 px-4 py-3 text-sm font-semibold">Adjustment history</h2>
         <div className="overflow-x-auto"><table className="w-full min-w-[760px] text-left text-sm">
-          <thead className="bg-gray-50 text-xs uppercase text-gray-500"><tr><th className="px-4 py-3">Date</th><th>Product</th><th>Location</th><th>Previous</th><th>Updated</th><th>Change</th><th>Reason</th><th>User</th></tr></thead>
-          <tbody>{history.map((row) => <tr key={row.id} className="border-t border-gray-100"><td className="px-4 py-3">{new Date(row.created_at).toLocaleString()}</td><td>{row.product_name}</td><td>{row.location === "factory" ? "Factory" : row.showroom_name}</td><td>{row.previous_quantity}</td><td>{row.new_quantity}</td><td>{row.difference > 0 ? `+${row.difference}` : row.difference}</td><td>{row.reason}</td><td>{row.created_by_name}</td></tr>)}</tbody>
+          <thead className="bg-gray-50 text-xs uppercase text-gray-500"><tr><th className="px-4 py-3">Last updated</th><th>Product</th><th>Location</th><th>Previous</th><th>Updated</th><th>Change</th><th>Reason</th><th>User</th><th className="px-4">Actions</th></tr></thead>
+          <tbody>{history.map((row) => <tr key={row.id} className="border-t border-gray-100"><td className="px-4 py-3">{new Date(row.updated_at || row.created_at).toLocaleString()}</td><td>{row.product_name}</td><td>{row.location === "factory" ? "Factory" : row.showroom_name}</td><td>{row.previous_quantity}</td><td>{row.new_quantity}</td><td>{row.difference > 0 ? `+${row.difference}` : row.difference}</td><td>{row.reason}</td><td>{row.created_by_name}</td><td className="px-4 py-3"><TableActionMenu><button type="button" disabled={busy} onClick={() => { setEditing(row); setEditForm({ new_quantity: String(row.new_quantity), reason: row.reason }); setMessage(""); }} className="text-brand-700">Update</button><button type="button" disabled={busy} onClick={() => deleteAdjustment(row)} className="text-red-700">Delete</button></TableActionMenu></td></tr>)}</tbody>
         </table></div>
       </section>
     </div>

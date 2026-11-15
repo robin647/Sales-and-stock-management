@@ -171,6 +171,8 @@ export const factoryStockApi = {
 export const stockAdjustmentApi = {
   list: (params) => api.get("/wholesale/stock-adjustments/", { params }),
   create: (data) => api.post("/wholesale/stock-adjustments/", data),
+  update: (id, data) => api.patch(`/wholesale/stock-adjustments/${id}/`, data),
+  delete: (id) => api.delete(`/wholesale/stock-adjustments/${id}/`),
 };
 
 export const wholesalePartyApi = {

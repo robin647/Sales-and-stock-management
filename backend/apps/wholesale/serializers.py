@@ -5,7 +5,7 @@ from django.db.models import Sum
 from rest_framework import serializers
 
 from apps.inventory.models import FactoryStock, ShowroomStock, StockAdjustment
-from apps.inventory.services import adjust_stock
+from apps.inventory.services import adjust_stock, correct_stock_adjustment
 from apps.products.models import Product
 
 from .models import (
@@ -648,10 +648,17 @@ class StockAdjustmentSerializer(serializers.ModelSerializer):
     class Meta:
         model = StockAdjustment
         fields = ["id", "product", "product_name", "location", "showroom", "showroom_name",
-                  "previous_quantity", "new_quantity", "difference", "reason", "created_by_name", "created_at"]
-        read_only_fields = ["id", "previous_quantity", "difference", "created_by_name", "created_at"]
+                  "previous_quantity", "new_quantity", "difference", "reason", "created_by_name", "created_at", "updated_at"]
+        read_only_fields = ["id", "previous_quantity", "difference", "created_by_name", "created_at", "updated_at"]
 
     def validate(self, attrs):
+        if self.instance:
+            for field in ("product", "location", "showroom"):
+                if field in attrs and attrs[field] != getattr(self.instance, field):
+                    raise serializers.ValidationError({field: "Product and location cannot be changed. Delete this adjustment and create a new one for the correct location."})
+            if "reason" in attrs and not attrs["reason"].strip():
+                raise serializers.ValidationError({"reason": "Enter a reason for the adjustment."})
+            return attrs
         if attrs.get("location") == "showroom" and not attrs.get("showroom"):
             raise serializers.ValidationError({"showroom": "Select a showroom for this adjustment."})
         if attrs.get("location") == "factory" and attrs.get("showroom"):
@@ -663,6 +670,13 @@ class StockAdjustmentSerializer(serializers.ModelSerializer):
     def create(self, validated_data):
         validated_data["created_by"] = self.context["request"].user
         return adjust_stock(**validated_data)
+
+    def update(self, instance, validated_data):
+        return correct_stock_adjustment(
+            adjustment=instance,
+            new_quantity=validated_data.get("new_quantity"),
+            reason=validated_data.get("reason"),
+        )
 
 def _get_location_stock(product, location, showroom=None, lock=False):
     if location == "factory":

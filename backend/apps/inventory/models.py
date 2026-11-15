@@ -31,9 +31,10 @@ class StockAdjustment(models.Model):
     reason = models.CharField(max_length=255)
     created_by = models.ForeignKey(settings.AUTH_USER_MODEL, on_delete=models.PROTECT, related_name="stock_adjustments")
     created_at = models.DateTimeField(auto_now_add=True)
+    updated_at = models.DateTimeField(auto_now=True)
 
     class Meta:
-        ordering = ["-created_at", "-id"]
+        ordering = ["-updated_at", "-id"]
 
 class StockTransfer(models.Model):
     TRANSFER_TYPES = [

@@ -63,6 +63,30 @@ def adjust_stock(*, product, location, showroom=None, new_quantity, reason, crea
     )
 
 @transaction.atomic
+def correct_stock_adjustment(*, adjustment, new_quantity=None, reason=None, delete=False):
+    """Change only this adjustment's stock effect, preserving later movements."""
+    stock = _lock_stock(adjustment.product, adjustment.location, adjustment.showroom)
+    adjustment = StockAdjustment.objects.select_for_update().get(pk=adjustment.pk)
+    if new_quantity is None:
+        new_quantity = adjustment.new_quantity
+    if reason is None:
+        reason = adjustment.reason
+    difference = 0 if delete else new_quantity - adjustment.previous_quantity
+    quantity = stock.quantity + difference - adjustment.difference
+    if quantity < 0:
+        raise ValidationError({"new_quantity": "This correction would make current stock negative. Review subsequent stock movements first."})
+    stock.quantity = quantity
+    stock.save(update_fields=["quantity", "updated_at"])
+    if delete:
+        adjustment.delete()
+        return
+    adjustment.new_quantity = new_quantity
+    adjustment.difference = difference
+    adjustment.reason = reason.strip()
+    adjustment.save(update_fields=["new_quantity", "difference", "reason", "updated_at"])
+    return adjustment
+
+@transaction.atomic
 def transfer_stock(*, product, showroom, quantity, transfer_type, date, created_by, notes=""):
     from .models import DailyStock, StockTransfer
 
