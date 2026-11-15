@@ -172,7 +172,7 @@ export default function Storefront() {
       <main>
         <section className="store-hero">
           <div className="hero-copy"><span className="eyebrow">THE ART OF CELEBRATION</span><h1>A little tradition.<br />A lasting<br /><em>impression.</em></h1><p>From your everyday favourites to your once-in-a-lifetime moments. Discover a wardrobe with a story to tell.</p><div className="hero-links"><a className="primary-link" href="#collection">Explore the collection <span aria-hidden="true">→</span></a><a className="hero-secondary" href="#edits">Find your occasion ↗</a></div><div className="hero-note"><span>ROOTED IN TRADITION</span><span>Made for your next chapter</span></div></div>
-          <div className="hero-photo" style={{ backgroundImage: `url("${HERO_IMAGE}")` }}><div className="hero-photo-caption"><span>THE FESTIVE EDIT</span><strong>Wear the occasion.</strong></div><div className="hero-vertical">MAHIR SHERWANI · EST. 2018</div></div>
+          <div className="hero-photo"><img className="hero-image" src={HERO_IMAGE} alt="Groom wearing a traditional sherwani" fetchPriority="high" /><div className="hero-photo-caption"><span>THE FESTIVE EDIT</span><strong>Wear the occasion.</strong></div><div className="hero-vertical">MAHIR SHERWANI · EST. 2018</div></div>
         </section>
 
         <section className="store-benefits" aria-label="Shopping benefits"><div><span>✳</span><p><strong>Made with care</strong><small>Finishing you can feel</small></p></div><div><span>↗</span><p><strong>Easy ordering</strong><small>Talk to us on WhatsApp</small></p></div><div><span>◇</span><p><strong>Secure delivery</strong><small>Across Bangladesh</small></p></div></section>
