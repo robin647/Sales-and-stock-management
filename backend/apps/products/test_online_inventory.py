@@ -43,6 +43,32 @@ class OnlineInventoryTests(TestCase):
         self.assertEqual(rows[0]["online_quantity"], 7)
         self.assertEqual(self.client.get(f"/api/products/{self.main.pk}/").status_code, 404)
 
+    def test_add_from_main_copies_photo_with_new_online_price_and_stock(self):
+        from .models import ProductPhoto
+        ProductPhoto.objects.create(product=self.main, content=b"saved-main-photo")
+        response = self.client.post("/api/products/online/", {
+            "source_product": self.main.pk, "name": self.main.name, "category": self.category.pk,
+            "selling_price": "2000", "discount_percentage": "15", "initial_stock": 4,
+        }, format="json")
+        self.assertEqual(response.status_code, 201, response.data)
+        online = Product.objects.get(pk=response.data["id"])
+        self.assertEqual(online.discount_price, Decimal("1700"))
+        self.assertEqual(bytes(online.stored_photo.content), b"saved-main-photo")
+        self.assertEqual(response.data["online_quantity"], 4)
+        self.assertNotEqual(online.code, self.main.code)
+        self.main.refresh_from_db()
+        self.main_stock.refresh_from_db()
+        self.assertEqual(self.main.selling_price, Decimal("1000"))
+        self.assertEqual(self.main_stock.quantity, 50)
+
+    def test_main_source_cannot_be_used_in_main_creation_or_changed_on_edit(self):
+        data = {"source_product": self.main.pk, "name": "Another", "category": self.category.pk, "selling_price": 2000}
+        response = self.client.post("/api/products/", data, format="json")
+        self.assertEqual(response.status_code, 400, response.data)
+        online = self.online()
+        response = self.client.patch(f"/api/products/online/{online.pk}/", {"source_product": self.main.pk}, format="json")
+        self.assertEqual(response.status_code, 400, response.data)
+
     def test_copy_creates_zero_stock_draft_without_changing_main(self):
         url = f"/api/products/{self.main.pk}/copy-to-online/"
         copied = self.client.post(url)

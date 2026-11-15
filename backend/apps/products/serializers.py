@@ -16,6 +16,7 @@ class ProductCategorySerializer(serializers.ModelSerializer):
         fields = ["id", "name"]
 
 class ProductSerializer(serializers.ModelSerializer):
+    source_product = serializers.PrimaryKeyRelatedField(queryset=Product.objects.filter(sales_channel="main"), write_only=True, required=False)
     size = serializers.CharField(required=False, allow_blank=True, default="")
     description = serializers.CharField(required=False, allow_blank=True, max_length=10000)
     is_active = serializers.BooleanField(required=False, default=True)
@@ -31,7 +32,7 @@ class ProductSerializer(serializers.ModelSerializer):
     class Meta:
         model = Product
         fields = [
-            "id", "sales_channel", "name", "code", "category", "category_name", "size",
+            "id", "sales_channel", "source_product", "name", "code", "category", "category_name", "size",
             "selling_price", "discount_price", "discount_percentage", "image", "image_url", "remove_image",
             "description", "is_featured", "online_enabled", "factory_quantity", "popularity_orders", "is_active", "initial_stock", "created_at",
         ]
@@ -58,6 +59,8 @@ class ProductSerializer(serializers.ModelSerializer):
 
     def validate(self, attrs):
         channel = getattr(self.context.get("view"), "product_channel", "main")
+        if "source_product" in attrs and (channel != "online" or self.instance):
+            raise serializers.ValidationError({"source_product": "Select a main product only when adding a new online product."})
         duplicates = Product.objects.filter(
             name=attrs.get("name", getattr(self.instance, "name", "")),
             category=attrs.get("category", getattr(self.instance, "category", None)),
@@ -136,11 +139,20 @@ class ProductSerializer(serializers.ModelSerializer):
 
     @transaction.atomic
     def create(self, validated_data):
+        source = validated_data.pop("source_product", None)
         initial_stock = validated_data.pop("initial_stock", 0)
         content = validated_data.pop("image", None)
         remove = validated_data.pop("remove_image", False)
         product = Product.objects.create(**validated_data)
         FactoryStock.objects.create(product=product, quantity=initial_stock)
+        if source and content is None and not remove and not product.image_url:
+            photo = ProductPhoto.objects.filter(product=source).first()
+            if photo:
+                content = bytes(photo.content)
+            elif source.image or source.image_url:
+                product.image = source.image
+                product.image_url = source.image_url
+                product.save(update_fields=["image", "image_url"])
         self._save_photo(product, content, remove)
         return product
 

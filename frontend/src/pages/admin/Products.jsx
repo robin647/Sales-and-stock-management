@@ -37,6 +37,31 @@ export default function Products({ online = false }) {
   const nameInput = useRef(null);
   const [selectedIds, setSelectedIds] = useState([]);
   const [barcodeProducts, setBarcodeProducts] = useState(null);
+  const [mainProducts, setMainProducts] = useState([]);
+  const [sourceProduct, setSourceProduct] = useState("");
+  const [sourceQuery, setSourceQuery] = useState("");
+  const [sourceLoading, setSourceLoading] = useState(false);
+  const [sourceError, setSourceError] = useState("");
+
+  useEffect(() => {
+    if (!online || !editor || editing) return;
+    let active = true;
+    setSourceLoading(true); setSourceError("");
+    productApi.listAll().then(rows => { if (active) setMainProducts(rows); })
+      .catch(err => { if (active) setSourceError(errorMessage(err)); })
+      .finally(() => { if (active) setSourceLoading(false); });
+    return () => { active = false; };
+  }, [online, editor, editing]);
+
+  function selectMainProduct(id) {
+    setSourceProduct(id);
+    const product = mainProducts.find(item => String(item.id) === id);
+    setForm(product ? { ...blank, name: product.name, category: product.category, size: product.size,
+      description: product.description, selling_price: "", discount_price: "", image_url: "" }
+      : { ...blank, category: categories[0]?.id || "" });
+    setImage(null); setPreview(product?.image || ""); setRemoveImage(false);
+    setDiscountMode("price"); setPercent(""); setError("");
+  }
 
   async function load() {
     setLoading(true); setError("");
@@ -65,6 +90,7 @@ export default function Products({ online = false }) {
   function toggleSelection(id) { setSelectedIds(current => current.includes(id) ? current.filter(value => value !== id) : [...current, id]); }
   function toggleVisibleSelection(checked) { setSelectedIds(current => checked ? [...new Set([...current, ...rows.map(p => p.id)])] : current.filter(id => !rows.some(p => p.id === id))); }
   function openEditor(product = null) {
+    setSourceProduct(""); setSourceQuery("");
     setEditing(product?.id || null); setForm(product ? { ...blank, ...product, discount_price: product.discount_price ?? "" } : { ...blank, category: categories[0]?.id || "" });
     setImage(null); setPreview(product?.image || ""); setRemoveImage(false); setDiscountMode("price"); setPercent(""); setError(""); setEditor(true);
   }
@@ -74,6 +100,7 @@ export default function Products({ online = false }) {
     setSaving(true);
     try {
       const data = new FormData();
+      if (online && !editing && sourceProduct) data.append("source_product", sourceProduct);
       Object.entries(form).forEach(([key, value]) => {
         if (![...Object.keys(blank)].includes(key) || key === "discount_price" || (editing && key === "initial_stock")) return;
         data.append(key, value);
@@ -125,6 +152,7 @@ export default function Products({ online = false }) {
       {showStocks && <div className="c-stock-overview"><h3>Existing showroom inventory</h3>{stocks.length ? stocks.map(s => <p key={s.id}>{s.product_name || products.find(p => p.id === s.product)?.name} · {s.showroom_name || s.showroom}: <strong>{s.quantity} pcs</strong></p>) : <p>No showroom stock found.</p>}<Link to="/stock-adjustments">Adjust inventory →</Link></div>}
     </section> : <div className="c-category-layout"><form className="c-panel c-form" onSubmit={saveCategory}><h2>{categoryId ? "Edit category" : "Create a category"}</h2><p>Organise your products so customers can find their favourites.</p><label>Category name<input maxLength={100} required placeholder="e.g. Sherwani" value={categoryName} onChange={e => setCategoryName(e.target.value)} /></label><button className="c-button" disabled={saving}>{saving ? "Saving…" : "Save category"}</button>{categoryId && <button type="button" className="c-text-button" onClick={() => { setCategoryId(null); setCategoryName(""); }}>Cancel edit</button>}</form><div className="c-category-grid">{categories.map(c => <div className="c-panel c-category" key={c.id}><span className="c-category-icon">{c.name[0]}</span><h3>{c.name}</h3><p>{products.filter(p => p.category === c.id).length} products</p><button className="c-text-button" onClick={() => { setCategoryId(c.id); setCategoryName(c.name); }}>Rename category →</button>{!products.some(p => p.category === c.id) && <button className="c-text-button" disabled={saving} onClick={() => deleteCategory(c)}>Delete empty category</button>}</div>)}</div></div>}
     {editor && <div className="c-modal-backdrop"><section className="c-modal" role="dialog" aria-modal="true" aria-labelledby="product-editor-title" onKeyDown={e => { if (e.key === "Escape" && !saving) setEditor(false); }}><div className="c-modal-heading"><div><span className="commerce-kicker">CATALOG STUDIO</span><h2 id="product-editor-title">{editing ? "Edit product" : "Add a new product"}</h2></div><button disabled={saving} aria-label="Close product editor" onClick={() => setEditor(false)}>×</button></div><form className="c-form" onSubmit={saveProduct}>
+      {online && !editing && <div className="c-panel" style={{ padding: 16 }}><h3>Add from main inventory</h3><p className="c-help">Choose an existing product to fill its details and photo, or leave this empty to create a new one. Set a fresh online price and discount below. Online stock is entered separately.</p><label>Search main products<input type="search" value={sourceQuery} onChange={event => setSourceQuery(event.target.value)} placeholder="Search by name, code or size" /></label><label>Main inventory product<select disabled={sourceLoading || saving} value={sourceProduct} onChange={event => selectMainProduct(event.target.value)}><option value="">{sourceLoading ? "Loading main products..." : "Create a new product / choose from main stock"}</option>{mainProducts.filter(product => String(product.id) === sourceProduct || `${product.name} ${product.code} ${product.size}`.toLowerCase().includes(sourceQuery.trim().toLowerCase())).map(product => <option key={product.id} value={product.id}>{product.name} ? {product.code}{product.size ? ` ? ${product.size}` : ""} ? Main stock: {product.factory_quantity || 0}</option>)}</select></label>{sourceError && <p role="alert" className="c-alert error">{sourceError}</p>}{sourceProduct && <p className="c-help">A separate online product will be created when you save. Its code is generated automatically.</p>}</div>}
       {error && <div className="c-alert error" role="alert">{error}</div>}<div className="c-editor-grid"><div><h3>Product details</h3><label>Product name<input ref={nameInput} required maxLength={150} value={form.name} onChange={e => setForm({ ...form, name: e.target.value })} /></label><div className="c-form-grid"><label>Product code<input maxLength={64} readOnly={!editing} placeholder={editing ? "Leave blank to generate a code" : "Auto generated on save"} value={form.code} onChange={e => setForm({ ...form, code: e.target.value })} /></label><label>Size<input maxLength={30} placeholder="M, L, XL…" value={form.size} onChange={e => setForm({ ...form, size: e.target.value })} /></label></div><label>Category<select required value={form.category} onChange={e => setForm({ ...form, category: e.target.value })}><option value="">Select category</option>{categories.map(c => <option key={c.id} value={c.id}>{c.name}</option>)}</select></label>{!categories.length && <p>Create a category in the Categories tab first.</p>}<label>Description<textarea rows={4} maxLength={10000} placeholder="Fabric, fit, details and care instructions…" value={form.description} onChange={e => setForm({ ...form, description: e.target.value })} /></label><h3>Pricing</h3><div className="c-form-grid"><label>Regular sale price (৳)<input required type="number" min="0" step="0.01" value={form.selling_price} onChange={e => setForm({ ...form, selling_price: e.target.value })} /></label><label>Discount type<select value={discountMode} onChange={e => setDiscountMode(e.target.value)}><option value="price">Set offer price</option><option value="percent">Percentage off</option></select></label></div>{discountMode === "price" ? <label>Discount price (৳) · optional<input type="number" min="0.01" step="0.01" value={form.discount_price} onChange={e => setForm({ ...form, discount_price: e.target.value })} placeholder="Leave empty for regular price" /></label> : <label>Discount (%)<input type="number" min="0" max="99.99" step="0.01" value={percent} onChange={e => setPercent(e.target.value)} /></label>}<div className="c-price-preview"><span>Customer pays</span><strong>{money(offer)}</strong><small>Saving {money(Math.max(0, regular - offer))}</small></div></div><div><h3>Product image</h3><div className="c-image-preview">{preview ? <img src={preview} alt="Product preview" /> : <span>Your product photo</span>}</div><label>Upload photo<input type="file" accept="image/jpeg,image/png,image/webp" onChange={e => { setImage(e.target.files?.[0] || null); setRemoveImage(false); }} /></label><p className="c-help">JPG, PNG or WebP, up to 3 MB. Optimised images are saved with your catalog.</p><label>Or use an image URL<input type="url" placeholder="https://…" value={form.image_url} onChange={e => { setRemoveImage(false); setForm({ ...form, image_url: e.target.value }); if (!image) setPreview(e.target.value); }} /></label>{preview && <button type="button" className="c-text-button" onClick={() => { setPreview(""); setImage(null); setRemoveImage(true); setForm({ ...form, image_url: "" }); }}>Remove current image</button>}<h3>Stock & visibility</h3>{!editing ? <label>{online ? "Initial online stock" : "Initial factory stock"}<input type="number" min="0" step="1" required value={form.initial_stock} onChange={e => setForm({ ...form, initial_stock: e.target.value })} /></label> : <p className="c-help"><Link to={online ? "/online-stock" : "/stock-adjustments"}>Manage stock with adjustment history</Link></p>}{(online ? [["is_active", "Active product"], ["online_enabled", "Publish to website"], ["is_featured", "Feature this product"]] : [["is_active", "Active product"]]).map(([key, label]) => <label className="c-checkbox" key={key}><input type="checkbox" checked={form[key]} onChange={e => setForm({ ...form, [key]: e.target.checked })} />{label}</label>)}</div></div><div className="c-modal-footer"><button type="button" className="c-button secondary" disabled={saving} onClick={() => setEditor(false)}>Cancel</button><button className="c-button" disabled={saving}>{saving ? "Saving product…" : editing ? "Save changes" : "Create product"}</button></div></form></section></div>}
   </div>;
 }
