@@ -1,9 +1,10 @@
+from core.product_serializers import InventoryProductSerializer
 from rest_framework import serializers
 
 from apps.showrooms.models import Showroom
 from .models import DailyBalance, DailyStock, FactoryStock, ShowroomStock, StockTransfer
 
-class DailyStockSerializer(serializers.ModelSerializer):
+class DailyStockSerializer(InventoryProductSerializer):
     product_name = serializers.CharField(source="product.name", read_only=True)
     showroom_name = serializers.CharField(source="showroom.name", read_only=True)
 
@@ -76,7 +77,7 @@ class DailyStockSerializer(serializers.ModelSerializer):
         )
         return super().update(instance, validated_data)
 
-class DailyBalanceSerializer(serializers.ModelSerializer):
+class DailyBalanceSerializer(InventoryProductSerializer):
 
     showroom = serializers.PrimaryKeyRelatedField(
         queryset=Showroom.objects.all(), required=False
@@ -154,14 +155,14 @@ class DailyBalanceSerializer(serializers.ModelSerializer):
         validated_data["opening_balance"] = previous.closing_balance if previous else 0
         return super().update(instance, validated_data)
 
-class FactoryStockSerializer(serializers.ModelSerializer):
+class FactoryStockSerializer(InventoryProductSerializer):
     product_name = serializers.CharField(source="product.name", read_only=True)
 
     class Meta:
         model = FactoryStock
         fields = ["id", "product", "product_name", "quantity", "updated_at"]
 
-class ShowroomStockSerializer(serializers.ModelSerializer):
+class ShowroomStockSerializer(InventoryProductSerializer):
     product_name = serializers.CharField(source="product.name", read_only=True)
     showroom_name = serializers.CharField(source="showroom.name", read_only=True)
 
@@ -169,7 +170,7 @@ class ShowroomStockSerializer(serializers.ModelSerializer):
         model = ShowroomStock
         fields = ["id", "product", "product_name", "showroom", "showroom_name", "quantity", "updated_at"]
 
-class StockTransferSerializer(serializers.ModelSerializer):
+class StockTransferSerializer(InventoryProductSerializer):
     product_name = serializers.CharField(source="product.name", read_only=True)
     from_location = serializers.SerializerMethodField()
     to_location = serializers.SerializerMethodField()

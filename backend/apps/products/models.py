@@ -12,6 +12,7 @@ class ProductCategory(models.Model):
         return self.name
 
 class Product(models.Model):
+    sales_channel = models.CharField(max_length=10, choices=[("main", "Main inventory"), ("online", "Online store")], default="main", db_index=True)
     name = models.CharField(max_length=150)
     code = models.CharField(max_length=64, blank=True, default="")
     category = models.ForeignKey(ProductCategory, on_delete=models.PROTECT, related_name="products")
@@ -30,7 +31,7 @@ class Product(models.Model):
     class Meta:
         ordering = ["name"]
         constraints = [
-            models.UniqueConstraint(fields=["name", "category", "size"], name="unique_product_variant")
+            models.UniqueConstraint(fields=["name", "category", "size", "sales_channel"], name="unique_product_channel_variant")
         ]
 
     def __str__(self):

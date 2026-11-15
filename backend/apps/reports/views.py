@@ -192,7 +192,7 @@ class DashboardView(APIView):
             received=Sum("received_qty"), sold=Sum("sold_qty"), returned=Sum("return_qty"),
             returned_to_factory=Sum("returned_to_factory_qty"),
         )
-        adjustment_total = StockAdjustment.objects.filter(
+        adjustment_total = StockAdjustment.objects.filter(product__sales_channel="main",
             location="showroom", showroom__in=showrooms_qs, **adjustment_filter,
         ).aggregate(value=Sum("difference"))["value"] or 0
 
@@ -255,7 +255,7 @@ class DailyStatementView(APIView):
         if product_id:
             stock_qs = stock_qs.filter(product_id=product_id)
 
-        adjustments_qs = StockAdjustment.objects.filter(
+        adjustments_qs = StockAdjustment.objects.filter(product__sales_channel="main",
             location="showroom", showroom_id=showroom_id, created_at__date=target_date,
         ).select_related("product")
         if category_id:
@@ -351,7 +351,7 @@ class MonthlyReportView(APIView):
         for row in stock_summary:
             row["adjustment"] = 0
 
-        adjustment_qs = StockAdjustment.objects.filter(
+        adjustment_qs = StockAdjustment.objects.filter(product__sales_channel="main",
             location="showroom", showroom__in=showrooms_qs,
             created_at__date__year=year, created_at__date__month=month,
         )

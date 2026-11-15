@@ -58,6 +58,8 @@ export default function App() {
       <Route path="/shop" element={<Storefront />} />
       <Route path="/checkout" element={<ShopAccount />} />
       <Route path="/my-orders" element={<ShopAccount />} />
+      <Route path="/online-products" element={<ProtectedRoute requireAdmin><Layout><Products key="online" online /></Layout></ProtectedRoute>} />
+      <Route path="/online-stock" element={<ProtectedRoute requireAdmin><Layout><StockAdjustments key="online" online /></Layout></ProtectedRoute>} />
       <Route path="/online-orders" element={<ProtectedRoute requireAdmin><Layout><CommerceManagement /></Layout></ProtectedRoute>} />
 
       <Route
@@ -72,7 +74,7 @@ export default function App() {
         path="/products"
         element={
           <ProtectedRoute requireAdmin>
-            <Layout><Products /></Layout>
+            <Layout><Products key="main" /></Layout>
           </ProtectedRoute>
         }
       />

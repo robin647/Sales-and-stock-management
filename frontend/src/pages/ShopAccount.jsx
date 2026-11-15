@@ -1,12 +1,12 @@
 import { useEffect, useState } from "react";
 import { Link, useLocation } from "react-router-dom";
-import { productApi, shopApi } from "../api/endpoints";
+import { onlineProductApi, shopApi } from "../api/endpoints";
 import { useAuth } from "../context/AuthContext";
 import { errorMessage } from "../utils/apiError";
 import "./admin/commerce.css";
 const money = value => "৳" + Number(value || 0).toLocaleString("en-BD", { maximumFractionDigits: 2 });
 const labels = { pending: "Awaiting delivery payment verification", confirmed: "Order confirmed", shipped: "On the way", delivered: "Delivered", cancelled: "Cancelled" };
-function readBag() { try { const value = JSON.parse(localStorage.getItem("mahir-shopping-bag") || "{}"); return value && typeof value === "object" && !Array.isArray(value) ? value : {}; } catch { return {}; } }
+function readBag() { try { const value = JSON.parse(localStorage.getItem("mahir-online-shopping-bag-v2") || "{}"); return value && typeof value === "object" && !Array.isArray(value) ? value : {}; } catch { return {}; } }
 function requestKey() {
   let key = sessionStorage.getItem("mahir-checkout-key");
   if (!key) { key = crypto.randomUUID(); sessionStorage.setItem("mahir-checkout-key", key); }
@@ -39,7 +39,7 @@ export default function ShopAccount() {
     if (user?.role !== "customer") { setLoading(false); return; }
     let active = true;
     setLoading(true); setError("");
-    const work = isCheckout ? Promise.all([productApi.listAll({ is_active: true, storefront: true }), shopApi.settings(), items.length ? shopApi.quote({ items }) : Promise.resolve(null)]).then(([p, s, q]) => { if (active) { setProducts(p); setSettings(s.data); setQuote(q?.data || null); } }) : shopApi.orders({ page }).then(res => { if (active) { setOrders(res.data.results); setNext(!!res.data.next); } });
+    const work = isCheckout ? Promise.all([onlineProductApi.listAll({ is_active: true, storefront: true }), shopApi.settings(), items.length ? shopApi.quote({ items }) : Promise.resolve(null)]).then(([p, s, q]) => { if (active) { setProducts(p); setSettings(s.data); setQuote(q?.data || null); } }) : shopApi.orders({ page }).then(res => { if (active) { setOrders(res.data.results); setNext(!!res.data.next); } });
     work.catch(err => { if (active) setError(errorMessage(err)); }).finally(() => { if (active) setLoading(false); });
     return () => { active = false; };
   }, [user?.id, isCheckout, page]);
@@ -53,7 +53,7 @@ export default function ShopAccount() {
     event.preventDefault(); setSaving(true); setError("");
     try {
       const res = await shopApi.placeOrder({ ...form, items, coupon: appliedCoupon, expected_total: quote.total, expected_shipping_fee: quote.shipping_fee, request_key: requestKey() });
-      setSuccess(res.data); localStorage.setItem("mahir-shopping-bag", "{}"); sessionStorage.removeItem("mahir-checkout-key"); sessionStorage.removeItem("mahir-resume-order");
+      setSuccess(res.data); localStorage.setItem("mahir-online-shopping-bag-v2", "{}"); sessionStorage.removeItem("mahir-checkout-key"); sessionStorage.removeItem("mahir-resume-order");
     } catch (err) { setError(errorMessage(err)); }
     finally { setSaving(false); }
   }

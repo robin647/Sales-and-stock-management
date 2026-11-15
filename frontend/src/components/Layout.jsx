@@ -42,11 +42,13 @@ export default function Layout({ children }) {
               <NavLink onClick={() => setMenuOpen(false)} to="/admin" end className={linkClass}>Dashboard</NavLink>
               <NavLink onClick={() => setMenuOpen(false)} to="/showrooms" className={linkClass}>Showrooms</NavLink>
               <div className="px-3 pt-4 pb-1 text-[10px] font-semibold uppercase tracking-widest text-gray-400">Online store</div>
-              <NavLink onClick={() => setMenuOpen(false)} to="/products" className={linkClass}>Products & Categories</NavLink>
+              <NavLink onClick={() => setMenuOpen(false)} to="/online-products" className={linkClass}>Online Products & Offers</NavLink>
               <NavLink onClick={() => setMenuOpen(false)} to="/admin/customers" className={linkClass}>Customers</NavLink>
+              <NavLink onClick={() => setMenuOpen(false)} to="/online-stock" className={linkClass}>Online Stock</NavLink>
               <NavLink onClick={() => setMenuOpen(false)} to="/online-orders" className={linkClass}>Orders, Coupons & Delivery</NavLink>
               <NavLink onClick={() => setMenuOpen(false)} to="/shop" className={linkClass}>View Online Store ↗</NavLink>
               <div className="px-3 pt-4 pb-1 text-[10px] font-semibold uppercase tracking-widest text-gray-400">Stock & business</div>
+              <NavLink onClick={() => setMenuOpen(false)} to="/products" className={linkClass}>Main Products & Categories</NavLink>
               <NavLink onClick={() => setMenuOpen(false)} to="/stock-adjustments" className={linkClass}>Product Stock Adjustment</NavLink>
               <NavLink onClick={() => setMenuOpen(false)} to="/wholesale/parties" className={linkClass}>Wholesale Party Management</NavLink>
               <NavLink onClick={() => setMenuOpen(false)} to="/wholesale/sales" className={linkClass}>Wholesale Sales / New Invoice</NavLink>

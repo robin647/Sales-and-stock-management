@@ -143,6 +143,7 @@ export const shopApi = {
 };
 
 export const productApi = {
+  copyToOnline: (id) => api.post(`/products/${id}/copy-to-online/`),
   list: (params) => api.get("/products/", { params }),
   listAll: async (params = {}) => {
     const rows = [];
@@ -156,6 +157,20 @@ export const productApi = {
   },
   create: (data) => api.post("/products/", data),
   update: (id, data) => api.patch(`/products/${id}/`, data),
+};
+
+export const onlineProductApi = {
+  list: (params) => api.get("/products/online/", { params }),
+  listAll: (params = {}) => fetchAllPages("/products/online/", params),
+  create: (data) => api.post("/products/online/", data),
+  update: (id, data) => api.patch(`/products/online/${id}/`, data),
+};
+
+export const onlineStockAdjustmentApi = {
+  list: (params) => api.get("/wholesale/online-stock-adjustments/", { params }),
+  create: (data) => api.post("/wholesale/online-stock-adjustments/", data),
+  update: (id, data) => api.patch(`/wholesale/online-stock-adjustments/${id}/`, data),
+  delete: (id) => api.delete(`/wholesale/online-stock-adjustments/${id}/`),
 };
 
 export const stockApi = {

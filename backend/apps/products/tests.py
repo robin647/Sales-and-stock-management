@@ -9,13 +9,13 @@ class PublicCatalogTests(TestCase):
     def setUp(self):
         self.client = APIClient()
         self.category = ProductCategory.objects.create(name="Panjabi")
-        self.active_product = Product.objects.create(
+        self.active_product = Product.objects.create(sales_channel="online",
             name="Festive Panjabi",
             category=self.category,
             selling_price="5000.00",
             discount_price="4200.00",
         )
-        Product.objects.create(
+        Product.objects.create(sales_channel="online",
             name="Archived Panjabi",
             category=self.category,
             selling_price="3500.00",
@@ -117,6 +117,8 @@ class CatalogManagementTests(TestCase):
         Product.objects.create(name="Offline only", category=self.category, selling_price=3000, online_enabled=False)
         self.client.force_authenticate(None)
         self.assertEqual(self.client.get(reverse("product-list"), {"storefront": "true"}).data["count"], 0)
+        self.assertEqual(self.client.get(reverse("product-list")).data["count"], 0)
+        self.client.force_authenticate(self.admin)
         self.assertEqual(self.client.get(reverse("product-list")).data["count"], 1)
 
 
@@ -126,8 +128,8 @@ class ProductPopularityTests(TestCase):
         from django.utils import timezone
         self.client = APIClient()
         self.category = ProductCategory.objects.create(name="Popular collection")
-        self.old = Product.objects.create(name="Old favourite", category=self.category, selling_price=100, is_featured=True)
-        self.new = Product.objects.create(name="New arrival", category=self.category, selling_price=100)
+        self.old = Product.objects.create(sales_channel="online", name="Old favourite", category=self.category, selling_price=100, is_featured=True)
+        self.new = Product.objects.create(sales_channel="online", name="New arrival", category=self.category, selling_price=100)
         Product.objects.filter(pk=self.old.pk).update(created_at=timezone.now() - timedelta(days=60))
 
     def order(self, product, status="confirmed", quantity=1):

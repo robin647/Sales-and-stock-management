@@ -1,3 +1,4 @@
+from core.product_serializers import InventoryProductSerializer
 from decimal import Decimal
 
 from django.db import transaction
@@ -45,7 +46,7 @@ def _undo_easy_stock_movement(record, user):
     movement.delete()
 from .services import record_easy_stock_movement
 
-class PartySerializer(serializers.ModelSerializer):
+class PartySerializer(InventoryProductSerializer):
     total_sales = serializers.SerializerMethodField()
     total_payments = serializers.SerializerMethodField()
     total_returns = serializers.SerializerMethodField()
@@ -114,7 +115,7 @@ class PartySerializer(serializers.ModelSerializer):
     def get_total_credit(self, party):
         return self._totals(party)[4]
 
-class WholesaleSaleItemSerializer(serializers.ModelSerializer):
+class WholesaleSaleItemSerializer(InventoryProductSerializer):
     product_name = serializers.CharField(source="product.name", read_only=True)
     product_code = serializers.CharField(source="product.code", read_only=True)
     product_size = serializers.CharField(source="product.size", read_only=True)
@@ -133,7 +134,7 @@ class WholesaleSaleItemSerializer(serializers.ModelSerializer):
     def get_returned_amount(self, item):
         return item.returns.aggregate(value=Sum("amount"))["value"] or Decimal("0.00")
 
-class PaymentSerializer(serializers.ModelSerializer):
+class PaymentSerializer(InventoryProductSerializer):
     total_amount = serializers.DecimalField(max_digits=14, decimal_places=2, read_only=True)
 
     class Meta:
@@ -141,7 +142,7 @@ class PaymentSerializer(serializers.ModelSerializer):
         fields = ["id", "payment_date", "bank_amount", "bkash_amount", "cash_amount", "total_amount", "reference", "notes", "created_at"]
         read_only_fields = ["id", "created_at", "total_amount"]
 
-class ReturnSerializer(serializers.ModelSerializer):
+class ReturnSerializer(InventoryProductSerializer):
     invoice_number = serializers.CharField(source="invoice_item.invoice.invoice_number", read_only=True)
     product_name = serializers.CharField(source="invoice_item.product.name", read_only=True)
 
@@ -228,7 +229,7 @@ class ReturnSerializer(serializers.ModelSerializer):
         validated_data["idempotency_key"] = idempotency_key or None
         return super().create(validated_data)
 
-class InvoiceSerializer(serializers.ModelSerializer):
+class InvoiceSerializer(InventoryProductSerializer):
     items = WholesaleSaleItemSerializer(many=True)
     payments = PaymentSerializer(many=True, read_only=True)
     gross_amount = serializers.DecimalField(max_digits=14, decimal_places=2, read_only=True)
@@ -338,7 +339,7 @@ class InvoiceSerializer(serializers.ModelSerializer):
         })
         return data
 
-class PaymentCreateSerializer(serializers.ModelSerializer):
+class PaymentCreateSerializer(InventoryProductSerializer):
     total_amount = serializers.DecimalField(max_digits=14, decimal_places=2, read_only=True)
 
     class Meta:
@@ -389,7 +390,7 @@ class PaymentCreateSerializer(serializers.ModelSerializer):
         validated_data["idempotency_key"] = idempotency_key or None
         return super().create(validated_data)
 
-class EasyWholesaleSaleSerializer(serializers.ModelSerializer):
+class EasyWholesaleSaleSerializer(InventoryProductSerializer):
     party_name = serializers.CharField(source="party.name", read_only=True)
     product_label = serializers.SerializerMethodField()
 
@@ -489,7 +490,7 @@ class EasyWholesaleSaleSerializer(serializers.ModelSerializer):
                 raise serializers.ValidationError({"quantity": str(error)}) from error
         return instance
 
-class EasyWholesalePaymentSerializer(serializers.ModelSerializer):
+class EasyWholesalePaymentSerializer(InventoryProductSerializer):
     party_name = serializers.CharField(source="party.name", read_only=True)
     total_amount = serializers.DecimalField(max_digits=14, decimal_places=2, read_only=True)
 
@@ -530,7 +531,7 @@ class EasyWholesalePaymentSerializer(serializers.ModelSerializer):
         instance.save()
         return instance
 
-class EasyWholesaleReturnSerializer(serializers.ModelSerializer):
+class EasyWholesaleReturnSerializer(InventoryProductSerializer):
     party_name = serializers.CharField(source="party.name", read_only=True)
     product_label = serializers.SerializerMethodField()
 
@@ -640,7 +641,7 @@ class EasyWholesaleReturnSerializer(serializers.ModelSerializer):
                     raise serializers.ValidationError({"quantity": str(error)}) from error
         return instance
 
-class StockAdjustmentSerializer(serializers.ModelSerializer):
+class StockAdjustmentSerializer(InventoryProductSerializer):
     product_name = serializers.CharField(source="product.name", read_only=True)
     showroom_name = serializers.CharField(source="showroom.name", read_only=True)
     created_by_name = serializers.CharField(source="created_by.username", read_only=True)
@@ -652,6 +653,8 @@ class StockAdjustmentSerializer(serializers.ModelSerializer):
         read_only_fields = ["id", "previous_quantity", "difference", "created_by_name", "created_at", "updated_at"]
 
     def validate(self, attrs):
+        if getattr(self.context.get("view"), "product_channel", "main") == "online" and attrs.get("location", "factory") != "factory":
+            raise serializers.ValidationError({"location": "Online stock has its own inventory. Select online inventory."})
         if self.instance:
             for field in ("product", "location", "showroom"):
                 if field in attrs and attrs[field] != getattr(self.instance, field):

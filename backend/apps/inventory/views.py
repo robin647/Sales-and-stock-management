@@ -164,7 +164,7 @@ class DailyBalanceViewSet(ShowroomScopedMixin, viewsets.ModelViewSet):
 class FactoryStockViewSet(viewsets.ReadOnlyModelViewSet):
     serializer_class = FactoryStockSerializer
     permission_classes = [IsStaffUser]
-    queryset = FactoryStock.objects.select_related("product").all()
+    queryset = FactoryStock.objects.select_related("product").filter(product__sales_channel="main").order_by("product_id")
 
     def check_permissions(self, request):
         super().check_permissions(request)

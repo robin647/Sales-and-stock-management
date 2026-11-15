@@ -208,9 +208,17 @@ class ReturnViewSet(AdminOnlyViewSet):
 class StockAdjustmentViewSet(AdminOnlyViewSet):
     queryset = StockAdjustment.objects.select_related("product", "showroom", "created_by")
     serializer_class = StockAdjustmentSerializer
+    product_channel = "main"
+
+    def get_queryset(self):
+        return super().get_queryset().filter(product__sales_channel=self.product_channel)
 
     def perform_destroy(self, instance):
         correct_stock_adjustment(adjustment=instance, delete=True)
+
+
+class OnlineStockAdjustmentViewSet(StockAdjustmentViewSet):
+    product_channel = "online"
 
 class EasyTransactionViewSet(AdminOnlyViewSet):
     http_method_names = ["get", "post", "put", "patch", "delete", "head", "options"]

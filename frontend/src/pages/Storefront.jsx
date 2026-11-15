@@ -1,6 +1,6 @@
 import { useEffect, useMemo, useRef, useState } from "react";
 import { Link, useNavigate } from "react-router-dom";
-import { productApi, shopApi } from "../api/endpoints";
+import { onlineProductApi, shopApi } from "../api/endpoints";
 import { useAuth } from "../context/AuthContext.jsx";
 import { useTheme } from "../context/ThemeContext.jsx";
 import "./storefront.css";
@@ -25,7 +25,7 @@ function productPrice(product) {
 
 function readSavedCart() {
   try {
-    const saved = JSON.parse(localStorage.getItem("mahir-shopping-bag") || "{}");
+    const saved = JSON.parse(localStorage.getItem("mahir-online-shopping-bag-v2") || "{}");
     return Object.fromEntries(Object.entries(saved || {}).filter(([id, quantity]) => /^\d+$/.test(id) && Number.isInteger(quantity) && quantity > 0));
   } catch {
     return {};
@@ -51,7 +51,7 @@ export default function Storefront() {
   const [sort, setSort] = useState("featured");
   const [detail, setDetail] = useState(null);
   const [shopSettings, setShopSettings] = useState(null);
-  const [favorites, setFavorites] = useState(() => { try { const saved = JSON.parse(localStorage.getItem("mahir-favorites") || "[]"); return Array.isArray(saved) ? saved : []; } catch { return []; } });
+  const [favorites, setFavorites] = useState(() => { try { const saved = JSON.parse(localStorage.getItem("mahir-online-favorites-v2") || "[]"); return Array.isArray(saved) ? saved : []; } catch { return []; } });
   const [favoritesOnly, setFavoritesOnly] = useState(false);
 
   useEffect(() => {
@@ -77,7 +77,7 @@ export default function Storefront() {
   }, []);
 
   useEffect(() => { shopApi.settings().then(res => setShopSettings(res.data)).catch(() => {}); }, []);
-  useEffect(() => { localStorage.setItem("mahir-favorites", JSON.stringify(favorites)); }, [favorites]);
+  useEffect(() => { localStorage.setItem("mahir-online-favorites-v2", JSON.stringify(favorites)); }, [favorites]);
   useEffect(() => {
     const close = event => { if (event.key === "Escape") { setDetail(null); setCartOpen(false); setMobileSearchOpen(false); } };
     document.addEventListener("keydown", close);
@@ -86,7 +86,7 @@ export default function Storefront() {
   function toggleFavorite(id) { setFavorites(current => current.includes(id) ? current.filter(value => value !== id) : [...current, id]); }
 
   useEffect(() => {
-    localStorage.setItem("mahir-shopping-bag", JSON.stringify(cart));
+    localStorage.setItem("mahir-online-shopping-bag-v2", JSON.stringify(cart));
   }, [cart]);
 
   useEffect(() => {
@@ -100,7 +100,7 @@ export default function Storefront() {
     let active = true;
     setLoading(true);
     setLoadError("");
-    productApi.listAll({ is_active: true, storefront: true })
+    onlineProductApi.listAll({ is_active: true, storefront: true })
       .then((rows) => { if (active) setProducts(rows); })
       .catch((error) => {
         if (!active) return;
@@ -124,14 +124,14 @@ export default function Storefront() {
   const cartSavings = cartItems.reduce((sum, product) => sum + (productPrice(product).regular - productPrice(product).current) * cart[product.id], 0);
 
   function addToCart(product) {
-    if (product.factory_quantity <= 0) return;
-    setCart((current) => ({ ...current, [product.id]: Math.min((current[product.id] || 0) + 1, product.factory_quantity ?? 1000) }));
+    if (product.online_quantity <= 0) return;
+    setCart((current) => ({ ...current, [product.id]: Math.min((current[product.id] || 0) + 1, product.online_quantity ?? 1000) }));
   }
 
   function changeQuantity(productId, delta) {
     setCart((current) => {
       const product = products.find(item => item.id === productId);
-      const nextQuantity = Math.min((current[productId] || 0) + delta, product?.factory_quantity ?? 1000);
+      const nextQuantity = Math.min((current[productId] || 0) + delta, product?.online_quantity ?? 1000);
       const next = { ...current };
       if (nextQuantity <= 0) delete next[productId];
       else next[productId] = nextQuantity;
@@ -190,7 +190,7 @@ export default function Storefront() {
           {loading ? <div className="catalog-message" role="status">Curating the collection…</div> : loadError ? <div className="catalog-message" role="alert">{loadError}</div> : filtered.length ? <div className="product-grid">{filtered.map((product, index) => {
             const price = productPrice(product);
             const discount = price.regular > price.current ? Math.round((1 - price.current / price.regular) * 100) : 0;
-            return <article className="product-card" key={product.id}><div className="product-image-wrap"><button className="product-view" type="button" aria-label={`View ${product.name}`} onClick={() => setDetail(product)}><img src={product.image || PRODUCT_IMAGES[index % PRODUCT_IMAGES.length]} alt={`${product.name} collection style`} loading="lazy" /></button><button className="product-favorite" type="button" aria-label={`Save ${product.name}`} aria-pressed={favorites.includes(product.id)} onClick={() => toggleFavorite(product.id)}>{favorites.includes(product.id) ? "♥" : "♡"}</button><span className="product-tag">{discount ? `${discount}% OFF` : product.popularity_orders > 0 ? "POPULAR" : Date.now() - Date.parse(product.created_at) >= 0 && Date.now() - Date.parse(product.created_at) <= 30 * 86400000 ? "NEW ARRIVAL" : "MAHIR EDIT"}</span><button type="button" aria-label={`Add ${product.name} to bag`} className="quick-add" disabled={product.factory_quantity <= 0} onClick={() => { addToCart(product); setCartOpen(true); }}>+</button></div><div className="product-details"><div className="product-category">{product.category_name || "MAHIR COLLECTION"}{product.size ? <span> · {product.size}</span> : null}</div><h3><button className="product-name-button" onClick={() => setDetail(product)}>{product.name}</button></h3><span className="product-availability">{product.factory_quantity > 0 ? "In stock" : "Out of stock"}</span><div className="product-prices"><strong>{money(price.current)}</strong>{price.regular > price.current ? <><del>{money(price.regular)}</del><span>Save {money(price.regular - price.current)}</span></> : null}</div></div></article>;
+            return <article className="product-card" key={product.id}><div className="product-image-wrap"><button className="product-view" type="button" aria-label={`View ${product.name}`} onClick={() => setDetail(product)}><img src={product.image || PRODUCT_IMAGES[index % PRODUCT_IMAGES.length]} alt={`${product.name} collection style`} loading="lazy" /></button><button className="product-favorite" type="button" aria-label={`Save ${product.name}`} aria-pressed={favorites.includes(product.id)} onClick={() => toggleFavorite(product.id)}>{favorites.includes(product.id) ? "♥" : "♡"}</button><span className="product-tag">{discount ? `${discount}% OFF` : product.popularity_orders > 0 ? "POPULAR" : Date.now() - Date.parse(product.created_at) >= 0 && Date.now() - Date.parse(product.created_at) <= 30 * 86400000 ? "NEW ARRIVAL" : "MAHIR EDIT"}</span><button type="button" aria-label={`Add ${product.name} to bag`} className="quick-add" disabled={product.online_quantity <= 0} onClick={() => { addToCart(product); setCartOpen(true); }}>+</button></div><div className="product-details"><div className="product-category">{product.category_name || "MAHIR COLLECTION"}{product.size ? <span> · {product.size}</span> : null}</div><h3><button className="product-name-button" onClick={() => setDetail(product)}>{product.name}</button></h3><span className="product-availability">{product.online_quantity > 0 ? "In stock" : "Out of stock"}</span><div className="product-prices"><strong>{money(price.current)}</strong>{price.regular > price.current ? <><del>{money(price.regular)}</del><span>Save {money(price.regular - price.current)}</span></> : null}</div></div></article>;
           })}</div> : <div className="catalog-message">{products.length ? "No styles match your search." : "New styles are being added to the collection. Check back soon."}</div>}
           {!loading && loadError && <button className="retry-button" type="button" onClick={() => setCatalogAttempt((attempt) => attempt + 1)}>Try again</button>}
         </section>
@@ -198,7 +198,7 @@ export default function Storefront() {
       </main>
 
       <footer className="store-footer"><Link className="store-brand" to="/shop"><span className="brand-mark">M</span><span>MAHIR <i>SHERWANI</i></span></Link><p>Made for the moments that become memories.</p><div><a href="#collection">Collection</a><Link to="/my-orders">Track my orders</Link><Link to="/login">Admin &amp; showroom login</Link><span>© {new Date().getFullYear()} Mahir Sherwani</span></div></footer>
-      {detail && <div className="c-modal-backdrop commerce" onClick={e => { if (e.target === e.currentTarget) setDetail(null); }}><section className="c-modal" role="dialog" aria-modal="true" aria-labelledby="product-detail-title"><div className="c-modal-heading"><h2 id="product-detail-title">{detail.name}</h2><button autoFocus aria-label="Close product details" onClick={() => setDetail(null)}>×</button></div><div className="c-form c-editor-grid"><div className="product-detail-photo"><img src={detail.image || PRODUCT_IMAGES[0]} alt={detail.name} /></div><div><span className="c-badge">{detail.category_name}</span><h2>{detail.name}</h2><p>{detail.size ? `Size: ${detail.size}` : "Standard size"}{detail.code ? ` · ${detail.code}` : ""}</p><h2>{money(productPrice(detail).current)}</h2>{detail.discount_price && <p><del>{money(detail.selling_price)}</del> · Save {money(Number(detail.selling_price) - Number(detail.discount_price))}</p>}<p className="product-description">{detail.description || "Contact us for fabric, fit and sizing details."}</p><p>{detail.factory_quantity > 0 ? `${detail.factory_quantity} available` : "Currently out of stock"}</p><div className="commerce-actions"><button disabled={detail.factory_quantity <= 0} className="c-button" onClick={() => { addToCart(detail); setDetail(null); setCartOpen(true); }}>Add to bag</button><button className="c-button secondary" onClick={() => toggleFavorite(detail.id)}>{favorites.includes(detail.id) ? "♥ Saved" : "♡ Save"}</button></div><p className="c-help">Cash on Delivery for products. Delivery charge is paid in advance.</p></div></div></section></div>}
+      {detail && <div className="c-modal-backdrop commerce" onClick={e => { if (e.target === e.currentTarget) setDetail(null); }}><section className="c-modal" role="dialog" aria-modal="true" aria-labelledby="product-detail-title"><div className="c-modal-heading"><h2 id="product-detail-title">{detail.name}</h2><button autoFocus aria-label="Close product details" onClick={() => setDetail(null)}>×</button></div><div className="c-form c-editor-grid"><div className="product-detail-photo"><img src={detail.image || PRODUCT_IMAGES[0]} alt={detail.name} /></div><div><span className="c-badge">{detail.category_name}</span><h2>{detail.name}</h2><p>{detail.size ? `Size: ${detail.size}` : "Standard size"}{detail.code ? ` · ${detail.code}` : ""}</p><h2>{money(productPrice(detail).current)}</h2>{detail.discount_price && <p><del>{money(detail.selling_price)}</del> · Save {money(Number(detail.selling_price) - Number(detail.discount_price))}</p>}<p className="product-description">{detail.description || "Contact us for fabric, fit and sizing details."}</p><p>{detail.online_quantity > 0 ? `${detail.online_quantity} available` : "Currently out of stock"}</p><div className="commerce-actions"><button disabled={detail.online_quantity <= 0} className="c-button" onClick={() => { addToCart(detail); setDetail(null); setCartOpen(true); }}>Add to bag</button><button className="c-button secondary" onClick={() => toggleFavorite(detail.id)}>{favorites.includes(detail.id) ? "♥ Saved" : "♡ Save"}</button></div><p className="c-help">Cash on Delivery for products. Delivery charge is paid in advance.</p></div></div></section></div>}
       {cartOpen && <div className="cart-overlay" role="presentation" onClick={(event) => { if (event.target === event.currentTarget) setCartOpen(false); }}><aside className="cart-panel" aria-label="Shopping bag"><div className="cart-heading"><div><span className="eyebrow">YOUR SELECTION</span><h2>Shopping bag <small>({cartCount})</small></h2></div><button type="button" className="cart-close" aria-label="Close bag" onClick={() => setCartOpen(false)}>×</button></div>{cartItems.length ? <><div className="cart-lines">{cartItems.map((product) => <div className="cart-line" key={product.id}><img src={product.image || PRODUCT_IMAGES[products.indexOf(product) % PRODUCT_IMAGES.length]} alt="" /><div className="cart-line-info"><strong>{product.name}</strong><small>{product.size || product.category_name}</small><div className="quantity-control"><button type="button" aria-label="Decrease quantity" onClick={() => changeQuantity(product.id, -1)}>−</button><span>{cart[product.id]}</span><button type="button" aria-label="Increase quantity" onClick={() => changeQuantity(product.id, 1)}>+</button></div></div><b>{money(productPrice(product).current * cart[product.id])}</b></div>)}</div><div className="cart-summary">{cartSavings > 0 && <p><span>You save</span><strong>{money(cartSavings)}</strong></p>}<p className="cart-total"><span>Estimated total</span><strong>{money(cartTotal)}</strong></p>{orderRequiresCustomer ? <div className="order-auth-prompt"><strong>Sign in to place your order</strong><p>Your bag is saved. Sign in to your customer account or create one to continue.</p><button className="checkout-button" type="button" onClick={() => continueToCustomerAuth("/login")}>Customer login <span aria-hidden="true">→</span></button><button className="signup-order-button" type="button" onClick={() => continueToCustomerAuth("/signup")}>Create customer account</button></div> : <><Link className="checkout-button" to="/checkout">Checkout · Cash on Delivery <span aria-hidden="true">→</span></Link><button className="whatsapp-order-button" type="button" onClick={orderOnWhatsApp}>Ask on WhatsApp <span aria-hidden="true">↗</span></button><small>Pay delivery charge first. Pay product price on delivery.</small></>}</div></> : <div className="empty-cart"><svg viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="1.5" strokeLinecap="round" strokeLinejoin="round" aria-hidden="true"><path d="M5 8h14l1 13H4L5 8Z" /><path d="M9 8V6a3 3 0 0 1 6 0v2" /></svg><p>Your bag is waiting for something special.</p><button type="button" onClick={() => { setCartOpen(false); document.getElementById("collection")?.scrollIntoView({ behavior: "smooth" }); }}>Explore the collection</button></div>}</aside></div>}
     </div>
   );

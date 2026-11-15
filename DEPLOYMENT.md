@@ -85,6 +85,16 @@ Never commit `.env.local`, `backend/.env`, Neon connection strings, uploaded cus
 
 ## Commerce rollout (Vercel + Render + Neon Free)
 
+### Separate online catalog and inventory
+
+Deploy the backend first, then the frontend. Backend startup applies `products.0007_remove_product_unique_product_variant_and_more`. Existing products, stock and prices stay in the **Main inventory** channel. Existing orders retain their product references, price snapshots and cancellation stock destinations.
+
+The online catalog starts empty. Under **Main Products & Categories**, use a row's **Copy to online store** action to create an independent online draft with its own generated code, copied details/photo/prices and zero stock. Repeating the action returns the existing online variant without overwriting its prices or stock. Alternatively, create a new product directly under **Online Products & Offers**, entering its initial online stock. Set online prices, offer price or percentage discount, then enable **Publish to website**. An unpublished or archived online product is hidden from customers.
+
+Use **Online Stock** for subsequent stock counts and reasoned adjustments, including Update/Delete history actions. These counts never draw from main or showroom quantities. Enter only the units dedicated to online orders. Online checkout validates and reserves online quantities; cancellation restores the same inventory. Legacy orders placed before this separation still restore their original main stock when cancelled. Online coupons and delivery settings remain under **Orders, Coupons & Delivery**.
+
+Public catalog requests and checkout accept online products only. Wholesale, main stock adjustments and showroom entry APIs reject online product IDs. Shared category names organise both catalogs; product details, images, prices, discounts and quantities are independent. Existing browser shopping bags are replaced with a new online bag so old main-product IDs cannot be submitted accidentally.
+
 ### Product codes and barcode labels
 
 New products automatically receive a code such as `MS-000123`, derived from their database ID. If that code was already used by a legacy custom code, a numeric suffix is added. Existing nonblank codes are preserved; `products.0006_populate_product_codes` fills blank codes during startup migration. Normal edits retain their code. New/changed custom codes must use printable ASCII and cannot duplicate an existing code (case-insensitive validation); legacy codes remain editable without being silently rewritten.

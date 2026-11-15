@@ -36,7 +36,7 @@ class DailyExcelExportView(APIView):
         ws_stock.title = "Stock"
         _styled_header(ws_stock, ["Product", "Opening", "Received", "Sold", "Customer Return", "Return to Factory", "Adjustment", "Closing"])
         stocks = DailyStock.objects.filter(showroom_id=showroom_id, date=target_date).select_related("product")
-        adjustments = StockAdjustment.objects.filter(
+        adjustments = StockAdjustment.objects.filter(product__sales_channel="main",
             location="showroom", showroom_id=showroom_id, created_at__date=target_date,
         ).select_related("product")
         adjustment_by_product = {}
@@ -120,7 +120,7 @@ class MonthlyExcelExportView(APIView):
             received=Sum("received_qty"), sold=Sum("sold_qty"), returned=Sum("return_qty"),
             returned_to_factory=Sum("returned_to_factory_qty"),
         )
-        adjustment_summary = StockAdjustment.objects.filter(
+        adjustment_summary = StockAdjustment.objects.filter(product__sales_channel="main",
             location="showroom", showroom__in=showrooms_qs,
             created_at__date__year=year, created_at__date__month=month,
         )

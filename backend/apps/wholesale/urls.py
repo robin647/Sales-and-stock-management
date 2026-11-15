@@ -4,7 +4,7 @@ from rest_framework.routers import DefaultRouter
 from .views import (
     EasyWholesalePaymentViewSet, EasyWholesaleReturnViewSet, EasyWholesaleSaleViewSet,
     InvoiceViewSet, PartySummaryView, PartyViewSet, PaymentViewSet, ReturnViewSet,
-    StockAdjustmentViewSet, WholesaleReportView,
+    StockAdjustmentViewSet, OnlineStockAdjustmentViewSet, WholesaleReportView,
 )
 from .excel_export import WholesaleExcelExportView, WholesaleSummaryExcelExportView
 
@@ -14,6 +14,7 @@ router.register("invoices", InvoiceViewSet, basename="wholesale-invoice")
 router.register("payments", PaymentViewSet, basename="wholesale-payment")
 router.register("returns", ReturnViewSet, basename="wholesale-return")
 router.register("stock-adjustments", StockAdjustmentViewSet, basename="stock-adjustment")
+router.register("online-stock-adjustments", OnlineStockAdjustmentViewSet, basename="online-stock-adjustment")
 router.register("easy/sales", EasyWholesaleSaleViewSet, basename="easy-wholesale-sale")
 router.register("easy/payments", EasyWholesalePaymentViewSet, basename="easy-wholesale-payment")
 router.register("easy/returns", EasyWholesaleReturnViewSet, basename="easy-wholesale-return")

@@ -13,7 +13,7 @@ def get_settings():
 
 def quote_order(items, code=""):
     settings = get_settings()
-    products = {p.pk: p for p in Product.objects.select_related("factory_stock").filter(pk__in=[i["product"] for i in items], is_active=True, online_enabled=True)}
+    products = {p.pk: p for p in Product.objects.select_related("factory_stock").filter(pk__in=[i["product"] for i in items], is_active=True, online_enabled=True, sales_channel="online")}
     subtotal = Decimal("0")
     for item in items:
         product = products.get(item["product"])
@@ -66,7 +66,7 @@ def place_order(customer, data):
     if reference and Order.objects.filter(delivery_payment_reference__iexact=reference).exists():
         raise ValidationError({"delivery_payment_reference": "This transaction ID has already been submitted. Check My orders or contact the shop."})
     requested = {item["product"]: item["quantity"] for item in data.pop("items")}
-    products = {p.pk: p for p in Product.objects.filter(pk__in=requested, is_active=True, online_enabled=True)}
+    products = {p.pk: p for p in Product.objects.filter(pk__in=requested, is_active=True, online_enabled=True, sales_channel="online")}
     stocks = {s.product_id: s for s in FactoryStock.objects.select_for_update().filter(product_id__in=requested).order_by("product_id")}
     lines = []
     subtotal = Decimal("0")

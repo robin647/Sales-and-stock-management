@@ -21,7 +21,7 @@ class CheckoutTests(TestCase):
         self.admin = User.objects.create_user("shop-admin", role="admin")
         self.other = User.objects.create_user("other-shopper", role="customer")
         category = ProductCategory.objects.create(name="Sherwani")
-        self.product = Product.objects.create(name="Wedding Sherwani", category=category,
+        self.product = Product.objects.create(sales_channel="online", name="Wedding Sherwani", category=category,
             selling_price="5000", discount_price="4500")
         self.stock = FactoryStock.objects.create(product=self.product, quantity=10)
         self.settings = ShopSettings.objects.create(pk=1, shipping_fee="120", payment_number="01700000000")
@@ -178,7 +178,7 @@ class ConcurrentCheckoutTests(TransactionTestCase):
         cache.clear()
         self.customers = [User.objects.create_user(f"concurrent-{n}", role="customer") for n in range(2)]
         category = ProductCategory.objects.create(name="Limited collection")
-        self.product = Product.objects.create(name="Last piece", category=category, selling_price=100)
+        self.product = Product.objects.create(sales_channel="online", name="Last piece", category=category, selling_price=100)
         self.stock = FactoryStock.objects.create(product=self.product, quantity=1)
         ShopSettings.objects.create(pk=1, shipping_fee=0)
 

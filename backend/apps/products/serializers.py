@@ -31,11 +31,12 @@ class ProductSerializer(serializers.ModelSerializer):
     class Meta:
         model = Product
         fields = [
-            "id", "name", "code", "category", "category_name", "size",
+            "id", "sales_channel", "name", "code", "category", "category_name", "size",
             "selling_price", "discount_price", "discount_percentage", "image", "image_url", "remove_image",
             "description", "is_featured", "online_enabled", "factory_quantity", "popularity_orders", "is_active", "initial_stock", "created_at",
         ]
-        read_only_fields = ["id", "created_at"]
+        read_only_fields = ["id", "created_at", "sales_channel"]
+        validators = []
 
     def validate_selling_price(self, value):
         if value < 0:
@@ -56,6 +57,16 @@ class ProductSerializer(serializers.ModelSerializer):
         return value
 
     def validate(self, attrs):
+        channel = getattr(self.context.get("view"), "product_channel", "main")
+        duplicates = Product.objects.filter(
+            name=attrs.get("name", getattr(self.instance, "name", "")),
+            category=attrs.get("category", getattr(self.instance, "category", None)),
+            size=attrs.get("size", getattr(self.instance, "size", "")), sales_channel=channel,
+        )
+        if self.instance:
+            duplicates = duplicates.exclude(pk=self.instance.pk)
+        if duplicates.exists():
+            raise serializers.ValidationError("This product variant already exists in this inventory.")
         regular_price = attrs.get("selling_price", getattr(self.instance, "selling_price", None))
         if "discount_percentage" in attrs:
             if "discount_price" in attrs and attrs["discount_price"] is not None:
@@ -103,6 +114,10 @@ class ProductSerializer(serializers.ModelSerializer):
 
     def to_representation(self, instance):
         result = super().to_representation(instance)
+        if instance.sales_channel == "online":
+            result["online_quantity"] = getattr(instance, "factory_quantity", None)
+            if result["online_quantity"] is None:
+                result["online_quantity"] = FactoryStock.objects.filter(product=instance).values_list("quantity", flat=True).first() or 0
         request = self.context.get("request")
         image = instance.image_url
         if not image and instance.photo_version:

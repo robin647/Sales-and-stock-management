@@ -32,9 +32,20 @@ class ProductViewSet(viewsets.ModelViewSet):
     serializer_class = ProductSerializer
     permission_classes = [permissions.AllowAny]
     filterset_fields = ["category", "is_active"]
+    product_channel = "main"
+
+    def perform_create(self, serializer):
+        serializer.save(sales_channel=self.product_channel)
 
     def get_queryset(self):
         qs = Product.objects.select_related("category").annotate(factory_quantity=Coalesce("factory_stock__quantity", Value(0), output_field=IntegerField()))
+        channel = self.product_channel
+        if (not self.request.user.is_authenticated or self.request.user.role == "customer"
+                or self.request.query_params.get("storefront") == "true"):
+            channel = "online"
+        # Photo URLs remain valid for existing main-inventory product images.
+        if self.action != "photo":
+            qs = qs.filter(sales_channel=channel)
         if not self.request.user.is_authenticated or self.request.user.role != "admin":
             qs = qs.filter(is_active=True)
         if self.request.query_params.get("storefront") == "true":
@@ -44,7 +55,34 @@ class ProductViewSet(viewsets.ModelViewSet):
                 distinct=True,
             ))
             return qs.order_by("-popularity_orders", "-created_at", "-pk")
+        if channel == "online" and (not self.request.user.is_authenticated or self.request.user.role != "admin"):
+            qs = qs.filter(online_enabled=True)
         return qs.order_by("name", "pk")
+
+    @action(detail=True, methods=["post"], url_path="copy-to-online")
+    def copy_to_online(self, request, pk=None):
+        from django.db import transaction
+        from rest_framework.response import Response
+        from .models import ProductPhoto
+        from apps.inventory.models import FactoryStock
+        source = self.get_object()
+        with transaction.atomic():
+            data = {field: getattr(source, field) for field in (
+                "name", "category", "size", "selling_price", "discount_price", "description",
+                "image", "image_url", "photo_version",
+            )}
+            product, created = Product.objects.get_or_create(
+                name=source.name, category=source.category, size=source.size, sales_channel="online",
+                defaults={key: value for key, value in data.items() if key not in ("name", "category", "size")},
+            )
+            if created:
+                product.online_enabled = False
+                product.save(update_fields=["online_enabled"])
+                FactoryStock.objects.create(product=product, quantity=0)
+                photo = ProductPhoto.objects.filter(product=source).first()
+                if photo:
+                    ProductPhoto.objects.create(product=product, content=photo.content)
+        return Response(self.get_serializer(product).data, status=201 if created else 200)
 
     @action(detail=True, methods=["get"], url_name="photo")
     def photo(self, request, pk=None):
@@ -73,3 +111,7 @@ class ProductViewSet(viewsets.ModelViewSet):
             raise PermissionDenied("Authentication is required to manage products.")
         if request.method not in permissions.SAFE_METHODS and request.user.role != "admin":
             raise PermissionDenied("Only Admin can manage products.")
+
+
+class OnlineProductViewSet(ProductViewSet):
+    product_channel = "online"
