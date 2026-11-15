@@ -12,6 +12,7 @@ class User(AbstractUser):
         ADMIN = "admin", "Admin"
         SHOWROOM_USER = "showroom_user", "Showroom User"
         CUSTOMER = "customer", "Customer"
+        ECOMMERCE_STAFF = "ecommerce_staff", "Ecommerce staff"
 
     role = models.CharField(max_length=20, choices=Role.choices, default=Role.SHOWROOM_USER)
     phone_number = models.CharField(max_length=20, blank=True)

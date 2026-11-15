@@ -1,5 +1,6 @@
 from decimal import Decimal, ROUND_HALF_UP
 from django.db import transaction
+from django.db.models import Q
 from django.utils import timezone
 from rest_framework.exceptions import ValidationError
 from apps.products.models import Product
@@ -11,9 +12,11 @@ def get_settings():
     return ShopSettings.objects.get_or_create(pk=1)[0]
 
 
-def quote_order(items, code=""):
+def quote_order(items, code="", city=""):
     settings = get_settings()
-    products = {p.pk: p for p in Product.objects.select_related("factory_stock").filter(pk__in=[i["product"] for i in items], is_active=True, online_enabled=True, sales_channel="online")}
+    from apps.ecommerce.services import delivery_fee
+    shipping_fee = delivery_fee(city, settings.shipping_fee)
+    products = {p.pk: p for p in Product.objects.select_related("factory_stock").filter(pk__in=[i["product"] for i in items], is_active=True, online_enabled=True, sales_channel="online").filter(Q(online_vendor__isnull=True) | Q(online_vendor__status="active"))}
     subtotal = Decimal("0")
     for item in items:
         product = products.get(item["product"])
@@ -24,8 +27,8 @@ def quote_order(items, code=""):
             raise ValidationError(f"Not enough stock for {product.name}. Update your bag before paying the delivery charge.")
         subtotal += (product.discount_price if product.discount_price is not None else product.selling_price) * item["quantity"]
     discount, _ = calculate_discount(code, subtotal)
-    return {"subtotal": subtotal, "coupon_discount": discount, "shipping_fee": settings.shipping_fee,
-        "total": subtotal - discount + settings.shipping_fee, "cod_amount": subtotal - discount}
+    return {"subtotal": subtotal, "coupon_discount": discount, "shipping_fee": shipping_fee,
+        "total": subtotal - discount + shipping_fee, "cod_amount": subtotal - discount}
 
 
 def calculate_discount(code, subtotal, *, lock=False):
@@ -52,21 +55,23 @@ def place_order(customer, data):
             raise ValidationError("Order request key is already in use.")
         return existing
     settings = get_settings()
+    from apps.ecommerce.services import delivery_fee
+    shipping_fee = delivery_fee(data.get("city", ""), settings.shipping_fee)
     expected_total = data.pop("expected_total")
     expected_shipping_fee = data.pop("expected_shipping_fee")
-    if expected_shipping_fee != settings.shipping_fee:
+    if expected_shipping_fee != shipping_fee:
         raise ValidationError("Delivery charge changed. Refresh checkout before paying.")
     if not settings.accepting_orders:
         raise ValidationError("Online orders are temporarily paused.")
-    if settings.shipping_fee > 0 and not settings.payment_number:
+    if shipping_fee > 0 and not settings.payment_number:
         raise ValidationError("Delivery payment details have not been configured. Please contact the shop.")
-    if settings.shipping_fee > 0 and not data.get("delivery_payment_reference", "").strip():
+    if shipping_fee > 0 and not data.get("delivery_payment_reference", "").strip():
         raise ValidationError({"delivery_payment_reference": "Pay the delivery charge first and enter the transaction ID."})
     reference = data.get("delivery_payment_reference", "")
     if reference and Order.objects.filter(delivery_payment_reference__iexact=reference).exists():
         raise ValidationError({"delivery_payment_reference": "This transaction ID has already been submitted. Check My orders or contact the shop."})
     requested = {item["product"]: item["quantity"] for item in data.pop("items")}
-    products = {p.pk: p for p in Product.objects.filter(pk__in=requested, is_active=True, online_enabled=True, sales_channel="online")}
+    products = {p.pk: p for p in Product.objects.filter(pk__in=requested, is_active=True, online_enabled=True, sales_channel="online").filter(Q(online_vendor__isnull=True) | Q(online_vendor__status="active"))}
     stocks = {s.product_id: s for s in FactoryStock.objects.select_for_update().filter(product_id__in=requested).order_by("product_id")}
     lines = []
     subtotal = Decimal("0")
@@ -80,12 +85,12 @@ def place_order(customer, data):
         subtotal += price * quantity
         lines.append((product, quantity, price))
     discount, coupon = calculate_discount(data.pop("coupon", ""), subtotal, lock=True)
-    if expected_total != subtotal - discount + settings.shipping_fee:
+    if expected_total != subtotal - discount + shipping_fee:
         raise ValidationError("Prices or coupon availability changed. Refresh checkout and review the total.")
     order = Order.objects.create(customer=customer, subtotal=subtotal, coupon_discount=discount,
-        coupon_code=coupon.code if coupon else "", shipping_fee=settings.shipping_fee,
-        total=subtotal - discount + settings.shipping_fee,
-        delivery_payment_status="submitted" if settings.shipping_fee else "not_required", **data)
+        coupon_code=coupon.code if coupon else "", shipping_fee=shipping_fee,
+        total=subtotal - discount + shipping_fee,
+        delivery_payment_status="submitted" if shipping_fee else "not_required", **data)
     for product, quantity, price in lines:
         stock = stocks[product.pk]
         stock.quantity -= quantity

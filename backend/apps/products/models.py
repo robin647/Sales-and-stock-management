@@ -2,16 +2,20 @@ from django.core.validators import MinValueValidator
 from django.db import models, transaction
 
 class ProductCategory(models.Model):
-    name = models.CharField(max_length=100, unique=True)
+    name = models.CharField(max_length=100)
+    sales_channel = models.CharField(max_length=10, choices=[("main", "Main inventory"), ("online", "Online store")], default="main")
 
     class Meta:
         ordering = ["name"]
         verbose_name_plural = "Product categories"
+        constraints = [models.UniqueConstraint(fields=["name", "sales_channel"], name="unique_category_channel")]
 
     def __str__(self):
         return self.name
 
 class Product(models.Model):
+    online_brand = models.ForeignKey("ecommerce.Brand", on_delete=models.SET_NULL, null=True, blank=True, related_name="products")
+    online_vendor = models.ForeignKey("ecommerce.Vendor", on_delete=models.PROTECT, null=True, blank=True, related_name="products")
     sales_channel = models.CharField(max_length=10, choices=[("main", "Main inventory"), ("online", "Online store")], default="main", db_index=True)
     name = models.CharField(max_length=150)
     code = models.CharField(max_length=64, blank=True, default="")

@@ -5,7 +5,7 @@ import { errorMessage } from "../../utils/apiError";
 
 const listData = (response) => response.data.results || response.data;
 
-export default function StockAdjustments({ online = false }) {
+export default function StockAdjustments({ online = false, readOnly = false }) {
   const adjustmentApi = online ? onlineStockAdjustmentApi : stockAdjustmentApi;
   const [products, setProducts] = useState([]);
   const [productCodeSearch, setProductCodeSearch] = useState("");
@@ -46,7 +46,7 @@ export default function StockAdjustments({ online = false }) {
 
   async function load() {
     const [productRes, factoryRes, showroomRes, showroomStockRes, historyRes] = await Promise.all([
-      (online ? onlineProductApi : productApi).listAll(), online ? Promise.resolve({ data: [] }) : factoryStockApi.list({ page_size: 200 }), showroomApi.list({ page_size: 200 }), showroomStockApi.list({ page_size: 200 }), adjustmentApi.list({ page_size: 200 }),
+      (online ? onlineProductApi : productApi).listAll(), online ? Promise.resolve({ data: [] }) : factoryStockApi.list({ page_size: 200 }), online ? Promise.resolve({ data: [] }) : showroomApi.list({ page_size: 200 }), online ? Promise.resolve({ data: [] }) : showroomStockApi.list({ page_size: 200 }), adjustmentApi.list({ page_size: 200 }),
     ]);
     const productRows = productRes;
     const showroomRows = listData(showroomRes);
@@ -95,7 +95,7 @@ export default function StockAdjustments({ online = false }) {
         <h1 className="text-lg font-semibold">{online ? "Online stock adjustment" : "Product Stock Adjustment"}</h1>
         <p className="text-sm text-gray-500 mt-1">{online ? "Dedicated stock for website orders. Main and showroom inventory stay separate." : "Choose one inventory location. Other showrooms remain unchanged."}</p>
       </div>
-      <form onSubmit={submit} className="grid gap-4 rounded-xl border border-gray-200 bg-white p-4 sm:grid-cols-2 lg:grid-cols-3">
+      {!readOnly && <form onSubmit={submit} className="grid gap-4 rounded-xl border border-gray-200 bg-white p-4 sm:grid-cols-2 lg:grid-cols-3">
         <div className="sm:col-span-2 lg:col-span-3">
           <label className="text-sm text-gray-600" htmlFor="stock-product-code">Search by product code</label>
           <input id="stock-product-code" type="search" value={productCodeSearch} onChange={(event) => setProductCodeSearch(event.target.value)} placeholder="Enter product code" className="mt-1 w-full rounded-lg border border-gray-300 px-3 py-2 text-sm text-gray-900" />
@@ -135,7 +135,7 @@ export default function StockAdjustments({ online = false }) {
           <button disabled={busy} className="rounded-lg bg-brand-500 px-4 py-2 text-sm font-medium text-white hover:bg-brand-600 disabled:opacity-50">Save adjustment</button>
           {form.new_quantity !== "" && <span className="text-sm text-gray-600">Updated: <strong className="text-gray-900">{form.new_quantity} pcs</strong> ({Number(form.new_quantity) - currentQuantity >= 0 ? "+" : ""}{Number(form.new_quantity) - currentQuantity})</span>}
         </div>
-      </form>
+      </form>}
       {message && <p role="status" className="text-sm text-gray-600">{message}</p>}
       {editing && <form onSubmit={updateAdjustment} className="space-y-4 rounded-xl border border-gray-200 bg-white p-4">
         <h2 className="text-sm font-semibold">Update adjustment · {editing.product_name} · {editing.location === "factory" ? (online ? "Online" : "Factory") : editing.showroom_name}</h2>
@@ -148,7 +148,7 @@ export default function StockAdjustments({ online = false }) {
         <h2 className="border-b border-gray-100 px-4 py-3 text-sm font-semibold">Adjustment history</h2>
         <div className="overflow-x-auto"><table className="w-full min-w-[760px] text-left text-sm">
           <thead className="bg-gray-50 text-xs uppercase text-gray-500"><tr><th className="px-4 py-3">Last updated</th><th>Product</th><th>Location</th><th>Previous</th><th>Updated</th><th>Change</th><th>Reason</th><th>User</th><th className="px-4">Actions</th></tr></thead>
-          <tbody>{history.map((row) => <tr key={row.id} className="border-t border-gray-100"><td className="px-4 py-3">{new Date(row.updated_at || row.created_at).toLocaleString()}</td><td>{row.product_name}</td><td>{row.location === "factory" ? (online ? "Online" : "Factory") : row.showroom_name}</td><td>{row.previous_quantity}</td><td>{row.new_quantity}</td><td>{row.difference > 0 ? `+${row.difference}` : row.difference}</td><td>{row.reason}</td><td>{row.created_by_name}</td><td className="px-4 py-3"><TableActionMenu><button type="button" disabled={busy} onClick={() => { setEditing(row); setEditForm({ new_quantity: String(row.new_quantity), reason: row.reason }); setMessage(""); }} className="text-brand-700">Update</button><button type="button" disabled={busy} onClick={() => deleteAdjustment(row)} className="text-red-700">Delete</button></TableActionMenu></td></tr>)}</tbody>
+          <tbody>{history.map((row) => <tr key={row.id} className="border-t border-gray-100"><td className="px-4 py-3">{new Date(row.updated_at || row.created_at).toLocaleString()}</td><td>{row.product_name}</td><td>{row.location === "factory" ? (online ? "Online" : "Factory") : row.showroom_name}</td><td>{row.previous_quantity}</td><td>{row.new_quantity}</td><td>{row.difference > 0 ? `+${row.difference}` : row.difference}</td><td>{row.reason}</td><td>{row.created_by_name}</td><td className="px-4 py-3"><TableActionMenu><button type="button" disabled={busy || readOnly} onClick={() => { setEditing(row); setEditForm({ new_quantity: String(row.new_quantity), reason: row.reason }); setMessage(""); }} className="text-brand-700">Update</button><button type="button" disabled={busy || readOnly} onClick={() => deleteAdjustment(row)} className="text-red-700">Delete</button></TableActionMenu></td></tr>)}</tbody>
         </table></div>
       </section>
     </div>

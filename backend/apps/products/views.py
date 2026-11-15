@@ -7,14 +7,28 @@ from django.http import HttpResponse, Http404, HttpResponseNotModified
 
 from .models import Product, ProductCategory
 from .serializers import ProductCategorySerializer, ProductSerializer
+from apps.ecommerce.permissions import commerce_allowed
 
 class ProductCategoryViewSet(viewsets.ModelViewSet):
     serializer_class = ProductCategorySerializer
     queryset = ProductCategory.objects.all()
+    product_channel = "main"
+
+    def get_queryset(self):
+        channel = self.product_channel
+        if not self.request.user.is_authenticated or self.request.user.role not in ("admin", "showroom_user"):
+            channel = "online"
+        return super().get_queryset().filter(sales_channel=channel)
+
+    def perform_create(self, serializer):
+        serializer.save(sales_channel=self.product_channel)
+
     permission_classes = [permissions.AllowAny]
 
     def check_permissions(self, request):
         super().check_permissions(request)
+        if self.product_channel == "online" and commerce_allowed(request.user, "products", request.method not in permissions.SAFE_METHODS):
+            return
         if request.method in permissions.SAFE_METHODS:
             return
         if not request.user.is_authenticated:
@@ -40,23 +54,23 @@ class ProductViewSet(viewsets.ModelViewSet):
     def get_queryset(self):
         qs = Product.objects.select_related("category").annotate(factory_quantity=Coalesce("factory_stock__quantity", Value(0), output_field=IntegerField()))
         channel = self.product_channel
-        if (not self.request.user.is_authenticated or self.request.user.role == "customer"
+        if (not self.request.user.is_authenticated or self.request.user.role not in ("admin", "showroom_user")
                 or self.request.query_params.get("storefront") == "true"):
             channel = "online"
         # Photo URLs remain valid for existing main-inventory product images.
         if self.action != "photo":
             qs = qs.filter(sales_channel=channel)
-        if not self.request.user.is_authenticated or self.request.user.role != "admin":
+        if not commerce_allowed(self.request.user, "products"):
             qs = qs.filter(is_active=True)
         if self.request.query_params.get("storefront") == "true":
-            qs = qs.filter(online_enabled=True).annotate(popularity_orders=Count(
+            qs = qs.filter(online_enabled=True).filter(Q(online_vendor__isnull=True) | Q(online_vendor__status="active")).annotate(popularity_orders=Count(
                 "online_order_items__order",
                 filter=Q(online_order_items__order__status__in=["confirmed", "shipped", "delivered"]),
                 distinct=True,
             ))
             return qs.order_by("-popularity_orders", "-created_at", "-pk")
-        if channel == "online" and (not self.request.user.is_authenticated or self.request.user.role != "admin"):
-            qs = qs.filter(online_enabled=True)
+        if channel == "online" and not commerce_allowed(self.request.user, "products"):
+            qs = qs.filter(online_enabled=True).filter(Q(online_vendor__isnull=True) | Q(online_vendor__status="active"))
         return qs.order_by("name", "pk")
 
     @action(detail=True, methods=["post"], url_path="copy-to-online")
@@ -67,12 +81,13 @@ class ProductViewSet(viewsets.ModelViewSet):
         from apps.inventory.models import FactoryStock
         source = self.get_object()
         with transaction.atomic():
+            online_category, _ = ProductCategory.objects.get_or_create(name=source.category.name, sales_channel="online")
             data = {field: getattr(source, field) for field in (
                 "name", "category", "size", "selling_price", "discount_price", "description",
                 "image", "image_url", "photo_version",
             )}
             product, created = Product.objects.get_or_create(
-                name=source.name, category=source.category, size=source.size, sales_channel="online",
+                name=source.name, category=online_category, size=source.size, sales_channel="online",
                 defaults={key: value for key, value in data.items() if key not in ("name", "category", "size")},
             )
             if created:
@@ -105,12 +120,18 @@ class ProductViewSet(viewsets.ModelViewSet):
 
     def check_permissions(self, request):
         super().check_permissions(request)
+        if self.product_channel == "online" and commerce_allowed(request.user, "products", request.method not in permissions.SAFE_METHODS):
+            return
         if request.method in permissions.SAFE_METHODS:
             return
         if not request.user.is_authenticated:
             raise PermissionDenied("Authentication is required to manage products.")
         if request.method not in permissions.SAFE_METHODS and request.user.role != "admin":
             raise PermissionDenied("Only Admin can manage products.")
+
+
+class OnlineCategoryViewSet(ProductCategoryViewSet):
+    product_channel = "online"
 
 
 class OnlineProductViewSet(ProductViewSet):

@@ -299,3 +299,24 @@ async function downloadFile(path, params, filename) {
   link.remove();
   window.URL.revokeObjectURL(url);
 }
+
+export const onlineCategoryApi = {
+  listAll: () => fetchAllPages("/products/online-categories/"),
+  create: data => api.post("/products/online-categories/", data),
+  update: (id, data) => api.patch(`/products/online-categories/${id}/`, data),
+  delete: id => api.delete(`/products/online-categories/${id}/`),
+};
+export const ecommerceApi = {
+  workspace: () => api.get("/ecommerce/workspace/"),
+  dashboard: () => api.get("/ecommerce/dashboard/"),
+  options: module => api.get("/ecommerce/options/", { params: { module } }),
+  list: (module, params) => api.get(`/ecommerce/${module}/`, { params }),
+  create: (module, data) => api.post(`/ecommerce/${module}/`, data),
+  update: (module, id, data) => api.patch(`/ecommerce/${module}/${id}/`, data),
+  remove: (module, id) => api.delete(`/ecommerce/${module}/${id}/`),
+  preferences: () => api.get("/ecommerce/preferences/"),
+  savePreferences: data => api.patch("/ecommerce/preferences/", data),
+  public: path => api.get("/ecommerce/public/", { params: { path } }),
+  help: () => api.get("/ecommerce/help/"),
+  submitHelp: data => api.post("/ecommerce/help/", data),
+};

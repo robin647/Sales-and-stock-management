@@ -83,6 +83,7 @@ class CheckoutSerializer(serializers.Serializer):
 
 
 class QuoteSerializer(serializers.Serializer):
+    city = serializers.CharField(max_length=100, required=False, allow_blank=True)
     items = CheckoutItemSerializer(many=True, allow_empty=False, max_length=100)
     coupon = serializers.CharField(max_length=30, required=False, allow_blank=True)
 

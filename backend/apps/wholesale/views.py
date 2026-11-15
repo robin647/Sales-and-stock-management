@@ -218,7 +218,14 @@ class StockAdjustmentViewSet(AdminOnlyViewSet):
 
 
 class OnlineStockAdjustmentViewSet(StockAdjustmentViewSet):
+    from apps.ecommerce.permissions import CommercePermission
+    permission_classes = [CommercePermission]
+    commerce_module = "inventory"
     product_channel = "online"
+
+    def check_permissions(self, request):
+        viewsets.ModelViewSet.check_permissions(self, request)
+
 
 class EasyTransactionViewSet(AdminOnlyViewSet):
     http_method_names = ["get", "post", "put", "patch", "delete", "head", "options"]

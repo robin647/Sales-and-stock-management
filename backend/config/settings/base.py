@@ -50,6 +50,7 @@ INSTALLED_APPS = [
     "apps.swing",
     "apps.producers",
     "apps.shop",
+    "apps.ecommerce",
 ]
 
 MIDDLEWARE = [
@@ -60,6 +61,7 @@ MIDDLEWARE = [
     "django.middleware.common.CommonMiddleware",
     "django.middleware.csrf.CsrfViewMiddleware",
     "django.contrib.auth.middleware.AuthenticationMiddleware",
+    "apps.ecommerce.middleware.CommerceAuditMiddleware",
     "django.contrib.messages.middleware.MessageMiddleware",
     "django.middleware.clickjacking.XFrameOptionsMiddleware",
 ]

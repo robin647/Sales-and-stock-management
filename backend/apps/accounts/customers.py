@@ -12,6 +12,7 @@ from rest_framework.response import Response
 from rest_framework_simplejwt.token_blacklist.models import BlacklistedToken, OutstandingToken
 
 from core.permissions import IsAdmin
+from apps.ecommerce.permissions import CommercePermission
 from .models import User
 
 
@@ -35,7 +36,11 @@ class CustomerSerializer(serializers.ModelSerializer):
 
 
 class CustomerViewSet(mixins.ListModelMixin, mixins.RetrieveModelMixin, mixins.DestroyModelMixin, viewsets.GenericViewSet):
-    permission_classes = [IsAdmin]
+    permission_classes = [CommercePermission]
+    commerce_module = "customers"
+
+    def get_permissions(self):
+        return [IsAdmin()] if self.action == "destroy" else super().get_permissions()
     serializer_class = CustomerSerializer
 
     def base_queryset(self):

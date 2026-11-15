@@ -42,6 +42,7 @@ export default function Layout({ children }) {
               <NavLink onClick={() => setMenuOpen(false)} to="/admin" end className={linkClass}>Dashboard</NavLink>
               <NavLink onClick={() => setMenuOpen(false)} to="/showrooms" className={linkClass}>Showrooms</NavLink>
               <div className="px-3 pt-4 pb-1 text-[10px] font-semibold uppercase tracking-widest text-gray-400">Online store</div>
+              <NavLink onClick={() => setMenuOpen(false)} to="/ecommerce/dashboard" className={linkClass}>ECOMMERCE ADMIN ?</NavLink>
               <NavLink onClick={() => setMenuOpen(false)} to="/online-products" className={linkClass}>Online Products & Offers</NavLink>
               <NavLink onClick={() => setMenuOpen(false)} to="/admin/customers" className={linkClass}>Customers</NavLink>
               <NavLink onClick={() => setMenuOpen(false)} to="/online-stock" className={linkClass}>Online Stock</NavLink>

@@ -468,3 +468,20 @@
   .storefront .store-account { font-size:9px; }
   .storefront button.store-account { font-size:0; }
 }
+
+.store-preferences-bar { display:flex; justify-content:space-between; align-items:center; gap:15px; background:#1e352a; color:#f4efdf; padding:10px 5%; font-size:10px; }
+.store-preferences-bar > div { display:flex; align-items:center; gap:18px; flex-shrink:0; }
+.store-preferences-bar select { background:#1e352a; color:#f4efdf; border:1px solid #ffffff35; padding:5px; border-radius:4px; font-size:10px; }
+.store-managed-content { padding:35px 5%; }
+.store-managed-content h2 { font:normal 27px Georgia,serif; margin-bottom:20px; }
+.store-managed-banners { display:grid; gap:20px; margin-bottom:35px; }
+.store-managed-banners article { display:flex; align-items:center; background:var(--surface-soft); overflow:hidden; border:1px solid var(--border); border-radius:13px; }
+.store-managed-banners img { width:40%; max-height:320px; object-fit:contain; }
+.store-managed-banners article > div { padding:25px; }
+.store-managed-content p { white-space:pre-wrap; line-height:1.8; font-size:13px; }
+.store-review-grid { display:grid; grid-template-columns:repeat(3,minmax(0,1fr)); gap:18px; margin-bottom:35px; }
+.store-review-grid article { padding:23px; border:1px solid var(--border); border-radius:10px; }
+.store-review-grid span { color:#a58145; }.store-review-grid strong,.store-review-grid small { display:block; margin-top:13px; font-size:11px; }
+.store-policy-links { border-top:1px solid var(--border); padding:25px 0; }.store-policy-links a { display:inline-block; margin:0 23px 12px 0; font-size:12px; }
+.store-public-page { max-width:1000px; margin:0 auto; padding:50px 24px; }.store-public-page h1 { font:normal 36px Georgia,serif; margin:25px 0; }.store-public-page img { max-width:100%; height:auto; }.store-public-page > p { line-height:1.9; }
+@media(max-width:680px) { .store-preferences-bar { align-items:flex-start; flex-direction:column; gap:8px; }.store-preferences-bar > div { width:100%; justify-content:space-between; }.store-review-grid { grid-template-columns:1fr; }.store-managed-banners article { flex-direction:column; align-items:stretch; }.store-managed-banners img { width:100%; } }

@@ -9,6 +9,9 @@ const Storefront = lazy(() => import("./pages/Storefront.jsx"));
 const CustomerSignup = lazy(() => import("./pages/CustomerSignup.jsx"));
 const Reports = lazy(() => import("./pages/Reports.jsx"));
 const AdminDashboard = lazy(() => import("./pages/admin/AdminDashboard.jsx"));
+const CustomerSupport = lazy(() => import("./pages/CustomerSupport.jsx"));
+const StorePage = lazy(() => import("./pages/StorePage.jsx"));
+const EcommerceAdmin = lazy(() => import("./pages/admin/EcommerceAdmin.jsx"));
 const Products = lazy(() => import("./pages/admin/Products.jsx"));
 const CommerceManagement = lazy(() => import("./pages/admin/CommerceManagement.jsx"));
 const Customers = lazy(() => import("./pages/admin/Customers.jsx"));
@@ -52,9 +55,12 @@ export default function App() {
       <Route path="/signup" element={<CustomerSignup />} />
 
       <Route path="/" element={<Storefront />} />
+      <Route path="/ecommerce/:module?" element={<ProtectedRoute requireCommerce><EcommerceAdmin /></ProtectedRoute>} />
       <Route path="/admin" element={<ProtectedRoute requireAdmin><Layout><AdminDashboard /></Layout></ProtectedRoute>} />
       <Route path="/admin/customers" element={<ProtectedRoute requireAdmin><Layout><Customers /></Layout></ProtectedRoute>} />
       <Route path="/showroom" element={<ProtectedRoute requireShowroom><Layout><ShowroomDashboard /></Layout></ProtectedRoute>} />
+      <Route path="/support" element={<CustomerSupport />} />
+      <Route path="/pages/:slug" element={<StorePage />} />
       <Route path="/shop" element={<Storefront />} />
       <Route path="/checkout" element={<ShopAccount />} />
       <Route path="/my-orders" element={<ShopAccount />} />

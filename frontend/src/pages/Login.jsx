@@ -49,7 +49,7 @@ export default function Login() {
       const user = mode === "showroom"
         ? await loginShowroom(username, password)
         : await login(username, password);
-      if (mode === "admin" && user?.role !== "admin") {
+      if (mode === "admin" && !["admin", "ecommerce_staff"].includes(user?.role)) {
         logout();
         setError("These credentials belong to a Showroom account. Switch to the Showroom tab.");
         return;
@@ -69,7 +69,7 @@ export default function Login() {
         setError("This is a customer account. Switch to the Customer tab.");
         return;
       }
-      const destination = user?.role === "admin" ? "/admin" : user?.role === "showroom_user" ? "/showroom" : ["/checkout", "/my-orders"].includes(location.state?.returnTo) ? location.state.returnTo : "/";
+      const destination = user?.role === "ecommerce_staff" ? "/ecommerce/dashboard" : user?.role === "admin" ? "/admin" : user?.role === "showroom_user" ? "/showroom" : ["/checkout", "/my-orders"].includes(location.state?.returnTo) ? location.state.returnTo : "/";
       navigate(destination, { replace: true });
     } catch (err) {
       setError(

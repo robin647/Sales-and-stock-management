@@ -15,6 +15,15 @@ class ProductCategorySerializer(serializers.ModelSerializer):
         model = ProductCategory
         fields = ["id", "name"]
 
+    def validate_name(self, value):
+        channel = getattr(self.context.get("view"), "product_channel", "main")
+        qs = ProductCategory.objects.filter(name=value, sales_channel=channel)
+        if self.instance:
+            qs = qs.exclude(pk=self.instance.pk)
+        if qs.exists():
+            raise serializers.ValidationError("This category already exists in this catalog.")
+        return value
+
 class ProductSerializer(serializers.ModelSerializer):
     source_product = serializers.PrimaryKeyRelatedField(queryset=Product.objects.filter(sales_channel="main"), write_only=True, required=False)
     size = serializers.CharField(required=False, allow_blank=True, default="")
@@ -32,7 +41,7 @@ class ProductSerializer(serializers.ModelSerializer):
     class Meta:
         model = Product
         fields = [
-            "id", "sales_channel", "source_product", "name", "code", "category", "category_name", "size",
+            "id", "sales_channel", "source_product", "online_brand", "online_vendor", "name", "code", "category", "category_name", "size",
             "selling_price", "discount_price", "discount_percentage", "image", "image_url", "remove_image",
             "description", "is_featured", "online_enabled", "factory_quantity", "popularity_orders", "is_active", "initial_stock", "created_at",
         ]
@@ -59,6 +68,20 @@ class ProductSerializer(serializers.ModelSerializer):
 
     def validate(self, attrs):
         channel = getattr(self.context.get("view"), "product_channel", "main")
+        if channel == "main" and (attrs.get("online_brand") or attrs.get("online_vendor")):
+            raise serializers.ValidationError("Brands and vendors belong to online products only.")
+        vendor = attrs.get("online_vendor")
+        if vendor and vendor.status != "active":
+            raise serializers.ValidationError({"online_vendor": "Select an approved active vendor."})
+        brand = attrs.get("online_brand")
+        if brand and not brand.is_active:
+            raise serializers.ValidationError({"online_brand": "Select an active brand."})
+        category = attrs.get("category", getattr(self.instance, "category", None))
+        if category and category.sales_channel != channel:
+            if channel == "online":
+                attrs["category"], _ = ProductCategory.objects.get_or_create(name=category.name, sales_channel="online")
+            else:
+                raise serializers.ValidationError({"category": "Select a main-inventory category."})
         if "source_product" in attrs and (channel != "online" or self.instance):
             raise serializers.ValidationError({"source_product": "Select a main product only when adding a new online product."})
         duplicates = Product.objects.filter(

@@ -4,6 +4,8 @@ import { onlineProductApi, shopApi } from "../api/endpoints";
 import { useAuth } from "../context/AuthContext.jsx";
 import { useTheme } from "../context/ThemeContext.jsx";
 import "./storefront.css";
+import { useStoreLocale } from "../context/StoreLocaleContext";
+import { StorePreferencesBar, StorePublishedContent, StoreSeo } from "../components/StoreExperience";
 import "./admin/commerce.css";
 import { compareFeaturedProducts } from "../utils/storefrontSort";
 
@@ -15,7 +17,6 @@ const PRODUCT_IMAGES = [
   "https://images.pexels.com/photos/2060241/pexels-photo-2060241.jpeg?auto=compress&w=800",
 ];
 
-const money = (value) => `৳${Number(value || 0).toLocaleString("en-BD", { maximumFractionDigits: 2 })}`;
 
 function productPrice(product) {
   const regular = Number(product.selling_price || 0);
@@ -33,12 +34,14 @@ function readSavedCart() {
 }
 
 export default function Storefront() {
+  const { formatMoney: money, labels, config } = useStoreLocale();
   const headerRef = useRef(null);
   const searchInputRef = useRef(null);
   const [mobileSearchOpen, setMobileSearchOpen] = useState(false);
   const { user, logout } = useAuth();
   const { theme, toggleTheme } = useTheme();
   const navigate = useNavigate();
+  const [brand, setBrand] = useState("");
   const [products, setProducts] = useState([]);
   const [loading, setLoading] = useState(true);
   const [loadError, setLoadError] = useState("");
@@ -116,8 +119,8 @@ export default function Storefront() {
   const filtered = useMemo(() => products.filter((item) => {
     const matchesCategory = category === "All styles" || item.category_name === category;
     const matchesSearch = `${item.name} ${item.code} ${item.category_name} ${item.size}`.toLowerCase().includes(query.toLowerCase());
-    return matchesCategory && matchesSearch && (!favoritesOnly || favorites.includes(item.id));
-  }).sort((a, b) => sort === "price-low" ? productPrice(a).current - productPrice(b).current : sort === "price-high" ? productPrice(b).current - productPrice(a).current : sort === "newest" ? new Date(b.created_at) - new Date(a.created_at) : compareFeaturedProducts(a, b)), [category, products, query, sort, favoritesOnly, favorites]);
+    return matchesCategory && matchesSearch && (!brand || String(item.online_brand) === brand) && (!favoritesOnly || favorites.includes(item.id));
+  }).sort((a, b) => sort === "price-low" ? productPrice(a).current - productPrice(b).current : sort === "price-high" ? productPrice(b).current - productPrice(a).current : sort === "newest" ? new Date(b.created_at) - new Date(a.created_at) : compareFeaturedProducts(a, b)), [category, products, query, sort, favoritesOnly, favorites, brand]);
   const cartItems = products.filter((product) => cart[product.id]);
   const cartCount = Object.values(cart).reduce((sum, quantity) => sum + quantity, 0);
   const cartTotal = cartItems.reduce((sum, product) => sum + productPrice(product).current * cart[product.id], 0);
@@ -155,7 +158,7 @@ export default function Storefront() {
   }
 
   return (
-    <div className="storefront">
+    <div className="storefront"><StoreSeo /><StorePreferencesBar />
       <div className="store-promo"><span>Cash on Delivery · Delivery charge paid in advance</span><a href="#collection">Shop the collection <span aria-hidden="true">↗</span></a></div>
       <header ref={headerRef} className="store-header">
         <Link className="store-brand" to="/" aria-label="Mahir Sherwani home"><span className="brand-mark">M</span><span>MAHIR <i>SHERWANI</i></span></Link>
@@ -171,7 +174,7 @@ export default function Storefront() {
 
       <main>
         <section className="store-hero">
-          <div className="hero-copy"><span className="eyebrow">THE ART OF CELEBRATION</span><h1>A little tradition.<br />A lasting<br /><em>impression.</em></h1><p>From your everyday favourites to your once-in-a-lifetime moments. Discover a wardrobe with a story to tell.</p><div className="hero-links"><a className="primary-link" href="#collection">Explore the collection <span aria-hidden="true">→</span></a><a className="hero-secondary" href="#edits">Find your occasion ↗</a></div><div className="hero-note"><span>ROOTED IN TRADITION</span><span>Made for your next chapter</span></div></div>
+          <div className="hero-copy"><span className="eyebrow">THE ART OF CELEBRATION</span><h1>A little tradition.<br />A lasting<br /><em>impression.</em></h1><p>From your everyday favourites to your once-in-a-lifetime moments. Discover a wardrobe with a story to tell.</p><div className="hero-links"><a className="primary-link" href="#collection">{labels.collection} <span aria-hidden="true">→</span></a><a className="hero-secondary" href="#edits">Find your occasion ↗</a></div><div className="hero-note"><span>ROOTED IN TRADITION</span><span>Made for your next chapter</span></div></div>
           <div className="hero-photo"><img className="hero-image" src={HERO_IMAGE} alt="Groom wearing a traditional sherwani" fetchPriority="high" /><div className="hero-photo-caption"><span>THE FESTIVE EDIT</span><strong>Wear the occasion.</strong></div><div className="hero-vertical">MAHIR SHERWANI · EST. 2018</div></div>
         </section>
 
@@ -186,7 +189,7 @@ export default function Storefront() {
 
         <section id="collection" className="collection-section">
           <div className="collection-heading"><div><span className="eyebrow">THE MAHIR COLLECTION</span><h2>Pieces to keep close</h2></div><span className="product-count" role="status">{loading ? "Loading collection…" : loadError ? "Collection unavailable" : `${filtered.length} styles`}</span></div>
-          <div className="collection-tools"><div className="category-filters" aria-label="Filter by category">{categories.map((item) => <button key={item} type="button" className={category === item ? "active" : ""} onClick={() => setCategory(item)}>{item}</button>)}</div><div className="store-sort-tools"><button type="button" className={favoritesOnly ? "favorite-filter active" : "favorite-filter"} onClick={() => setFavoritesOnly(!favoritesOnly)} aria-pressed={favoritesOnly}>♡ Saved ({favorites.length})</button><select aria-label="Sort products" value={sort} onChange={e => setSort(e.target.value)}><option value="featured">Featured first</option><option value="newest">Newest arrivals</option><option value="price-low">Price: low to high</option><option value="price-high">Price: high to low</option></select></div></div>
+          <div className="collection-tools"><div className="category-filters" aria-label="Filter by category">{categories.map((item) => <button key={item} type="button" className={category === item ? "active" : ""} onClick={() => setCategory(item)}>{item}</button>)}</div><div className="store-sort-tools">{config.brands?.length > 0 && <select aria-label="Filter by brand" value={brand} onChange={event => setBrand(event.target.value)}><option value="">All brands</option>{config.brands.map(item => <option key={item.id} value={item.id}>{item.name}</option>)}</select>}<button type="button" className={favoritesOnly ? "favorite-filter active" : "favorite-filter"} onClick={() => setFavoritesOnly(!favoritesOnly)} aria-pressed={favoritesOnly}>♡ Saved ({favorites.length})</button><select aria-label="Sort products" value={sort} onChange={e => setSort(e.target.value)}><option value="featured">Featured first</option><option value="newest">Newest arrivals</option><option value="price-low">Price: low to high</option><option value="price-high">Price: high to low</option></select></div></div>
           {loading ? <div className="catalog-message" role="status">Curating the collection…</div> : loadError ? <div className="catalog-message" role="alert">{loadError}</div> : filtered.length ? <div className="product-grid">{filtered.map((product, index) => {
             const price = productPrice(product);
             const discount = price.regular > price.current ? Math.round((1 - price.current / price.regular) * 100) : 0;
@@ -195,7 +198,7 @@ export default function Storefront() {
           {!loading && loadError && <button className="retry-button" type="button" onClick={() => setCatalogAttempt((attempt) => attempt + 1)}>Try again</button>}
         </section>
         <section id="story" className="brand-story"><span className="eyebrow">THE MAHIR PHILOSOPHY</span><h2>Some things never<br />go out of <em>tradition.</em></h2><p>The quiet confidence of a beautiful fit. The character in every detail. We bring together timeless style and a personal touch, so you can feel like yourself on the days that matter.</p><a className="text-link" href="https://wa.me/8801781879276" target="_blank" rel="noopener noreferrer">Let us help you find your look ↗</a><span className="story-monogram" aria-hidden="true">M</span></section>
-      </main>
+      <StorePublishedContent /></main>
 
       <footer className="store-footer"><Link className="store-brand" to="/shop"><span className="brand-mark">M</span><span>MAHIR <i>SHERWANI</i></span></Link><p>Made for the moments that become memories.</p><div><a href="#collection">Collection</a><Link to="/my-orders">Track my orders</Link><Link to="/login">Admin &amp; showroom login</Link><span>© {new Date().getFullYear()} Mahir Sherwani</span></div></footer>
       {detail && <div className="c-modal-backdrop commerce" onClick={e => { if (e.target === e.currentTarget) setDetail(null); }}><section className="c-modal" role="dialog" aria-modal="true" aria-labelledby="product-detail-title"><div className="c-modal-heading"><h2 id="product-detail-title">{detail.name}</h2><button autoFocus aria-label="Close product details" onClick={() => setDetail(null)}>×</button></div><div className="c-form c-editor-grid"><div className="product-detail-photo"><img src={detail.image || PRODUCT_IMAGES[0]} alt={detail.name} /></div><div><span className="c-badge">{detail.category_name}</span><h2>{detail.name}</h2><p>{detail.size ? `Size: ${detail.size}` : "Standard size"}{detail.code ? ` · ${detail.code}` : ""}</p><h2>{money(productPrice(detail).current)}</h2>{detail.discount_price && <p><del>{money(detail.selling_price)}</del> · Save {money(Number(detail.selling_price) - Number(detail.discount_price))}</p>}<p className="product-description">{detail.description || "Contact us for fabric, fit and sizing details."}</p><p>{detail.online_quantity > 0 ? `${detail.online_quantity} available` : "Currently out of stock"}</p><div className="commerce-actions"><button disabled={detail.online_quantity <= 0} className="c-button" onClick={() => { addToCart(detail); setDetail(null); setCartOpen(true); }}>Add to bag</button><button className="c-button secondary" onClick={() => toggleFavorite(detail.id)}>{favorites.includes(detail.id) ? "♥ Saved" : "♡ Save"}</button></div><p className="c-help">Cash on Delivery for products. Delivery charge is paid in advance.</p></div></div></section></div>}

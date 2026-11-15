@@ -85,6 +85,10 @@ Never commit `.env.local`, `backend/.env`, Neon connection strings, uploaded cus
 
 ## Commerce rollout (Vercel + Render + Neon Free)
 
+### Ecommerce administration workspace
+
+The expanded workspace is available at `/ecommerce/dashboard`. See [ECOMMERCE_ADMIN.md](ECOMMERCE_ADMIN.md) for all module routes, role permissions, stock/payment workflows and external integration boundaries. Deploy backend first: startup must apply the new `ecommerce` migrations, `accounts.0003` and `products.0008`/`0009` before the new frontend is used. These migrations add ecommerce records and separate online category references; they do not transfer main stock or remove existing business data.
+
 ### Separate online catalog and inventory
 
 Deploy the backend first, then the frontend. Backend startup applies `products.0007_remove_product_unique_product_variant_and_more`. Existing products, stock and prices stay in the **Main inventory** channel. Existing orders retain their product references, price snapshots and cancellation stock destinations.

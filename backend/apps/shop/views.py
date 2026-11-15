@@ -6,6 +6,7 @@ from rest_framework.response import Response
 from rest_framework.views import APIView
 from rest_framework.throttling import UserRateThrottle
 from core.permissions import IsAdmin
+from apps.ecommerce.permissions import CommercePermission, commerce_allowed
 from .models import Coupon, Order
 from .serializers import CheckoutSerializer, CouponSerializer, OrderSerializer, OrderUpdateSerializer, ShopSettingsSerializer, QuoteSerializer
 from .services import get_settings, place_order, update_order, quote_order
@@ -23,7 +24,7 @@ class ShopSettingsView(APIView):
         return Response(ShopSettingsSerializer(get_settings()).data)
 
     def patch(self, request):
-        if not request.user.is_authenticated or request.user.role != "admin":
+        if not commerce_allowed(request.user, "settings", True):
             raise PermissionDenied("Only admin can change shop settings.")
         serializer = ShopSettingsSerializer(get_settings(), data=request.data, partial=True)
         serializer.is_valid(raise_exception=True)
@@ -32,12 +33,14 @@ class ShopSettingsView(APIView):
 
 
 class CouponViewSet(viewsets.ModelViewSet):
-    permission_classes = [IsAdmin]
+    permission_classes = [CommercePermission]
+    commerce_module = "campaigns"
     queryset = Coupon.objects.all()
     serializer_class = CouponSerializer
 
 
 class OrderViewSet(viewsets.GenericViewSet):
+    commerce_module = "orders"
     permission_classes = [permissions.IsAuthenticated]
     serializer_class = OrderSerializer
 
@@ -48,7 +51,7 @@ class OrderViewSet(viewsets.GenericViewSet):
 
     def get_queryset(self):
         qs = Order.objects.prefetch_related("items").all()
-        if self.request.user.role == "admin":
+        if commerce_allowed(self.request.user, "orders"):
             if self.request.query_params.get("status"):
                 qs = qs.filter(status=self.request.query_params["status"])
             if self.request.query_params.get("search"):
@@ -75,7 +78,7 @@ class OrderViewSet(viewsets.GenericViewSet):
         return Response(self.get_serializer(order).data, status=status.HTTP_201_CREATED)
 
     def partial_update(self, request, pk=None):
-        if request.user.role != "admin":
+        if not commerce_allowed(request.user, "orders", True):
             raise PermissionDenied("Only admin can update orders.")
         order = self.get_object()
         serializer = OrderUpdateSerializer(data=request.data)
@@ -86,15 +89,17 @@ class OrderViewSet(viewsets.GenericViewSet):
     def quote(self, request):
         serializer = QuoteSerializer(data=request.data)
         serializer.is_valid(raise_exception=True)
-        return Response(quote_order(serializer.validated_data["items"], serializer.validated_data.get("coupon", "")))
+        return Response(quote_order(serializer.validated_data["items"], serializer.validated_data.get("coupon", ""), serializer.validated_data.get("city", "")))
 
     @action(detail=True, methods=["post"])
     def cancel(self, request, pk=None):
+        if request.user.role != "customer" and not commerce_allowed(request.user, "orders", True):
+            raise PermissionDenied("You cannot cancel orders.")
         order = self.get_object()
-        updated = update_order(order.pk, {"status": "cancelled"}, customer=request.user if request.user.role != "admin" else None)
+        updated = update_order(order.pk, {"status": "cancelled"}, customer=request.user if request.user.role == "customer" else None)
         return Response(self.get_serializer(updated).data)
 
-    @action(detail=False, methods=["get"], permission_classes=[IsAdmin])
+    @action(detail=False, methods=["get"], permission_classes=[CommercePermission])
     def summary(self, request):
         rows = Order.objects.values("status").annotate(count=Count("pk"))
         return Response({"by_status": {row["status"]: row["count"] for row in rows},
