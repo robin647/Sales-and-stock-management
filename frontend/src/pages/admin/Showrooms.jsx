@@ -1,3 +1,4 @@
+import TableActionMenu from "../../components/TableActionMenu.jsx";
 import { Fragment, useEffect, useState } from "react";
 import { showroomApi } from "../../api/endpoints";
 
@@ -171,7 +172,7 @@ const [credentialsRowId, setCredentialsRowId] = useState(null);
                       {sr.is_active ? "Active" : "Inactive"}
                     </span>
                   </td>
-                  <td className="px-4 text-right space-x-3 whitespace-nowrap">
+                  <td className="px-4 text-right space-x-3 whitespace-nowrap"><TableActionMenu>
                     <button
                       onClick={() => startEdit(sr)}
                       className="text-brand-600 text-xs font-medium hover:underline"
@@ -191,7 +192,7 @@ const [credentialsRowId, setCredentialsRowId] = useState(null);
                       {sr.is_active ? "Deactivate" : "Activate"}
                     </button>
                     <button onClick={() => deleteShowroom(sr)} className="text-red-600 text-xs font-medium hover:underline">Delete</button>
-                  </td>
+                  </TableActionMenu></td>
                 </tr>
                 {editingId === sr.id && <tr className="border-b border-gray-50 bg-gray-50/60"><td colSpan={5} className="px-4 py-4">
                   <form onSubmit={saveEdit} className="flex flex-wrap items-end gap-3">

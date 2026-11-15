@@ -1,3 +1,4 @@
+import TableActionMenu from "../../components/TableActionMenu.jsx";
 import { useEffect, useState } from "react";
 import { productApi, stockTransferApi, showroomStockApi } from "../../api/endpoints";
 
@@ -256,7 +257,7 @@ export default function StockEntry() {
                     </td>
                     <td className="py-2 px-2">{t.notes || "—"}</td>
                     <td className="py-2 px-2">
-                      <div className="flex items-center gap-3">
+                      <TableActionMenu><div className="flex items-center gap-3">
                         <button
                           type="button"
                           onClick={() => {
@@ -279,7 +280,7 @@ export default function StockEntry() {
                         >
                           {deletingTransferId === t.id ? "Deleting…" : "Delete"}
                         </button>
-                      </div>
+                      </div></TableActionMenu>
                     </td>
                   </tr>
                 ))

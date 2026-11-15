@@ -1,0 +1,28 @@
+.table-action-trigger {
+  display: inline-flex; align-items: center; justify-content: center;
+  width: 36px; height: 36px; padding: 0; border: 1px solid var(--border);
+  border-radius: 9px; background: var(--surface); color: var(--text-secondary);
+  cursor: pointer; vertical-align: middle;
+}
+.table-action-trigger:hover, .table-action-trigger[aria-expanded="true"] { background: var(--brand-light); color: var(--brand); }
+.table-action-trigger:focus-visible { outline: 2px solid var(--brand); outline-offset: 2px; }
+.table-action-popup {
+  position: fixed; z-index: 10000; width: 200px; max-width: calc(100vw - 16px);
+  max-height: calc(100dvh - 16px); overflow-y: auto; padding: 6px;
+  border: 1px solid var(--border); border-radius: 12px;
+  background: var(--surface); color: var(--text); box-shadow: var(--shadow-lg);
+}
+.table-action-popup div { display: contents; }
+.table-action-popup button, .table-action-popup a {
+  display: flex; align-items: center; width: 100%; min-height: 40px;
+  margin: 0; padding: 10px 12px; border: 0; border-radius: 7px;
+  background: transparent; text-align: left; white-space: normal;
+  font-size: 13px; line-height: 1.4; text-decoration: none; cursor: pointer;
+}
+.table-action-popup button:hover, .table-action-popup a:hover,
+.table-action-popup button:focus-visible, .table-action-popup a:focus-visible {
+  background: var(--surface-soft); outline: 2px solid var(--brand); outline-offset: -2px;
+}
+.table-action-popup button:disabled { opacity: .45; cursor: not-allowed; }
+.table-action-popup .customer-delete-button { color: var(--danger); }
+@media print { .table-action-trigger, .table-action-popup { display: none !important; } }

@@ -1,3 +1,4 @@
+import TableActionMenu from "../../components/TableActionMenu.jsx";
 import { useEffect, useMemo, useState } from "react";
 import { producerApi } from "../../api/endpoints";
 
@@ -424,10 +425,10 @@ export default function ProducerCostManagement() {
                       <td className="border-b border-slate-200 px-3 py-2">{row.gst_percentage || 0}</td>
                       <td className="border-b border-slate-200 px-3 py-2 font-medium text-slate-800">{money(row.total_cost)}</td>
                       <td className="border-b border-slate-200 px-3 py-2">
-                        <div className="flex gap-2">
+                        <TableActionMenu><div className="flex gap-2">
                           <button type="button" onClick={() => openProducerCostEditor(row)} className="text-xs font-medium text-brand-700 hover:underline">Update</button>
                           <button type="button" onClick={() => confirmDelete(() => producerApi.costs.delete(row.id))} className="text-xs font-medium text-rose-600 hover:underline">Delete</button>
-                        </div>
+                        </div></TableActionMenu>
                       </td>
                     </tr>
                   ))}
@@ -463,10 +464,10 @@ export default function ProducerCostManagement() {
                       <td className="border-b border-slate-200 px-3 py-2">{row.specification_label || row.specification_name || "-"}</td>
                       <td className="border-b border-slate-200 px-3 py-2 font-medium text-slate-800">{money(row.amount)}</td>
                       <td className="border-b border-slate-200 px-3 py-2">
-                        <div className="flex gap-2">
+                        <TableActionMenu><div className="flex gap-2">
                           <button type="button" onClick={() => openOtherCostEditor(row)} className="text-xs font-medium text-brand-700 hover:underline">Update</button>
                           <button type="button" onClick={() => confirmDelete(() => producerApi.otherCosts.delete(row.id))} className="text-xs font-medium text-rose-600 hover:underline">Delete</button>
-                        </div>
+                        </div></TableActionMenu>
                       </td>
                     </tr>
                   ))}
@@ -506,11 +507,11 @@ export default function ProducerCostManagement() {
                   <td className="border-b border-slate-200 px-3 py-2">{money(producer.total_paid)}</td>
                   <td className="border-b border-slate-200 px-3 py-2 font-medium text-rose-700">{money(producer.due_amount)}</td>
                   <td className="border-b border-slate-200 px-3 py-2">
-                    <div className="flex flex-wrap gap-2">
+                    <TableActionMenu><div className="flex flex-wrap gap-2">
                       <button type="button" onClick={async () => { setSelectedProducerId(producer.id); setProducerSearch(producer.name); await loadLedger(producer.id); }} className="text-xs font-medium text-brand-700 hover:underline">View Details</button>
                       <button type="button" onClick={() => openProducerEditor(producer)} className="text-xs font-medium text-brand-700 hover:underline">Update</button>
                       <button type="button" onClick={() => confirmDelete(() => producerApi.delete(producer.id))} className="text-xs font-medium text-rose-600 hover:underline">Delete</button>
-                    </div>
+                    </div></TableActionMenu>
                   </td>
                 </tr>
               ))}
@@ -573,7 +574,7 @@ export default function ProducerCostManagement() {
                 <tbody>
                   {ledger.entries.map((entry) => (
                     <tr key={`${entry.kind}-${entry.id}`} className="even:bg-slate-50">
-                      <td className="border-b border-slate-200 px-3 py-2">
+                      <td className="border-b border-slate-200 px-3 py-2"><TableActionMenu>
                         {entry.kind === "cost" ? (
                           <div className="flex gap-2">
                             <button type="button" onClick={() => openProducerCostEditor({ ...entry, producer: selectedProducerId, producer_name: producers.find((p) => p.id === selectedProducerId)?.name || "" })} className="text-xs font-medium text-brand-700 hover:underline">Update</button>
@@ -585,7 +586,7 @@ export default function ProducerCostManagement() {
                             <button type="button" onClick={() => confirmDelete(() => producerApi.payments.delete(entry.id))} className="text-xs font-medium text-rose-600 hover:underline">Delete</button>
                           </div>
                         )}
-                      </td>
+                      </TableActionMenu></td>
                       <td className="border-b border-slate-200 px-3 py-2">{entry.date}</td>
                       <td className="border-b border-slate-200 px-3 py-2">{entry.transaction_type}</td>
                       <td className="border-b border-slate-200 px-3 py-2">{entry.bale_no || "-"}</td>
@@ -623,10 +624,10 @@ export default function ProducerCostManagement() {
               {filteredOtherCosts.map((row) => (
                 <tr key={`bottom-${row.id}`} className="even:bg-slate-50">
                   <td className="border-b border-slate-200 px-3 py-2">
-                    <div className="flex gap-2">
+                    <TableActionMenu><div className="flex gap-2">
                       <button type="button" onClick={() => openOtherCostEditor(row)} className="text-xs font-medium text-brand-700 hover:underline">Update</button>
                       <button type="button" onClick={() => confirmDelete(() => producerApi.otherCosts.delete(row.id))} className="text-xs font-medium text-rose-600 hover:underline">Delete</button>
-                    </div>
+                    </div></TableActionMenu>
                   </td>
                   <td className="border-b border-slate-200 px-3 py-2">{row.cost_date}</td>
                   <td className="border-b border-slate-200 px-3 py-2">{row.specification_label || row.specification_name || "-"}</td>
