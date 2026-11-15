@@ -1,34 +1,39 @@
-import { useState } from "react";
+import { useEffect, useRef, useState } from "react";
 import { assistantApi } from "../api/endpoints";
 
-const suggestions = [
-  "32 number lot er swing operator ke?",
-  "2026-11-23 tarike Mahadi Zone-1 showroom e koto sale?",
+const defaultSuggestions = [
+  "33 number lot ke selai korse?",
+  "Main stock mot koto ase?",
   "Employee Robin er salary koto?",
 ];
 
 export default function AIAssistantButton() {
   const [open, setOpen] = useState(false);
+  const [suggestions, setSuggestions] = useState(defaultSuggestions);
+  const [context, setContext] = useState("");
+  const messagesEnd = useRef(null);
+  useEffect(() => { if (open) assistantApi.info().then(res => setSuggestions(res.data.examples)).catch(() => {}); }, [open]);
   const [question, setQuestion] = useState("");
   const [messages, setMessages] = useState([
     { role: "assistant", text: "Assalamu alaikum! Business data niye Bangla, English, ba Banglish-e jiggesh korun." },
   ]);
   const [sending, setSending] = useState(false);
 
-  async function sendQuestion(value = question) {
+  useEffect(() => { messagesEnd.current?.scrollIntoView({ behavior: "smooth", block: "nearest" }); }, [messages, sending, open]);
+
+  async function sendQuestion(value = question, selectedContext = context) {
     const text = value.trim();
     if (!text || sending) return;
     setQuestion("");
     setSending(true);
     setMessages((current) => [...current, { role: "user", text }]);
     try {
-      const { data } = await assistantApi.chat(text);
-      setMessages((current) => [...current, { role: "assistant", text: data.answer }]);
+      const { data } = await assistantApi.chat(text, selectedContext);
+      setContext(data.context || "");
+      setMessages((current) => [...current, { role: "assistant", text: data.answer, choices: data.choices, sources: data.sources }]);
     } catch (error) {
       const detail = error.response?.data?.detail;
-      const fallback = error.response?.status === 503
-        ? "AI assistant setup kora hoyni. Backend-e GROQ_API_KEY configure korte hobe."
-        : "Request-ti complete kora jayni. Ektu pore abar try korun.";
+      const fallback = "উত্তর আনা যায়নি। সংযোগ পরীক্ষা করে আবার চেষ্টা করুন।";
       setMessages((current) => [...current, { role: "assistant", text: typeof detail === "string" ? detail : fallback }]);
     } finally {
       setSending(false);
@@ -50,7 +55,7 @@ export default function AIAssistantButton() {
                   <path d="m19 15 .9 2.1L22 18l-2.1.9L19 21l-.9-2.1L16 18l2.1-.9L19 15Z" />
                 </svg>
               </span>
-              <div><h2 className="text-sm font-semibold text-white">AI Assistance</h2><p className="text-xs text-emerald-100">Business data helper</p></div>
+              <div><h2 className="text-sm font-semibold text-white">Business AI</h2><p className="text-xs text-emerald-100">বাংলা / Banglish · লোকাল ডেটা সহকারী</p></div>
             </div>
             <button type="button" onClick={() => setOpen(false)} aria-label="Close AI assistant" className="flex h-8 w-8 items-center justify-center rounded-full text-xl text-white/80 hover:bg-white/10 hover:text-white">×</button>
           </header>
@@ -60,10 +65,13 @@ export default function AIAssistantButton() {
               <div key={`${message.role}-${index}`} className={`flex ${message.role === "user" ? "justify-end" : "justify-start"}`}>
                 <p className={`max-w-[88%] whitespace-pre-wrap rounded-2xl px-3 py-2 text-sm leading-6 ${message.role === "user" ? "rounded-br-sm bg-emerald-800 text-white" : "rounded-bl-sm border border-gray-200 bg-white text-gray-800 shadow-sm"}`}>
                   {message.text}
+                  {!!message.sources?.length && <span className="mt-3 block border-t border-emerald-100 pt-2 text-[10px] text-gray-500">সূত্র: {message.sources.join(" · ")}</span>}
+                  {!!message.choices?.length && <span className="mt-3 flex flex-col gap-2">{message.choices.map((choice, index) => <button key={index} type="button" disabled={sending} onClick={() => sendQuestion(choice.question, choice.context)} className="rounded-lg border border-emerald-200 bg-emerald-50 px-3 py-2 text-left text-xs text-emerald-900 disabled:opacity-50">{choice.label}</button>)}</span>}
                 </p>
               </div>
             ))}
             {sending && <div className="flex justify-start"><p className="rounded-2xl rounded-bl-sm border border-gray-200 bg-white px-3 py-2 text-sm text-gray-500">Checking business records…</p></div>}
+            <div ref={messagesEnd} />
           </div>
 
           {messages.length === 1 && (
@@ -76,7 +84,8 @@ export default function AIAssistantButton() {
             </div>
           )}
 
-          <p className="bg-white px-3 pt-2 text-center text-[11px] text-gray-500">Relevant business records are sent to Groq to answer your question.</p>
+          <button type="button" disabled={sending} onClick={() => { setContext(""); setMessages([{ role: "assistant", text: "নতুন আলোচনা শুরু হয়েছে। কর্মী, পার্টি, স্টক বা লট সম্পর্কে প্রশ্ন করুন।" }]); }} className="border-t border-gray-100 bg-white px-3 py-2 text-left text-xs text-emerald-800">নতুন আলোচনা ↻</button>
+          <p className="bg-white px-3 pt-2 text-center text-[11px] text-gray-500">উত্তর আপনার ডেটাবেস থেকে আসে। বাইরের কোনো AI API ব্যবহার হয় না।</p>
           <form onSubmit={(event) => { event.preventDefault(); sendQuestion(); }} className="flex items-end gap-2 border-t border-gray-200 bg-white p-3">
             <textarea
               value={question}

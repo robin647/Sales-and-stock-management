@@ -21,9 +21,6 @@ for env_file in (BASE_DIR.parent / ".env.local", BASE_DIR.parent / ".env", BASE_
         environ.Env.read_env(env_file)
 
 SECRET_KEY = env("SECRET_KEY", default="unsafe-dev-key-change-me")
-GROQ_API_KEY = env("GROQ_API_KEY", default="")
-# Free-tier Groq option with better multilingual support for Bangla/Banglish/English.
-GROQ_MODEL = env("GROQ_MODEL", default="llama-3.1-8b-instant")
 
 INSTALLED_APPS = [
     "django.contrib.admin",

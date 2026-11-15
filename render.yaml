@@ -23,7 +23,3 @@ services:
         sync: false
       - key: CORS_ALLOWED_ORIGINS
         sync: false
-      - key: GROQ_API_KEY
-        sync: false
-      - key: GROQ_MODEL
-        value: llama-3.3-70b-versatile

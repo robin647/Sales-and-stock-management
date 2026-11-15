@@ -285,7 +285,8 @@ export const reportApi = {
 };
 
 export const assistantApi = {
-  chat: (question) => api.post("/assistant/chat/", { question }, { timeout: 75000 }),
+  info: () => api.get("/assistant/chat/"),
+  chat: (question, context = "") => api.post("/assistant/chat/", { question, context }, { timeout: 30000 }),
 };
 
 async function downloadFile(path, params, filename) {

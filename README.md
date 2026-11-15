@@ -38,11 +38,11 @@ python manage.py runserver
 
 The API will be available at `http://localhost:8000/api/`.
 
-To enable the admin AI assistant, add a Groq API key to `backend/.env` as
-`GROQ_API_KEY=...`. The key stays on the backend; the assistant uses read-only
-business lookups and is available to admin users only. Set the same variable in
-the Render backend service environment to enable it in production. Optionally
-set `GROQ_MODEL` to another model available to your Groq account.
+The admin business assistant works without an external AI API key. Its local
+Bangla/Banglish language layer resolves employees, parties, stock, lots and dates,
+then formats read-only database results. Admin access is required. It supports
+follow-up questions and asks for a selection when names are ambiguous.
+See [BUSINESS_ASSISTANT.md](BUSINESS_ASSISTANT.md) for examples and boundaries.
 
 ### Frontend
 
