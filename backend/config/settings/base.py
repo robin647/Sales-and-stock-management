@@ -143,6 +143,8 @@ REST_FRAMEWORK = {
         "user": "300/minute",
         "login": "10/minute",
         "signup": "5/hour",
+        "email_otp_request": "20/hour",
+        "email_otp_verify": "60/hour",
         "password_change": "5/hour",
         "assistant": "20/minute",
     },
@@ -150,6 +152,7 @@ REST_FRAMEWORK = {
 }
 
 SIMPLE_JWT = {
+    "TOKEN_REFRESH_SERIALIZER": "apps.accounts.serializers.VerifiedCustomerRefreshSerializer",
     "ACCESS_TOKEN_LIFETIME": timedelta(
         minutes=env.int("ACCESS_TOKEN_LIFETIME_MINUTES", default=15)
     ),
@@ -169,6 +172,20 @@ VERCEL_FRONTEND_ORIGIN = "https://sales-and-stock-management-s7d7.vercel.app"
 if VERCEL_FRONTEND_ORIGIN not in CORS_ALLOWED_ORIGINS:
     CORS_ALLOWED_ORIGINS.append(VERCEL_FRONTEND_ORIGIN)
 CORS_ALLOW_HEADERS = (*default_headers, "idempotency-key")
+
+# Gmail API uses HTTPS and works on hosting plans that block outbound SMTP.
+EMAIL_BACKEND = env("EMAIL_BACKEND", default="apps.accounts.email_backend.GmailApiEmailBackend")
+DEFAULT_FROM_EMAIL = env("DEFAULT_FROM_EMAIL", default="Mahir Sherwani <mhrobin471@gmail.com>")
+GMAIL_CLIENT_ID = env("GMAIL_CLIENT_ID", default="")
+GMAIL_CLIENT_SECRET = env("GMAIL_CLIENT_SECRET", default="")
+GMAIL_REFRESH_TOKEN = env("GMAIL_REFRESH_TOKEN", default="")
+EMAIL_TIMEOUT = env.int("EMAIL_TIMEOUT", default=15)
+OTP_DAILY_EMAIL_LIMIT = env.int("OTP_DAILY_EMAIL_LIMIT", default=400)
+EMAIL_HOST = env("EMAIL_HOST", default="smtp.gmail.com")
+EMAIL_PORT = env.int("EMAIL_PORT", default=587)
+EMAIL_HOST_USER = env("EMAIL_HOST_USER", default="mhrobin471@gmail.com")
+EMAIL_HOST_PASSWORD = env("EMAIL_HOST_PASSWORD", default="")
+EMAIL_USE_TLS = env.bool("EMAIL_USE_TLS", default=True)
 
 LOGGING = {
     "version": 1,

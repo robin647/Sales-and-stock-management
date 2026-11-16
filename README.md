@@ -6,6 +6,125 @@ Mahadi Zone-1, Mahadi Zone-2, Mahadi Zone-3, Mahadi Zone-4, and Mahir Sherwani.
 - **Admin** manages showrooms, products, and views reports across all showrooms.
 - **Showroom User** logs in and can only see/update their own showroom's daily stock and balance.
 
+## Customer email signup and separate portals
+
+| Workspace | URL |
+| --- | --- |
+| Public ecommerce | `/` |
+| Customer signup / login | `/signup` / `/login` |
+| Existing customer email verification | `/verify-email` |
+| Administration login / dashboard | `/admin/login` / `/admin/dashboard` |
+| Ecommerce administration | `/admin/ecommerce/dashboard` |
+| Showroom login / dashboard | `/showroom/login` / `/showroom/dashboard` |
+
+Admin features now use `/admin/...`; showroom features use `/showroom/...`.
+Old feature links redirect to their new addresses. API URLs remain under `/api/`.
+Staff continue using their existing usernames and passwords. Customers use a
+verified email and their own password. Signup emails contain a six-digit OTP,
+valid for **60 seconds after the mail service accepts it**, usable once. Resend
+requires a 60-second wait; five wrong attempts invalidate that code.
+
+Existing customers, orders, showroom data, wholesale data and main stock are
+preserved. Existing customers verify the email already saved on their account at
+`/verify-email`, then log in using that email and their existing password. Accounts
+sharing an email are not automatically merged; an administrator must first give
+each account its correct unique email. Existing access tokens expire normally;
+unverified customers cannot refresh them or log in again before verification.
+
+### Gmail setup: mhrobin471@gmail.com
+
+**আপনাকে Google account-এর অনুমতি দিতে হবে।** কোডে Gmail HTTPS API সংযোগ তৈরি
+করা আছে, কিন্তু আপনার Google credentials ছাড়া আসল OTP পাঠানো চালু হবে না।
+Credentials chat, GitHub বা frontend environment-এ দেবেন না; শুধু backend-এর
+private environment settings-এ রাখবেন। Customers-কে Google login করতে হবে না।
+
+Render Free [blocks SMTP ports 25, 465 and 587](https://render.com/docs/free).
+Production therefore uses the Gmail API over HTTPS, rather than Gmail SMTP.
+
+1. Sign in as **mhrobin471@gmail.com** at [Google Cloud Console](https://console.cloud.google.com/).
+   Create/select a project, then enable **Gmail API** in APIs & Services → Library.
+2. In Google Auth Platform, configure Branding, Audience and Data Access. Use an
+   External audience for a personal Gmail account, enter your app/support details,
+   and request only `https://www.googleapis.com/auth/gmail.send`. During Testing,
+   add **mhrobin471@gmail.com** as a test user. Only the sender authorizes this
+   Google application; customers just receive email.
+3. Create an OAuth client of type **Web application**. Add the exact authorized
+   redirect URI `https://developers.google.com/oauthplayground`. Save its client
+   ID and client secret privately.
+4. Open [OAuth Playground](https://developers.google.com/oauthplayground/).
+   In its settings, enable **Use your own OAuth credentials**, enter that client
+   ID/secret, and use offline access with a consent prompt. In Step 1 enter
+   `https://www.googleapis.com/auth/gmail.send`, authorize as **mhrobin471@gmail.com**,
+   then in Step 2 exchange the authorization code for tokens. Save the **refresh
+   token**, not the short-lived access token. Never share the token or screenshots
+   containing it. You can remove the Playground redirect URI after obtaining it.
+5. For sustained operation, move the consent app to **In production** and complete
+   any verification Google requests. External apps in Testing normally receive
+   refresh tokens that expire after **seven days** for Gmail scopes. After changing
+   publishing status, repeat authorization and replace the refresh token. Personal
+   use may qualify for Google's verification exceptions; this does not guarantee
+   approval for a wider public OAuth application.
+6. In Render → backend service → Environment, add the following values and deploy
+   again. For local development, put the same variables in `backend/.env`.
+
+```dotenv
+EMAIL_BACKEND=apps.accounts.email_backend.GmailApiEmailBackend
+DEFAULT_FROM_EMAIL="Mahir Sherwani <mhrobin471@gmail.com>"
+GMAIL_CLIENT_ID=your-private-google-client-id
+GMAIL_CLIENT_SECRET=your-private-google-client-secret
+GMAIL_REFRESH_TOKEN=your-private-google-refresh-token
+OTP_DAILY_EMAIL_LIMIT=400
+EMAIL_TIMEOUT=15
+```
+
+`render.yaml` declares these settings, but cannot create Google credentials or
+update an existing service's private settings by itself. The sender must match
+the Gmail account that authorized the refresh token. No frontend mail settings
+are needed. Keep the existing database/JWT/CORS environment settings in place.
+
+7. Apply migrations, check configuration and explicitly send yourself a test:
+
+```bash
+cd backend
+python manage.py migrate
+python manage.py check_email_setup
+python manage.py check_email_setup --send-test-to mhrobin471@gmail.com
+```
+
+The first check verifies required settings are present; only the last command
+tests Google credentials and sends a real email. If Render Free has no shell,
+run the check locally with the same private backend settings; deployment runs
+the migrations through the existing startup command. Finally, test `/signup`
+with an email you control, check Inbox/Spam, and use the code within one minute.
+An expired code needs a resend. Missing credentials or delivery failure produces
+a safe error and never creates an unverified customer account.
+
+Standard Gmail API usage is currently available without additional API charges
+below Google's billing threshold; Gmail mailbox sending limits also apply.
+Personal Gmail can block sending above approximately 500 messages/recipients per
+day. This app reserves at most 400 OTP sends per calendar day across the backend
+and five sends per email per hour, including failed delivery reservations; other
+mail sent from the same mailbox still counts toward Google's limits. This is
+suited to a small store, not unlimited free bulk email. Google's limits/pricing
+can change. Reauthorize and replace the refresh token if consent is revoked or
+Google expires it. Automated tests use a fake mailbox/mock transport and do not
+prove delivery from your real Gmail account.
+
+Optional **local-only SMTP alternative**: enable Google 2-Step Verification,
+create a Gmail App Password (when offered), and set
+`EMAIL_BACKEND=django.core.mail.backends.smtp.EmailBackend`,
+`EMAIL_HOST=smtp.gmail.com`, `EMAIL_PORT=587`, `EMAIL_USE_TLS=True`,
+`EMAIL_HOST_USER=mhrobin471@gmail.com`, and `EMAIL_HOST_PASSWORD` to that private
+App Password. Never use your normal Gmail password. Render Free cannot use this
+SMTP alternative.
+
+Official setup references: [Gmail sending](https://developers.google.com/workspace/gmail/api/guides/sending),
+[OAuth refresh tokens and testing expiry](https://developers.google.com/identity/protocols/oauth2/),
+[verification exceptions](https://support.google.com/cloud/answer/13464323?hl=en),
+[Gmail sending limits](https://support.google.com/mail/answer/22839?hl=en),
+[API quotas and billing thresholds](https://developers.google.com/workspace/gmail/api/reference/quota),
+[App Passwords](https://support.google.com/mail/answer/185833?hl=en).
+
 ## Tech stack
 
 - Backend: Django, Django REST Framework, PostgreSQL, JWT (SimpleJWT), Gunicorn, WhiteNoise

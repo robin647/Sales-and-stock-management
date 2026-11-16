@@ -1,185 +1,31 @@
-import { useState } from "react";
-import { useLocation, useNavigate } from "react-router-dom";
-import { useAuth } from "../context/AuthContext.jsx";
-import { SiteFooter } from "../components/SiteFooter.jsx";
+import { useEffect, useState } from "react";
+import { Link, useLocation, useNavigate } from "react-router-dom";
+import { useAuth } from "../context/AuthContext";
+import { SiteFooter } from "../components/SiteFooter";
+import { errorMessage } from "../utils/apiError";
 
-const MODES = {
-  admin: {
-    label: "Admin",
-    heading: "Admin sign in",
-    subtext: "Manage showrooms, products, and reports.",
-    userPlaceholder: "Admin username",
-  },
-  showroom: {
-    label: "Showroom",
-    heading: "Showroom sign in",
-    subtext: "Use the username and password your Admin set up for your showroom.",
-    userPlaceholder: "Showroom username",
-  },
-  customer: {
-    label: "Customer",
-    heading: "Customer sign in",
-    subtext: "Sign in with the mobile number used when you created your account.",
-    userPlaceholder: "Mobile number",
-  },
+const copy = {
+  customer: { title: "Customer sign in", description: "Sign in with your verified email and password.", label: "Email address", type: "email" },
+  admin: { title: "Admin sign in", description: "Administration and ecommerce team workspace.", label: "Admin / team username", type: "text" },
+  showroom: { title: "Showroom sign in", description: "Use the showroom login created by your administrator.", label: "Showroom username", type: "text" },
 };
-
-export default function Login() {
-  const location = useLocation();
-  const [mode, setMode] = useState(() => location.state?.customerCreated || location.state?.returnToOrder ? "customer" : "admin");
-  const [username, setUsername] = useState("");
-  const [password, setPassword] = useState("");
-  const [error, setError] = useState("");
-  const [loading, setLoading] = useState(false);
-  const { login, loginShowroom, logout } = useAuth();
-  const navigate = useNavigate();
-
-  const copy = MODES[mode];
-
-  function switchMode(next) {
-    setMode(next);
-    setError("");
-  }
-
-  async function handleSubmit(e) {
-    e.preventDefault();
-    setError("");
-    setLoading(true);
+export default function Login({ portal = "customer" }) {
+  const location = useLocation(), navigate = useNavigate();
+  const { login, loginShowroom, loginCustomer, logout } = useAuth();
+  const [username, setUsername] = useState(location.state?.email || ""), [password, setPassword] = useState("");
+  const [error, setError] = useState(""), [busy, setBusy] = useState(false);
+  useEffect(() => { setUsername(location.state?.email || ""); setPassword(""); setError(""); }, [portal, location.state?.email]);
+  async function submit(event) {
+    event.preventDefault(); setBusy(true); setError("");
     try {
-      const user = mode === "showroom"
-        ? await loginShowroom(username, password)
-        : await login(username, password);
-      if (mode === "admin" && !["admin", "ecommerce_staff"].includes(user?.role)) {
-        logout();
-        setError("These credentials belong to a Showroom account. Switch to the Showroom tab.");
-        return;
-      }
-      if (mode === "showroom" && user?.role === "admin") {
-        logout();
-        setError("These credentials belong to the Admin account. Switch to the Admin tab.");
-        return;
-      }
-      if (mode === "customer" && user?.role !== "customer") {
-        logout();
-        setError("These credentials are for a staff account. Choose Admin or Showroom login.");
-        return;
-      }
-      if (mode !== "customer" && user?.role === "customer") {
-        logout();
-        setError("This is a customer account. Switch to the Customer tab.");
-        return;
-      }
-      const destination = user?.role === "ecommerce_staff" ? "/ecommerce/dashboard" : user?.role === "admin" ? "/admin" : user?.role === "showroom_user" ? "/showroom" : ["/checkout", "/my-orders"].includes(location.state?.returnTo) ? location.state.returnTo : "/";
-      navigate(destination, { replace: true });
-    } catch (err) {
-      setError(
-        err.response?.data?.detail ||
-          "Login failed. Please check your username and password."
-      );
-    } finally {
-      setLoading(false);
-    }
+      const user = portal === "customer" ? await loginCustomer(username, password) : portal === "showroom" ? await loginShowroom(username, password) : await login(username, password);
+      const allowed = portal === "customer" ? user?.role === "customer" : portal === "showroom" ? user?.role === "showroom_user" : ["admin", "ecommerce_staff"].includes(user?.role);
+      if (!allowed) { logout(); setError("This account belongs to a different login portal."); return; }
+      const target = location.state?.returnTo || "";
+      const safeTarget = portal === "admin" ? target.startsWith("/admin/") && target !== "/admin/login" : portal === "showroom" ? target.startsWith("/showroom/") && target !== "/showroom/login" : ["/checkout", "/my-orders", "/support"].includes(target);
+      navigate(safeTarget ? target : portal === "customer" ? "/" : portal === "showroom" ? "/showroom/dashboard" : user.role === "ecommerce_staff" ? "/admin/ecommerce/dashboard" : "/admin/dashboard", { replace: true });
+    } catch (err) { setError(errorMessage(err)); } finally { setBusy(false); }
   }
-
-  return (
-    <div className="login-page relative min-h-screen flex flex-col items-center justify-center overflow-hidden px-4 py-10">
-      <div className="pointer-events-none absolute -left-24 -top-24 h-80 w-80 rounded-full bg-brand-200/40 blur-3xl dark:bg-brand-700/20" />
-      <div className="pointer-events-none absolute -bottom-32 -right-24 h-96 w-96 rounded-full bg-indigo-200/40 blur-3xl dark:bg-indigo-700/20" />
-      <div className="relative w-full max-w-md">
-        <div className="login-brand text-center mb-7">
-          <div className="login-brandmark inline-flex h-14 w-14 items-center justify-center rounded-2xl bg-gradient-to-br from-brand-500 to-brand-700 text-white font-bold text-lg mb-4 shadow-lg shadow-brand-500/25">
-            MS
-          </div>
-          <h1 className="login-title text-2xl font-bold tracking-tight">Mahir Sherwani</h1>
-          <p className="login-subtitle text-sm mt-1">Showroom stock &amp; sales management</p>
-        </div>
-
-        <div className="login-card rounded-2xl border p-6 sm:p-8">
-          {                       }
-          <div className="login-mode-switch mb-7 grid grid-cols-3 gap-1.5 rounded-xl p-1.5">
-            {Object.entries(MODES).map(([key, m]) => (
-              <button
-                key={key}
-                type="button"
-                onClick={() => switchMode(key)}
-                aria-pressed={mode === key}
-                className="login-mode-tab rounded-lg py-2 text-sm font-semibold transition-colors"
-              >
-                {m.label} Login
-              </button>
-            ))}
-          </div>
-
-          <div className="mb-5">
-            <h2 className="login-form-title text-base font-semibold">{copy.heading}</h2>
-            <p className="login-form-subtitle mt-1 text-sm">{copy.subtext}</p>
-          </div>
-
-          <form onSubmit={handleSubmit} className="space-y-4">
-            {location.state?.customerCreated && (
-              <div role="status" className="rounded-lg border border-green-100 bg-green-50 px-3 py-2.5 text-sm font-medium text-green-700">
-                Account created. Sign in with your mobile number and password.
-              </div>
-            )}
-            {location.state?.passwordChanged && (
-              <div role="status" className="rounded-lg border border-green-100 bg-green-50 px-3 py-2.5 text-sm font-medium text-green-700">
-                Password changed. Sign in with your new password.
-              </div>
-            )}
-            {error && (
-              <div role="alert" className="login-error rounded-lg border px-3 py-2.5 text-sm font-medium">
-                {error}
-              </div>
-            )}
-
-            <div>
-              <label htmlFor="login-username" className="login-label mb-1 block text-sm font-semibold">
-                {mode === "customer" ? "Mobile number" : "Username"}
-              </label>
-              <input
-                id="login-username"
-                className="login-input w-full rounded-xl border px-3.5 py-3 text-sm focus:outline-none focus:ring-2 focus:ring-brand-500 focus:border-transparent"
-                placeholder={copy.userPlaceholder}
-                value={username}
-                onChange={(e) => setUsername(e.target.value)}
-                autoComplete="username"
-                required
-              />
-            </div>
-
-            <div>
-              <label htmlFor="login-password" className="login-label mb-1 block text-sm font-semibold">
-                Password
-              </label>
-              <input
-                id="login-password"
-                type="password"
-                className="login-input w-full rounded-xl border px-3.5 py-3 text-sm focus:outline-none focus:ring-2 focus:ring-brand-500 focus:border-transparent"
-                placeholder="Enter your password"
-                value={password}
-                onChange={(e) => setPassword(e.target.value)}
-                autoComplete="current-password"
-                required
-              />
-            </div>
-
-            <button
-              type="submit"
-              disabled={loading}
-              className="login-submit w-full rounded-xl bg-brand-500 py-3 text-sm font-semibold text-white transition-colors disabled:opacity-60"
-            >
-              {loading ? "Signing in..." : `Sign in as ${copy.label}`}
-            </button>
-          </form>
-        </div>
-
-        <p className="login-help mt-6 text-center text-sm">
-          {mode === "customer" ? <>New here? <a className="font-semibold text-brand-600" href="/signup">Create a customer account</a></> : "Showroom accounts are created by the Admin. Contact your Admin if you don’t have login details."}
-        </p>
-      </div>
-      <div className="relative mt-8 w-full">
-        <SiteFooter className="login-footer" />
-      </div>
-    </div>
-  );
+  const mode = copy[portal];
+  return <div className="login-page flex min-h-screen flex-col items-center justify-center px-4 py-10"><div className="w-full max-w-md"><Link to="/" className="login-brand mb-7 block text-center"><span className="login-brandmark mb-4 inline-flex h-14 w-14 items-center justify-center rounded-2xl bg-brand-600 text-lg font-bold text-white">MS</span><span className="login-title block text-2xl font-bold">Mahir Sherwani</span><span className="login-subtitle mt-2 block text-sm">{portal === "customer" ? "Your next occasion starts here." : portal === "admin" ? "Administration workspace" : "Showroom workspace"}</span></Link><section className="login-card rounded-2xl border p-6 sm:p-8"><h1 className="login-form-title text-xl font-semibold">{mode.title}</h1><p className="login-form-subtitle mb-6 mt-2 text-sm">{mode.description}</p>{(location.state?.customerCreated || location.state?.emailVerified) && portal === "customer" && <p role="status" className="mb-4 rounded-lg bg-green-50 p-3 text-sm text-green-800">Email verified. Sign in with your email and password.</p>}{location.state?.passwordChanged && <p role="status" className="mb-4 rounded-lg bg-green-50 p-3 text-sm text-green-800">Password changed. Sign in again.</p>}{error && <p role="alert" className="login-error mb-4 rounded-lg border p-3 text-sm">{error}</p>}<form onSubmit={submit} className="space-y-4"><label className="login-label block text-sm font-semibold">{mode.label}<input required type={mode.type} autoComplete="username" value={username} onChange={event => setUsername(event.target.value)} className="login-input mt-2 w-full rounded-xl border px-3.5 py-3 text-sm" /></label><label className="login-label block text-sm font-semibold">Password<input required type="password" autoComplete="current-password" value={password} onChange={event => setPassword(event.target.value)} className="login-input mt-2 w-full rounded-xl border px-3.5 py-3 text-sm" /></label><button disabled={busy} className="login-submit w-full rounded-xl py-3 text-sm font-semibold">{busy ? "Signing in..." : "Sign in"}</button></form>{portal === "customer" && <div className="mt-5 space-y-3 text-sm"><p>New here? <Link to="/signup" className="text-brand-700">Create your account</Link></p><p><Link to="/verify-email" state={{ email: username }} className="text-brand-700">Verify an existing customer email</Link></p></div>}{portal === "showroom" && <p className="login-help mt-5 text-sm">Your administrator manages your showroom login. Contact them if you need help.</p>}</section></div><div className="mt-8 w-full"><SiteFooter className="login-footer" /></div></div>;
 }

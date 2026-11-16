@@ -23,3 +23,15 @@ services:
         sync: false
       - key: CORS_ALLOWED_ORIGINS
         sync: false
+      - key: EMAIL_BACKEND
+        value: apps.accounts.email_backend.GmailApiEmailBackend
+      - key: DEFAULT_FROM_EMAIL
+        value: Mahir Sherwani <mhrobin471@gmail.com>
+      - key: GMAIL_CLIENT_ID
+        sync: false
+      - key: GMAIL_CLIENT_SECRET
+        sync: false
+      - key: GMAIL_REFRESH_TOKEN
+        sync: false
+      - key: OTP_DAILY_EMAIL_LIMIT
+        value: "400"

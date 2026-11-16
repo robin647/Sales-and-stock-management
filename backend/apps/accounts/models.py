@@ -16,6 +16,7 @@ class User(AbstractUser):
 
     role = models.CharField(max_length=20, choices=Role.choices, default=Role.SHOWROOM_USER)
     phone_number = models.CharField(max_length=20, blank=True)
+    email_verified = models.BooleanField(default=False)
 
     objects = CustomUserManager()
 
@@ -37,3 +38,22 @@ class User(AbstractUser):
             raise ValidationError("A showroom user must be assigned to a showroom.")
         if self.role == self.Role.ADMIN and self.showroom_id:
             raise ValidationError("An admin user must not be assigned to a showroom.")
+
+
+class EmailVerification(models.Model):
+    email = models.EmailField(unique=True)
+    purpose = models.CharField(max_length=10, choices=[("signup", "Signup"), ("verify", "Existing account")])
+    nonce = models.CharField(max_length=64)
+    code_hash = models.CharField(max_length=64)
+    expires_at = models.DateTimeField()
+    sent_at = models.DateTimeField()
+    ready = models.BooleanField(default=False)
+    consumed = models.BooleanField(default=False)
+    attempts = models.PositiveSmallIntegerField(default=0)
+    window_started_at = models.DateTimeField()
+    sent_count = models.PositiveSmallIntegerField(default=0)
+
+
+class OtpSendBudget(models.Model):
+    day = models.DateField(unique=True)
+    reserved = models.PositiveIntegerField(default=0)

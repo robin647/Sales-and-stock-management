@@ -67,7 +67,7 @@ export default function CommerceManagement({ initialTab = "orders", embedded = f
     } catch (err) { setError(errorMessage(err)); }
     finally { setSaving(false); }
   }
-  return <div className="commerce"><div className="commerce-heading"><div><span className="commerce-kicker">COMMERCE DESK</span><h1>Orders & store settings</h1><p>Verify advance delivery payments, fulfil orders and manage promotions.</p></div><Link className="c-button secondary" to="/ecommerce/products">Manage products →</Link></div>
+  return <div className="commerce"><div className="commerce-heading"><div><span className="commerce-kicker">COMMERCE DESK</span><h1>Orders & store settings</h1><p>Verify advance delivery payments, fulfil orders and manage promotions.</p></div><Link className="c-button secondary" to="/admin/ecommerce/products">Manage products →</Link></div>
     {tab === "orders" && <div className="commerce-stats">{[["Awaiting verification", summary.by_status.pending || 0], ["To ship", summary.by_status.confirmed || 0], ["Delivered", summary.by_status.delivered || 0], ["Delivered product sales", money(summary.delivered_sales)]].map(([label, value]) => <div className="c-stat" key={label}><span>{label}</span><strong>{value}</strong></div>)}</div>}
     {error && <div role="alert" className="c-alert error">{error}</div>}{notice && <div role="status" className="c-alert">{notice}<button onClick={() => setNotice("")} aria-label="Dismiss">×</button></div>}
     {!embedded && <div className="commerce-tabs">{[["orders", "Online orders"], ["coupons", "Coupons"], ["settings", "Delivery & payment"]].map(([key, label]) => <button key={key} className={tab === key ? "selected" : ""} onClick={() => setTab(key)}>{label}</button>)}</div>}

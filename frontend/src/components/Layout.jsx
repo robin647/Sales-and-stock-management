@@ -17,7 +17,7 @@ export default function Layout({ children }) {
 
   function handleLogout() {
     logout();
-    navigate("/login");
+    navigate(["admin", "ecommerce_staff"].includes(user?.role) ? "/admin/login" : "/showroom/login");
   }
 
   return (
@@ -25,7 +25,7 @@ export default function Layout({ children }) {
       {menuOpen && <button aria-label="Close menu" onClick={() => setMenuOpen(false)} className="fixed inset-0 z-30 bg-slate-950/45 md:hidden" />}
       <aside className={`app-sidebar fixed inset-y-0 left-0 z-40 w-[272px] border-r flex flex-col transition-transform duration-200 md:static md:translate-x-0 ${menuOpen ? "translate-x-0" : "-translate-x-full"}`}>
         <div className="app-sidebar-brand px-5 py-5 border-b">
-          <NavLink to={isAdmin ? "/admin" : "/showroom"} aria-label="Mahir Sherwani dashboard" className="sidebar-logo" onClick={() => setMenuOpen(false)}>
+          <NavLink to={isAdmin ? "/admin/dashboard" : "/showroom/dashboard"} aria-label="Mahir Sherwani dashboard" className="sidebar-logo" onClick={() => setMenuOpen(false)}>
             <span aria-hidden="true" className="sidebar-logo-mark">M</span>
             <span className="sidebar-logo-wordmark">
               <span className="sidebar-logo-name">MAHIR</span>
@@ -39,36 +39,36 @@ export default function Layout({ children }) {
         <nav className="flex-1 overflow-y-auto p-3 space-y-1">
           {isAdmin ? (
             <>
-              <NavLink onClick={() => setMenuOpen(false)} to="/admin" end className={linkClass}>Dashboard</NavLink>
-              <NavLink onClick={() => setMenuOpen(false)} to="/showrooms" className={linkClass}>Showrooms</NavLink>
+              <NavLink onClick={() => setMenuOpen(false)} to="/admin/dashboard" end className={linkClass}>Dashboard</NavLink>
+              <NavLink onClick={() => setMenuOpen(false)} to="/admin/showrooms" className={linkClass}>Showrooms</NavLink>
               <div className="px-3 pt-4 pb-1 text-[10px] font-semibold uppercase tracking-widest text-gray-400">Online store</div>
-              <NavLink onClick={() => setMenuOpen(false)} to="/ecommerce/dashboard" className={linkClass}>ECOMMERCE ADMIN ?</NavLink>
-              <NavLink onClick={() => setMenuOpen(false)} to="/online-products" className={linkClass}>Online Products & Offers</NavLink>
+              <NavLink onClick={() => setMenuOpen(false)} to="/admin/ecommerce/dashboard" className={linkClass}>ECOMMERCE ADMIN ?</NavLink>
+              <NavLink onClick={() => setMenuOpen(false)} to="/admin/online-products" className={linkClass}>Online Products & Offers</NavLink>
               <NavLink onClick={() => setMenuOpen(false)} to="/admin/customers" className={linkClass}>Customers</NavLink>
-              <NavLink onClick={() => setMenuOpen(false)} to="/online-stock" className={linkClass}>Online Stock</NavLink>
-              <NavLink onClick={() => setMenuOpen(false)} to="/online-orders" className={linkClass}>Orders, Coupons & Delivery</NavLink>
+              <NavLink onClick={() => setMenuOpen(false)} to="/admin/online-stock" className={linkClass}>Online Stock</NavLink>
+              <NavLink onClick={() => setMenuOpen(false)} to="/admin/online-orders" className={linkClass}>Orders, Coupons & Delivery</NavLink>
               <NavLink onClick={() => setMenuOpen(false)} to="/shop" className={linkClass}>View Online Store ↗</NavLink>
               <div className="px-3 pt-4 pb-1 text-[10px] font-semibold uppercase tracking-widest text-gray-400">Stock & business</div>
-              <NavLink onClick={() => setMenuOpen(false)} to="/products" className={linkClass}>Main Products & Categories</NavLink>
-              <NavLink onClick={() => setMenuOpen(false)} to="/stock-adjustments" className={linkClass}>Product Stock Adjustment</NavLink>
-              <NavLink onClick={() => setMenuOpen(false)} to="/wholesale/parties" className={linkClass}>Wholesale Party Management</NavLink>
-              <NavLink onClick={() => setMenuOpen(false)} to="/wholesale/sales" className={linkClass}>Wholesale Sales / New Invoice</NavLink>
-              <NavLink onClick={() => setMenuOpen(false)} to="/wholesale/easy" className={linkClass}>Easy Wholesale Sales Management</NavLink>
-              <NavLink onClick={() => setMenuOpen(false)} to="/wholesale/returns" className={linkClass}>Wholesale Returns</NavLink>
-              <NavLink onClick={() => setMenuOpen(false)} to="/wholesale/summary" className={linkClass}>All Parties Summary</NavLink>
-              <NavLink onClick={() => setMenuOpen(false)} to="/wholesale/reports" className={linkClass}>Wholesale Reports</NavLink>
-              <NavLink onClick={() => setMenuOpen(false)} to="/reports" className={linkClass}>Showrooms Reports</NavLink>
-              <NavLink onClick={() => setMenuOpen(false)} to="/employees" className={linkClass}>Employee Management</NavLink>
-              <NavLink onClick={() => setMenuOpen(false)} to="/swing" className={linkClass}>Swing Management</NavLink>
-              <NavLink onClick={() => setMenuOpen(false)} to="/producer-cost-management" className={linkClass}>Producer &amp; Cost Management</NavLink>
+              <NavLink onClick={() => setMenuOpen(false)} to="/admin/products" className={linkClass}>Main Products & Categories</NavLink>
+              <NavLink onClick={() => setMenuOpen(false)} to="/admin/stock-adjustments" className={linkClass}>Product Stock Adjustment</NavLink>
+              <NavLink onClick={() => setMenuOpen(false)} to="/admin/wholesale/parties" className={linkClass}>Wholesale Party Management</NavLink>
+              <NavLink onClick={() => setMenuOpen(false)} to="/admin/wholesale/sales" className={linkClass}>Wholesale Sales / New Invoice</NavLink>
+              <NavLink onClick={() => setMenuOpen(false)} to="/admin/wholesale/easy" className={linkClass}>Easy Wholesale Sales Management</NavLink>
+              <NavLink onClick={() => setMenuOpen(false)} to="/admin/wholesale/returns" className={linkClass}>Wholesale Returns</NavLink>
+              <NavLink onClick={() => setMenuOpen(false)} to="/admin/wholesale/summary" className={linkClass}>All Parties Summary</NavLink>
+              <NavLink onClick={() => setMenuOpen(false)} to="/admin/wholesale/reports" className={linkClass}>Wholesale Reports</NavLink>
+              <NavLink onClick={() => setMenuOpen(false)} to={isAdmin ? "/admin/reports" : "/showroom/reports"} className={linkClass}>Showrooms Reports</NavLink>
+              <NavLink onClick={() => setMenuOpen(false)} to="/admin/employees" className={linkClass}>Employee Management</NavLink>
+              <NavLink onClick={() => setMenuOpen(false)} to="/admin/swing" className={linkClass}>Swing Management</NavLink>
+              <NavLink onClick={() => setMenuOpen(false)} to="/admin/producer-cost-management" className={linkClass}>Producer &amp; Cost Management</NavLink>
             </>
           ) : (
             <>
-              <NavLink onClick={() => setMenuOpen(false)} to="/showroom" end className={linkClass}>Dashboard</NavLink>
-              <NavLink onClick={() => setMenuOpen(false)} to="/stock" className={linkClass}>Stock Entry</NavLink>
-              <NavLink onClick={() => setMenuOpen(false)} to="/balance" className={linkClass}>Balance Entry</NavLink>
-              <NavLink onClick={() => setMenuOpen(false)} to="/change-password" className={linkClass}>Change Password</NavLink>
-              <NavLink onClick={() => setMenuOpen(false)} to="/reports" className={linkClass}>Reports</NavLink>
+              <NavLink onClick={() => setMenuOpen(false)} to="/showroom/dashboard" end className={linkClass}>Dashboard</NavLink>
+              <NavLink onClick={() => setMenuOpen(false)} to="/showroom/stock" className={linkClass}>Stock Entry</NavLink>
+              <NavLink onClick={() => setMenuOpen(false)} to="/showroom/balance" className={linkClass}>Balance Entry</NavLink>
+              <NavLink onClick={() => setMenuOpen(false)} to="/showroom/change-password" className={linkClass}>Change Password</NavLink>
+              <NavLink onClick={() => setMenuOpen(false)} to={isAdmin ? "/admin/reports" : "/showroom/reports"} className={linkClass}>Reports</NavLink>
             </>
           )}
         </nav>

@@ -39,6 +39,11 @@ async function login(username, password) {
     return saveSession(data);
   }
 
+  async function loginCustomer(email, password) {
+    const { data } = await authApi.customerLogin(email, password);
+    return saveSession(data);
+  }
+
   async function loginShowroom(username, password) {
     const { data } = await authApi.showroomLogin(username, password);
     return saveSession(data);
@@ -60,7 +65,7 @@ async function login(username, password) {
 
   return (
     <AuthContext.Provider
-      value={{ user, loading, login, loginShowroom, logout, isAdmin: user?.role === "admin" }}
+      value={{ user, loading, login, loginShowroom, loginCustomer, logout, isAdmin: user?.role === "admin" }}
     >
       {children}
     </AuthContext.Provider>

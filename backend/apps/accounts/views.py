@@ -12,6 +12,7 @@ from .serializers import (
     CustomTokenObtainPairSerializer,
     ChangePasswordSerializer,
     CustomerSignupSerializer,
+    EmailOtpRequestSerializer, EmailOtpVerifySerializer, CustomerTokenSerializer,
     ShowroomTokenObtainPairSerializer,
     ShowroomUserCreateSerializer,
     UserSerializer,
@@ -49,6 +50,42 @@ class CustomerSignupView(generics.CreateAPIView):
     permission_classes = [permissions.AllowAny]
     throttle_classes = [ScopedRateThrottle]
     throttle_scope = "signup"
+
+
+class EmailOtpRequestView(APIView):
+    permission_classes = [permissions.AllowAny]
+    throttle_classes = [ScopedRateThrottle]
+    throttle_scope = "email_otp_request"
+
+    def post(self, request):
+        from .email_verification import request_code
+        serializer = EmailOtpRequestSerializer(data=request.data)
+        serializer.is_valid(raise_exception=True)
+        return Response(request_code(**serializer.validated_data))
+
+
+class EmailOtpVerifyView(APIView):
+    permission_classes = [permissions.AllowAny]
+    throttle_classes = [ScopedRateThrottle]
+    throttle_scope = "email_otp_verify"
+
+    def post(self, request):
+        from .email_verification import consume_code
+        serializer = EmailOtpVerifySerializer(data=request.data)
+        serializer.is_valid(raise_exception=True)
+        consume_code(email=serializer.validated_data["email"], code=serializer.validated_data["otp"], purpose="verify")
+        return Response({"detail": "Email verified. Sign in with your email and existing password."})
+
+
+class CustomerLoginView(APIView):
+    permission_classes = [permissions.AllowAny]
+    throttle_classes = [ScopedRateThrottle]
+    throttle_scope = "login"
+
+    def post(self, request):
+        serializer = CustomerTokenSerializer(data=request.data, context={"request": request})
+        serializer.is_valid(raise_exception=True)
+        return Response(serializer.validated_data)
 
 
 class ChangePasswordView(APIView):

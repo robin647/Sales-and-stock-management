@@ -2,11 +2,13 @@ from django.urls import path
 from rest_framework.routers import DefaultRouter
 from .customers import CustomerViewSet
 
-from .views import ChangePasswordView, CustomerSignupView, MeView, ShowroomUserDetailView, ShowroomUserListCreateView
+from .views import ChangePasswordView, CustomerSignupView, MeView, ShowroomUserDetailView, ShowroomUserListCreateView, EmailOtpRequestView, EmailOtpVerifyView
 
 urlpatterns = [
     path("me/", MeView.as_view(), name="me"),
     path("signup/", CustomerSignupView.as_view(), name="customer-signup"),
+    path("email-otp/request/", EmailOtpRequestView.as_view(), name="email-otp-request"),
+    path("email-otp/verify/", EmailOtpVerifyView.as_view(), name="email-otp-verify"),
     path("password/change/", ChangePasswordView.as_view(), name="showroom-password-change"),
     path("showroom-users/", ShowroomUserListCreateView.as_view(), name="showroom-user-list"),
     path("showroom-users/<int:pk>/", ShowroomUserDetailView.as_view(), name="showroom-user-detail"),

@@ -702,7 +702,7 @@ class ShowroomLoginManagementTests(TestCase):
         self.assertTrue(created.data["has_login"])
         self.assertNotIn("password", created.data)
 
-        login = self.client.post("/api/auth/login/", {
+        login = self.client.post("/api/auth/login/showroom/", {
             "username": "shop-login", "password": "secure-shop-pass-44",
         }, format="json")
         self.assertEqual(login.status_code, 200, login.data)
@@ -712,17 +712,17 @@ class ShowroomLoginManagementTests(TestCase):
             "username": "shop-login-new", "password": "different-secure-pass-55",
         }, format="json")
         self.assertEqual(reset.status_code, 200, reset.data)
-        old_login = self.client.post("/api/auth/login/", {
+        old_login = self.client.post("/api/auth/login/showroom/", {
             "username": "shop-login", "password": "secure-shop-pass-44",
         }, format="json")
-        new_login = self.client.post("/api/auth/login/", {
+        new_login = self.client.post("/api/auth/login/showroom/", {
             "username": "shop-login-new", "password": "different-secure-pass-55",
         }, format="json")
         self.assertEqual(old_login.status_code, 401)
         self.assertEqual(new_login.status_code, 200, new_login.data)
 
         self.client.patch(f"/api/showrooms/{showroom_id}/", {"is_active": False}, format="json")
-        inactive_login = self.client.post("/api/auth/login/", {
+        inactive_login = self.client.post("/api/auth/login/showroom/", {
             "username": "shop-login-new", "password": "different-secure-pass-55",
         }, format="json")
         self.assertEqual(inactive_login.status_code, 401)

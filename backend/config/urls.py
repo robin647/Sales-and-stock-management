@@ -5,7 +5,7 @@ from django.urls import include, path, re_path
 from django.views.static import serve
 from rest_framework_simplejwt.views import TokenRefreshView
 
-from apps.accounts.views import CustomTokenObtainPairView, ShowroomLoginView
+from apps.accounts.views import CustomTokenObtainPairView, ShowroomLoginView, CustomerLoginView
 from config.views import api_status
 
 urlpatterns = [
@@ -13,6 +13,7 @@ urlpatterns = [
     path("api/health/", lambda request: JsonResponse({"status": "ok"}), name="health"),
     path("admin/", admin.site.urls),
     path("api/auth/login/", CustomTokenObtainPairView.as_view(), name="token_obtain_pair"),
+    path("api/auth/customer/login/", CustomerLoginView.as_view(), name="customer-login"),
     path("api/auth/login/showroom/", ShowroomLoginView.as_view(), name="showroom_login"),
     path("api/auth/refresh/", TokenRefreshView.as_view(), name="token_refresh"),
     path("api/accounts/", include("apps.accounts.urls")),

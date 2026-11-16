@@ -1,6 +1,7 @@
 from rest_framework import serializers
 from rest_framework_simplejwt.serializers import TokenObtainPairSerializer
 from rest_framework_simplejwt.tokens import Token
+from rest_framework_simplejwt.serializers import TokenRefreshSerializer
 from django.contrib.auth.password_validation import validate_password
 from django.core.exceptions import ValidationError as DjangoValidationError
 
@@ -12,6 +13,14 @@ class CustomTokenObtainPairSerializer(TokenObtainPairSerializer):
     frontend knows immediately (without an extra API call) whether the
     logged-in user is an Admin or which Showroom they belong to.
     """
+
+    def validate(self, attrs):
+        from django.contrib.auth import authenticate
+        from rest_framework.exceptions import AuthenticationFailed
+        user = authenticate(request=self.context.get("request"), username=attrs.get("username"), password=attrs.get("password"))
+        if user and user.role not in ("admin", "ecommerce_staff"):
+            raise AuthenticationFailed("Use the customer email login or showroom login page for this account.")
+        return super().validate(attrs)
 
     @classmethod
     def get_token(cls, user):
@@ -90,9 +99,9 @@ class UserSerializer(serializers.ModelSerializer):
         model = User
         fields = [
             "id", "username", "first_name", "last_name", "email",
-            "role", "showroom", "showroom_name", "is_active",
+            "role", "showroom", "showroom_name", "is_active", "email_verified",
         ]
-        read_only_fields = ["id"]
+        read_only_fields = ["id", "email_verified"]
 
 class ShowroomUserCreateSerializer(serializers.ModelSerializer):
     """Used by Admin to create a new showroom user account."""
@@ -128,29 +137,34 @@ class ShowroomUserCreateSerializer(serializers.ModelSerializer):
         return user
 
 
+class EmailOtpRequestSerializer(serializers.Serializer):
+    email = serializers.EmailField()
+    purpose = serializers.ChoiceField(choices=["signup", "verify"], default="signup")
+
+    def validate_email(self, value):
+        from .email_verification import normalize_email
+        return normalize_email(value)
+
+
 class CustomerSignupSerializer(serializers.Serializer):
     name = serializers.CharField(max_length=150)
     email = serializers.EmailField()
-    phone_number = serializers.CharField(max_length=20)
+    phone_number = serializers.CharField(max_length=20, required=False, allow_blank=True)
     password = serializers.CharField(write_only=True, min_length=8, trim_whitespace=False)
-
-    def validate_phone_number(self, value):
-        value = "".join(value.split())
-        if User.objects.filter(username=value).exists():
-            raise serializers.ValidationError("An account with this mobile number already exists.")
-        return value
+    otp = serializers.RegexField(r"^[0-9]{6}$", write_only=True)
 
     def validate_email(self, value):
+        from .email_verification import normalize_email
+        value = normalize_email(value)
         if User.objects.filter(email__iexact=value).exists():
             raise serializers.ValidationError("An account with this email already exists.")
         return value
 
+    def validate_phone_number(self, value):
+        return "".join(value.split())
+
     def validate(self, attrs):
-        name = attrs["name"].strip()
-        if not name:
-            raise serializers.ValidationError({"name": "Please enter your name."})
-        attrs["name"] = name
-        user = User(username=attrs["phone_number"], email=attrs["email"], phone_number=attrs["phone_number"])
+        user = User(email=attrs["email"], first_name=attrs["name"])
         try:
             validate_password(attrs["password"], user=user)
         except DjangoValidationError as error:
@@ -158,23 +172,46 @@ class CustomerSignupSerializer(serializers.Serializer):
         return attrs
 
     def create(self, validated_data):
-        name = validated_data.pop("name")
-        password = validated_data.pop("password")
-        first_name, _, last_name = name.partition(" ")
-        user = User(
-            username=validated_data["phone_number"],
-            first_name=first_name,
-            last_name=last_name,
-            email=validated_data["email"],
-            phone_number=validated_data["phone_number"],
-            role=User.Role.CUSTOMER,
-        )
-        user.set_password(password)
-        user.save()
-        return user
+        from .email_verification import consume_code
+        return consume_code(email=validated_data["email"], purpose="signup", code=validated_data["otp"], signup=validated_data)
 
     def to_representation(self, instance):
-        return {"detail": "Customer account created successfully."}
+        return {"detail": "Email verified and customer account created. Sign in with your email and password."}
+
+
+class EmailOtpVerifySerializer(serializers.Serializer):
+    email = serializers.EmailField()
+    otp = serializers.RegexField(r"^[0-9]{6}$", write_only=True)
+
+
+class CustomerTokenSerializer(serializers.Serializer):
+    email = serializers.EmailField()
+    password = serializers.CharField(write_only=True, trim_whitespace=False)
+
+    def validate(self, attrs):
+        from rest_framework.exceptions import AuthenticationFailed, PermissionDenied
+        users = list(User.objects.filter(role="customer", email__iexact=attrs["email"].strip())[:2])
+        user = users[0] if len(users) == 1 else None
+        if not user or not user.is_active or not user.check_password(attrs["password"]):
+            if not user:
+                from django.contrib.auth.hashers import make_password
+                make_password(attrs["password"])
+            raise AuthenticationFailed("Email or password is incorrect.")
+        if not user.email_verified:
+            raise PermissionDenied({"detail": "Verify your email before signing in.", "code": "email_verification_required"})
+        refresh = CustomTokenObtainPairSerializer.get_token(user)
+        return {"refresh": str(refresh), "access": str(refresh.access_token)}
+
+
+class VerifiedCustomerRefreshSerializer(TokenRefreshSerializer):
+    def validate(self, attrs):
+        from rest_framework_simplejwt.tokens import RefreshToken
+        from rest_framework.exceptions import AuthenticationFailed
+        refresh = RefreshToken(attrs["refresh"])
+        user = User.objects.filter(pk=refresh.get("user_id")).first()
+        if not user or not user.is_active or user.role == "customer" and not user.email_verified:
+            raise AuthenticationFailed("Sign in again. Customer email verification may be required.")
+        return super().validate(attrs)
 
 
 class ChangePasswordSerializer(serializers.Serializer):

@@ -4,6 +4,9 @@ export const authApi = {
   login: (username, password) => api.post("/auth/login/", { username, password }),
   showroomLogin: (username, password) => api.post("/auth/login/showroom/", { username, password }),
   signup: (data) => api.post("/accounts/signup/", data),
+  customerLogin: (email, password) => api.post("/auth/customer/login/", { email, password }),
+  requestEmailOtp: (email, purpose) => api.post("/accounts/email-otp/request/", { email, purpose }, { timeout: 45000 }),
+  verifyEmail: (email, otp) => api.post("/accounts/email-otp/verify/", { email, otp }),
   me: () => api.get("/accounts/me/"),
   changePassword: (data) => api.post("/accounts/password/change/", data),
 };

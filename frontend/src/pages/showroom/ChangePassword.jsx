@@ -33,7 +33,7 @@ export default function ChangePassword() {
     try {
       await authApi.changePassword(form);
       logout();
-      navigate("/login", { replace: true, state: { passwordChanged: true } });
+      navigate("/showroom/login", { replace: true, state: { passwordChanged: true } });
     } catch (requestError) {
       setError(getErrorMessage(requestError));
     } finally {

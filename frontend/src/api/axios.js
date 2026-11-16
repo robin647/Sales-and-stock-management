@@ -1,4 +1,5 @@
 import axios from "axios";
+import { portalLogin } from "../routes/paths";
 
 const configuredApiUrl = import.meta.env.VITE_API_URL?.trim();
 const defaultApiUrl = import.meta.env.PROD
@@ -50,7 +51,7 @@ api.interceptors.response.use(
         if (localStorage.getItem("access_token")) {
           localStorage.removeItem("access_token");
           localStorage.removeItem("refresh_token");
-          window.location.href = "/login";
+          window.location.href = portalLogin(window.location.pathname);
         }
         return Promise.reject(error);
       }
@@ -80,7 +81,7 @@ api.interceptors.response.use(
         processQueue(refreshError, null);
         localStorage.removeItem("access_token");
         localStorage.removeItem("refresh_token");
-        window.location.href = "/login";
+        window.location.href = portalLogin(window.location.pathname);
         return Promise.reject(refreshError);
       } finally {
         isRefreshing = false;

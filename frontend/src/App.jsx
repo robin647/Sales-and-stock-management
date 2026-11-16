@@ -1,9 +1,11 @@
 import { lazy, Suspense, useEffect } from "react";
-import { Navigate, Route, Routes } from "react-router-dom";
+import { Navigate, Route, Routes, useLocation, useParams } from "react-router-dom";
 import Layout from "./components/Layout.jsx";
 import { useAuth } from "./context/AuthContext.jsx";
 import ProtectedRoute from "./routes/ProtectedRoute.jsx";
 
+import { legacyAdminPaths } from "./routes/paths";
+const VerifyEmail = lazy(() => import("./pages/VerifyEmail.jsx"));
 const Login = lazy(() => import("./pages/Login.jsx"));
 const Storefront = lazy(() => import("./pages/Storefront.jsx"));
 const CustomerSignup = lazy(() => import("./pages/CustomerSignup.jsx"));
@@ -34,6 +36,19 @@ const StockEntry = lazy(() => import("./pages/showroom/StockEntry.jsx"));
 import { WhatsAppButton } from "./components/SiteFooter.jsx";
 import AIAssistantButton from "./components/AIAssistantButton.jsx";
 
+function LegacyRoute() {
+  const location = useLocation(), params = useParams();
+  const { user, loading } = useAuth();
+  if (loading) return null;
+  let target = legacyAdminPaths[location.pathname];
+  if (location.pathname.startsWith("/ecommerce")) target = `/admin/ecommerce/${params.module || "dashboard"}`;
+  if (location.pathname === "/reports") target = user?.role === "showroom_user" ? "/showroom/reports" : "/admin/reports";
+  if (location.pathname === "/stock") target = user?.role === "showroom_user" ? "/showroom/stock" : "/admin/stock-entry";
+  if (location.pathname === "/balance") target = user?.role === "showroom_user" ? "/showroom/balance" : "/admin/balance-entry";
+  if (location.pathname === "/change-password") target = "/showroom/change-password";
+  return <Navigate to={(target || "/") + location.search + location.hash} state={location.state} replace />;
+}
+
 export default function App() {
   const { isAdmin } = useAuth();
 
@@ -51,76 +66,36 @@ export default function App() {
     <>
     <Suspense fallback={<div className="flex min-h-screen items-center justify-center text-slate-600">Loading workspace…</div>}>
     <Routes>
-      <Route path="/login" element={<Login />} />
-      <Route path="/signup" element={<CustomerSignup />} />
-
       <Route path="/" element={<Storefront />} />
-      <Route path="/ecommerce/:module?" element={<ProtectedRoute requireCommerce><EcommerceAdmin /></ProtectedRoute>} />
-      <Route path="/admin" element={<ProtectedRoute requireAdmin><Layout><AdminDashboard /></Layout></ProtectedRoute>} />
-      <Route path="/admin/customers" element={<ProtectedRoute requireAdmin><Layout><Customers /></Layout></ProtectedRoute>} />
-      <Route path="/showroom" element={<ProtectedRoute requireShowroom><Layout><ShowroomDashboard /></Layout></ProtectedRoute>} />
-      <Route path="/support" element={<CustomerSupport />} />
-      <Route path="/pages/:slug" element={<StorePage />} />
       <Route path="/shop" element={<Storefront />} />
+      <Route path="/login" element={<Login portal="customer" />} />
+      <Route path="/signup" element={<CustomerSignup />} />
+      <Route path="/verify-email" element={<VerifyEmail />} />
       <Route path="/checkout" element={<ShopAccount />} />
       <Route path="/my-orders" element={<ShopAccount />} />
-      <Route path="/online-products" element={<ProtectedRoute requireAdmin><Layout><Products key="online" online /></Layout></ProtectedRoute>} />
-      <Route path="/online-stock" element={<ProtectedRoute requireAdmin><Layout><StockAdjustments key="online" online /></Layout></ProtectedRoute>} />
-      <Route path="/online-orders" element={<ProtectedRoute requireAdmin><Layout><CommerceManagement /></Layout></ProtectedRoute>} />
-
-      <Route
-        path="/showrooms"
-        element={
-          <ProtectedRoute requireAdmin>
-            <Layout><Showrooms /></Layout>
-          </ProtectedRoute>
-        }
-      />
-      <Route
-        path="/products"
-        element={
-          <ProtectedRoute requireAdmin>
-            <Layout><Products key="main" /></Layout>
-          </ProtectedRoute>
-        }
-      />
-      <Route path="/stock-adjustments" element={<ProtectedRoute requireAdmin><Layout><StockAdjustments /></Layout></ProtectedRoute>} />
-      <Route path="/wholesale/parties" element={<ProtectedRoute requireAdmin><Layout><WholesaleParties /></Layout></ProtectedRoute>} />
-      <Route path="/wholesale/sales" element={<ProtectedRoute requireAdmin><Layout><WholesaleSales /></Layout></ProtectedRoute>} />
-      <Route path="/wholesale/easy" element={<ProtectedRoute requireAdmin><Layout><EasyWholesaleManagement /></Layout></ProtectedRoute>} />
-      <Route path="/wholesale/returns" element={<ProtectedRoute requireAdmin><Layout><WholesaleReturns /></Layout></ProtectedRoute>} />
-      <Route path="/wholesale/summary" element={<ProtectedRoute requireAdmin><Layout><AllPartiesSummary /></Layout></ProtectedRoute>} />
-      <Route path="/wholesale/reports" element={<ProtectedRoute requireAdmin><Layout><WholesaleReports /></Layout></ProtectedRoute>} />
-      <Route path="/employees" element={<ProtectedRoute requireAdmin><Layout><EmployeeManagement /></Layout></ProtectedRoute>} />
-      <Route path="/swing" element={<ProtectedRoute requireAdmin><Layout><SwingManagement /></Layout></ProtectedRoute>} />
-      <Route path="/producer-cost-management" element={<ProtectedRoute requireAdmin><Layout><ProducerCostManagement /></Layout></ProtectedRoute>} />
-
-      <Route
-        path="/stock"
-        element={
-          <ProtectedRoute>
-            <Layout><StockEntry /></Layout>
-          </ProtectedRoute>
-        }
-      />
-      <Route
-        path="/balance"
-        element={
-          <ProtectedRoute>
-            <Layout><BalanceEntry /></Layout>
-          </ProtectedRoute>
-        }
-      />
-      <Route path="/change-password" element={<ProtectedRoute requireShowroom><Layout><ChangePassword /></Layout></ProtectedRoute>} />
-      <Route
-        path="/reports"
-        element={
-          <ProtectedRoute>
-            <Layout><Reports /></Layout>
-          </ProtectedRoute>
-        }
-      />
-
+      <Route path="/support" element={<CustomerSupport />} />
+      <Route path="/pages/:slug" element={<StorePage />} />
+      <Route path="/admin/login" element={<Login portal="admin" />} />
+      <Route path="/admin" element={<Navigate to="/admin/dashboard" replace />} />
+      <Route path="/admin/ecommerce/:module?" element={<ProtectedRoute requireCommerce><EcommerceAdmin /></ProtectedRoute>} />
+      {[
+        ["dashboard", AdminDashboard], ["customers", Customers], ["showrooms", Showrooms],
+        ["products", Products], ["stock-adjustments", StockAdjustments],
+        ["wholesale/parties", WholesaleParties], ["wholesale/sales", WholesaleSales],
+        ["wholesale/easy", EasyWholesaleManagement], ["wholesale/returns", WholesaleReturns],
+        ["wholesale/summary", AllPartiesSummary], ["wholesale/reports", WholesaleReports],
+        ["employees", EmployeeManagement], ["swing", SwingManagement],
+        ["producer-cost-management", ProducerCostManagement], ["reports", Reports],
+        ["stock-entry", StockEntry], ["balance-entry", BalanceEntry],
+      ].map(([path, Page]) => <Route key={path} path={`/admin/${path}`} element={<ProtectedRoute requireAdmin><Layout><Page /></Layout></ProtectedRoute>} />)}
+      <Route path="/admin/online-products" element={<ProtectedRoute requireAdmin><Layout><Products online /></Layout></ProtectedRoute>} />
+      <Route path="/admin/online-stock" element={<ProtectedRoute requireAdmin><Layout><StockAdjustments online /></Layout></ProtectedRoute>} />
+      <Route path="/admin/online-orders" element={<ProtectedRoute requireAdmin><Layout><CommerceManagement /></Layout></ProtectedRoute>} />
+      <Route path="/showroom/login" element={<Login portal="showroom" />} />
+      <Route path="/showroom" element={<Navigate to="/showroom/dashboard" replace />} />
+      {[["dashboard", ShowroomDashboard], ["stock", StockEntry], ["balance", BalanceEntry], ["reports", Reports], ["change-password", ChangePassword]].map(([path, Page]) => <Route key={path} path={`/showroom/${path}`} element={<ProtectedRoute requireShowroom><Layout><Page /></Layout></ProtectedRoute>} />)}
+      {Object.keys(legacyAdminPaths).map(path => <Route key={path} path={path} element={<LegacyRoute />} />)}
+      {["/reports", "/stock", "/balance", "/change-password", "/ecommerce/:module?"].map(path => <Route key={path} path={path} element={<LegacyRoute />} />)}
       <Route path="*" element={<Navigate to="/" replace />} />
     </Routes>
     </Suspense>
