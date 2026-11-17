@@ -1,6 +1,10 @@
 """Admin-only customer directory; order snapshots survive account deletion."""
 
 from decimal import Decimal
+from uuid import uuid4
+from django.contrib.auth.password_validation import validate_password
+from django.core.exceptions import ValidationError as DjangoValidationError
+from django.utils import timezone
 
 from django.db import transaction
 from django.db.models import Count, DecimalField, F, Max, Q, Sum, Value
@@ -13,7 +17,42 @@ from rest_framework_simplejwt.token_blacklist.models import BlacklistedToken, Ou
 
 from core.permissions import IsAdmin
 from apps.ecommerce.permissions import CommercePermission
-from .models import User
+from .models import User, EmailVerification
+
+
+class TestCustomerSerializer(serializers.Serializer):
+    name = serializers.CharField(max_length=150)
+    email = serializers.EmailField()
+    password = serializers.CharField(write_only=True, min_length=8, max_length=1024, trim_whitespace=False)
+
+    def validate_email(self, value):
+        return value.strip().casefold()
+
+    def validate(self, attrs):
+        try:
+            validate_password(attrs['password'], User(email=attrs['email'], first_name=attrs['name']))
+        except DjangoValidationError as error:
+            raise serializers.ValidationError({'password': error.messages}) from error
+        return attrs
+
+    @transaction.atomic
+    def create(self, data):
+        # Share signup's email lock; never overwrite an existing customer's data.
+        now = timezone.now()
+        lock, _ = EmailVerification.objects.get_or_create(email=data['email'], defaults={
+            'purpose': 'signup', 'nonce': uuid4().hex, 'code_hash': '', 'expires_at': now,
+            'sent_at': now, 'window_started_at': now,
+        })
+        lock = EmailVerification.objects.select_for_update().get(pk=lock.pk)
+        if User.objects.filter(email__iexact=data['email']).exists():
+            raise serializers.ValidationError({'email': 'An account already uses this email. Choose a new test email.'})
+        first, _, last = data['name'].partition(' ')
+        user = User.objects.create_user(username='customer-' + uuid4().hex, email=data['email'],
+            password=data['password'], first_name=first, last_name=last, role='customer', email_verified=True)
+        lock.ready = False
+        lock.consumed = True
+        lock.save(update_fields=['ready', 'consumed'])
+        return user
 
 
 class CustomerSerializer(serializers.ModelSerializer):
@@ -40,8 +79,16 @@ class CustomerViewSet(mixins.ListModelMixin, mixins.RetrieveModelMixin, mixins.D
     commerce_module = "customers"
 
     def get_permissions(self):
-        return [IsAdmin()] if self.action == "destroy" else super().get_permissions()
+        return [IsAdmin()] if self.action in ("destroy", "create_test_account") else super().get_permissions()
     serializer_class = CustomerSerializer
+
+    @action(detail=False, methods=['post'], url_path='create-test-account')
+    def create_test_account(self, request):
+        serializer = TestCustomerSerializer(data=request.data)
+        serializer.is_valid(raise_exception=True)
+        customer = serializer.save()
+        return Response({'detail': 'Test customer created. Sign in on the customer page with this email and password.',
+                         'id': customer.pk, 'email': customer.email}, status=201)
 
     def base_queryset(self):
         return User.objects.filter(role=User.Role.CUSTOMER, is_staff=False, is_superuser=False)

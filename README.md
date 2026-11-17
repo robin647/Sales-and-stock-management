@@ -31,6 +31,24 @@ sharing an email are not automatically merged; an administrator must first give
 each account its correct unique email. Existing access tokens expire normally;
 unverified customers cannot refresh them or log in again before verification.
 
+### Gmail ছাড়াই customer login পরীক্ষা
+
+Render Free-তে Gmail credentials ছাড়াও admin থেকে test account তৈরি করা যাবে:
+
+1. `/admin/login`-এ আপনার existing admin account দিয়ে login করুন।
+2. `/admin/customers` অথবা `/admin/ecommerce/customers` খুলুন।
+3. **Create test customer** চাপুন; নতুন test email (যেমন `demo@example.test`),
+   নাম এবং নিজের strong password দিন। OTP বা Gmail setup লাগবে না।
+4. আলাদা incognito/private window-তে `/login` খুলে ওই email ও password দিয়ে
+   customer হিসেবে login করে website পরীক্ষা করুন।
+
+এই account শুধু admin তৈরি করতে পারবেন। Public `/signup`-এ OTP আগের মতোই
+লাগবে। Test account-এর email ownership পরীক্ষা হয় না; এটি admin-approved login।
+Existing email-এর account/password পরিবর্তন করা হবে না। Test order real online
+stock ব্যবহার করে, তাই পরীক্ষা শেষে order cancel করুন। Customer account delete
+করলেই order cancel বা stock restore হয় না। নতুন environment variable, Gmail key
+বা model migration লাগে না।
+
 ### Gmail setup: mhrobin471@gmail.com
 
 **আপনাকে Google account-এর অনুমতি দিতে হবে।** কোডে Gmail HTTPS API সংযোগ তৈরি

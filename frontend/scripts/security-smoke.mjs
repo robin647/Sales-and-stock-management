@@ -54,8 +54,9 @@ try {
       const path = new URL(request.url).pathname;
       if (path.includes('/refresh/')) refreshRequests++;
       const auth = path.includes('/auth/');
-      const body = auth ? { detail: 'Invalid credentials.' } : path.includes('/public/') ? { store: {}, content: [], campaigns: [], locales: [], brands: [], reviews: [] } : { count: 0, results: [] };
-      await command('Fetch.fulfillRequest', { requestId, responseCode: request.method === 'OPTIONS' ? 204 : auth ? 401 : 200,
+      const createTest = path.endsWith('/customers/create-test-account/');
+      const body = createTest ? { id: 99, email: 'demo@example.test' } : auth ? { detail: 'Invalid credentials.' } : path.includes('/public/') ? { store: {}, content: [], campaigns: [], locales: [], brands: [], reviews: [] } : { count: 0, results: [] };
+      await command('Fetch.fulfillRequest', { requestId, responseCode: request.method === 'OPTIONS' ? 204 : auth ? 401 : createTest ? 201 : 200,
         responseHeaders: [{ name: 'Content-Type', value: 'application/json' }, { name: 'Access-Control-Allow-Origin', value: '*' },
           { name: 'Access-Control-Allow-Headers', value: 'content-type,authorization' }, { name: 'Access-Control-Allow-Methods', value: 'GET,POST,OPTIONS' }],
         body: request.method === 'OPTIONS' ? '' : Buffer.from(JSON.stringify(body)).toString('base64') });
@@ -96,6 +97,20 @@ try {
   }
   assert.ok(await evaluate(`document.body.innerText.includes('Invalid credentials.')`), await evaluate('document.body.innerText'));
   assert.equal(refreshRequests, 0, 'Failed login must not refresh an existing session');
+  const adminToken = `x.${Buffer.from(JSON.stringify({ user_id: 1, role: 'admin', full_name: 'Test Admin' })).toString('base64url')}.x`;
+  await evaluate(`localStorage.setItem('access_token', ${JSON.stringify(adminToken)})`);
+  await visit('/admin/customers', 'Create test customer');
+  await evaluate(`Array.from(document.querySelectorAll('button')).find(button => button.textContent === 'Create test customer').click()`);
+  await evaluate(`for (const [index, input] of Array.from(document.querySelectorAll('[role="dialog"] input')).entries()) {
+    Object.getOwnPropertyDescriptor(HTMLInputElement.prototype, 'value').set.call(input, ['Demo Buyer', 'demo@example.test', 'Copper#Lake$947'][index]);
+    input.dispatchEvent(new Event('input', { bubbles: true }));
+  }`);
+  await evaluate(`document.querySelector('[role="dialog"] form').requestSubmit()`);
+  for (let attempt = 0; attempt < 50; attempt++) {
+    if (await evaluate(`document.body.innerText.includes('Test customer demo@example.test created.')`)) break;
+    await new Promise(resolve => setTimeout(resolve, 100));
+  }
+  assert.ok(await evaluate(`document.body.innerText.includes('Test customer demo@example.test created.')`));
   assert.deepEqual(exceptions, []);
   console.log('PASS: portal routes, legacy redirects, CSP rendering and failed-login refresh isolation. External API requests were mocked.');
 } finally {

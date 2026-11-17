@@ -12,6 +12,7 @@ export const authApi = {
 };
 
 export const customerApi = {
+  createTestAccount: (data) => api.post("/accounts/customers/create-test-account/", data),
   list: (params) => api.get("/accounts/customers/", { params }),
   summary: () => api.get("/accounts/customers/summary/"),
   get: (id) => api.get(`/accounts/customers/${id}/`),

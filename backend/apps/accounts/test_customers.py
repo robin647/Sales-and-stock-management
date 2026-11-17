@@ -11,6 +11,40 @@ from .models import User
 
 
 class CustomerDirectoryTests(TestCase):
+    def test_admin_can_create_test_customer_and_login_without_mail(self):
+        from unittest.mock import patch
+        payload = {'name': 'Demo Buyer', 'email': 'Demo@Example.test', 'password': 'Copper#Lake$947'}
+        with patch('django.core.mail.send_mail', side_effect=AssertionError('No email should be sent')):
+            response = self.client.post('/api/accounts/customers/create-test-account/', payload, format='json')
+        self.assertEqual(response.status_code, 201, response.data)
+        user = User.objects.get(pk=response.data['id'])
+        self.assertEqual(user.role, 'customer')
+        self.assertTrue(user.email_verified)
+        self.assertFalse(user.is_staff)
+        self.assertTrue(user.check_password(payload['password']))
+        self.assertNotIn('password', response.data)
+        self.client.force_authenticate(user=None)
+        login = self.client.post('/api/auth/customer/login/', {'email': 'demo@example.test', 'password': payload['password']}, format='json')
+        self.assertEqual(login.status_code, 200, login.data)
+
+    def test_test_customer_creation_is_admin_only_and_preserves_existing_account(self):
+        payload = {'name': 'Demo Buyer', 'email': self.customer.email.upper(), 'password': 'Copper#Lake$947'}
+        response = self.client.post('/api/accounts/customers/create-test-account/', payload, format='json')
+        self.assertEqual(response.status_code, 400)
+        self.customer.refresh_from_db()
+        self.assertTrue(self.customer.check_password('MahirPass#2026'))
+        self.assertFalse(self.customer.email_verified)
+        for user in (None, self.customer, self.staff, User.objects.create_user('ecom-test', role='ecommerce_staff')):
+            self.client.force_authenticate(user=user)
+            response = self.client.post('/api/accounts/customers/create-test-account/', payload, format='json')
+            self.assertIn(response.status_code, (401, 403))
+
+    def test_test_customer_creation_requires_strong_password(self):
+        response = self.client.post('/api/accounts/customers/create-test-account/', {
+            'name': 'Demo', 'email': 'demo@example.test', 'password': '12345678'}, format='json')
+        self.assertEqual(response.status_code, 400)
+        self.assertFalse(User.objects.filter(email='demo@example.test').exists())
+
     def setUp(self):
         self.client = APIClient()
         self.admin = User.objects.create_user("directory-admin", role="admin")

@@ -37,6 +37,21 @@ export default function Customers() {
   const [confirmation, setConfirmation] = useState("");
   const [deleting, setDeleting] = useState(false);
   const [deleteError, setDeleteError] = useState("");
+  const [createOpen, setCreateOpen] = useState(false);
+  const [createForm, setCreateForm] = useState({ name: "Test Customer", email: "", password: "" });
+  const [creating, setCreating] = useState(false);
+  const [createError, setCreateError] = useState("");
+
+  async function createTestCustomer(event) {
+    event.preventDefault(); setCreating(true); setCreateError("");
+    try {
+      const { data } = await customerApi.createTestAccount(createForm);
+      setNotice(`Test customer ${data.email} created. Sign in at /login with the password you chose.`);
+      setCreateOpen(false); setCreateForm({ name: "Test Customer", email: "", password: "" });
+      setAttempt(value => value + 1);
+    } catch (err) { setCreateError(errorMessage(err)); }
+    finally { setCreating(false); }
+  }
 
   useEffect(() => {
     let active = true;
@@ -80,7 +95,8 @@ export default function Customers() {
   }
 
   return <div className="commerce">
-    <div className="commerce-heading"><div><span className="commerce-kicker">CUSTOMER DIRECTORY</span><h1>Customers</h1><p>Account details, contact information and the complete order history in one place.</p></div><Link to="/admin/online-orders" className="c-button secondary">Manage online orders →</Link></div>
+    <div className="commerce-heading"><div><span className="commerce-kicker">CUSTOMER DIRECTORY</span><h1>Customers</h1><p>Account details, contact information and the complete order history in one place.</p></div><div className="flex flex-wrap gap-2">{user?.role === "admin" && <button className="c-button" onClick={() => { setCreateError(""); setCreateOpen(true); }}>Create test customer</button>}<Link to="/admin/online-orders" className="c-button secondary">Manage online orders →</Link></div></div>
+    {createOpen && <div className="c-modal-backdrop"><section className="c-modal customer-delete-modal" role="dialog" aria-modal="true" aria-labelledby="create-test-title"><div className="c-modal-heading"><h2 id="create-test-title">Create test customer</h2><button disabled={creating} aria-label="Close" onClick={() => setCreateOpen(false)}>×</button></div><form onSubmit={createTestCustomer} className="c-form"><p>Admin-approved test login. No Gmail setup or email OTP is needed. This does not verify ownership of the email address.</p><p className="c-help">Test orders use real online inventory. Cancel test orders afterward to restore stock.</p>{createError && <div role="alert" className="c-alert error">{createError}</div>}<fieldset disabled={creating} className="space-y-4">{[["name", "Name", "text"], ["email", "Test email address", "email"], ["password", "Choose a password", "password"]].map(([key, label, type]) => <label key={key}>{label}<input required type={type} maxLength={key === "name" ? 150 : key === "email" ? 254 : 1024} minLength={key === "password" ? 8 : undefined} autoComplete={key === "password" ? "new-password" : "off"} value={createForm[key]} onChange={event => setCreateForm({ ...createForm, [key]: event.target.value })} /></label>)}</fieldset><div className="c-modal-footer"><button type="button" className="c-button secondary" disabled={creating} onClick={() => setCreateOpen(false)}>Cancel</button><button className="c-button" disabled={creating}>{creating ? "Creating..." : "Create test customer"}</button></div></form></section></div>}
     <div className="commerce-stats">{[["Total customers", summary.total], ["Active accounts", summary.active], ["Inactive accounts", summary.inactive], ["Customers with orders", summary.with_orders]].map(([label, value]) => <div className="c-stat" key={label}><span>{label}</span><strong>{value}</strong></div>)}</div>
     {error && <div role="alert" className="c-alert error">{error}</div>}{notice && <div className="c-alert" role="status">{notice}<button onClick={() => setNotice("")} aria-label="Dismiss notification">×</button></div>}
     <section className="c-panel"><form className="c-toolbar" onSubmit={event => { event.preventDefault(); setPage(1); setSearch(query); setAttempt(value => value + 1); }}><input aria-label="Search customers" placeholder="Search name, email or phone…" value={query} onChange={event => setQuery(event.target.value)} /><button className="c-button secondary">Search</button><select aria-label="Account status" value={filter} onChange={event => { setFilter(event.target.value); setPage(1); }}><option value="">All accounts</option><option value="active">Active</option><option value="inactive">Inactive</option></select><label className="customer-order-filter"><input type="checkbox" checked={hasOrders} onChange={event => { setHasOrders(event.target.checked); setPage(1); }} />Has orders</label><button type="button" className="c-text-button" onClick={() => setAttempt(value => value + 1)}>Refresh</button></form>
