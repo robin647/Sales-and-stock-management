@@ -53,6 +53,7 @@ INSTALLED_APPS = [
 MIDDLEWARE = [
     "corsheaders.middleware.CorsMiddleware",
     "django.middleware.security.SecurityMiddleware",
+    "core.security.RequestGuardMiddleware",
     "whitenoise.middleware.WhiteNoiseMiddleware",
     "django.contrib.sessions.middleware.SessionMiddleware",
     "django.middleware.common.CommonMiddleware",
@@ -116,13 +117,17 @@ USE_TZ = True
 
 STATIC_URL = "static/"
 STATIC_ROOT = BASE_DIR / "staticfiles"
-STATICFILES_STORAGE = "whitenoise.storage.CompressedManifestStaticFilesStorage"
+STORAGES = {
+    "default": {"BACKEND": "django.core.files.storage.FileSystemStorage"},
+    "staticfiles": {"BACKEND": "whitenoise.storage.CompressedManifestStaticFilesStorage"},
+}
 MEDIA_URL = "/media/"
 MEDIA_ROOT = Path(env("MEDIA_ROOT", default=str(BASE_DIR / "media")))
 
 DEFAULT_AUTO_FIELD = "django.db.models.BigAutoField"
 
 REST_FRAMEWORK = {
+    "NUM_PROXIES": env.int("TRUSTED_PROXY_COUNT", default=0),
     "DEFAULT_AUTHENTICATION_CLASSES": (
         "rest_framework_simplejwt.authentication.JWTAuthentication",
     ),
@@ -150,6 +155,29 @@ REST_FRAMEWORK = {
     },
     "EXCEPTION_HANDLER": "core.exceptions.custom_exception_handler",
 }
+
+REQUEST_GUARD_ENABLED = env.bool("REQUEST_GUARD_ENABLED", default="test" not in sys.argv)
+REQUEST_MAX_BYTES = 5 * 1024 * 1024
+REQUESTS_PER_MINUTE = env.int("REQUESTS_PER_MINUTE", default=600)
+AUTH_REQUESTS_PER_MINUTE = env.int("AUTH_REQUESTS_PER_MINUTE", default=20)
+DATA_UPLOAD_MAX_MEMORY_SIZE = REQUEST_MAX_BYTES
+DATA_UPLOAD_MAX_NUMBER_FIELDS = 200
+DATA_UPLOAD_MAX_NUMBER_FILES = 4
+FILE_UPLOAD_MAX_MEMORY_SIZE = 1024 * 1024
+SECURITY_REDIS_URL = env("SECURITY_REDIS_URL", default="")
+if "test" in sys.argv:
+    # Tests clear their caches; never let an inherited private URL flush live data.
+    SECURITY_REDIS_URL = ""
+CACHES = {
+    "default": {"BACKEND": "django.core.cache.backends.locmem.LocMemCache", "LOCATION": "api-throttles"},
+    "security": ({"BACKEND": "django.core.cache.backends.redis.RedisCache", "LOCATION": SECURITY_REDIS_URL,
+                  "OPTIONS": {"socket_connect_timeout": 2, "socket_timeout": 2}}
+                 if SECURITY_REDIS_URL else
+                 {"BACKEND": "django.core.cache.backends.locmem.LocMemCache", "LOCATION": "request-guard",
+                  "OPTIONS": {"MAX_ENTRIES": 10000}}),
+}
+if SECURITY_REDIS_URL:
+    CACHES["default"] = CACHES["security"].copy()
 
 SIMPLE_JWT = {
     "TOKEN_REFRESH_SERIALIZER": "apps.accounts.serializers.VerifiedCustomerRefreshSerializer",

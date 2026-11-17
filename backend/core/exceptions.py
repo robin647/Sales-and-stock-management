@@ -1,4 +1,5 @@
 import logging
+from django.core.exceptions import ValidationError as DjangoValidationError, RequestDataTooBig
 
 from django.db import IntegrityError
 from rest_framework.views import exception_handler
@@ -25,6 +26,12 @@ def custom_exception_handler(exc, context):
             data = {"detail": str(response.data)}
         response.data = data
         return response
+
+    if isinstance(exc, (DjangoValidationError, ValueError)):
+        return Response({"detail": "Invalid request parameters."}, status=status.HTTP_400_BAD_REQUEST)
+
+    if isinstance(exc, RequestDataTooBig):
+        return Response({"detail": "Request body is too large."}, status=413)
 
     if isinstance(exc, IntegrityError):
         logger.warning("IntegrityError: %s", exc)

@@ -1,3 +1,4 @@
+from core.excel import protect_workbook
 from calendar import monthrange
 from decimal import Decimal, ROUND_HALF_UP
 from io import BytesIO
@@ -271,6 +272,7 @@ class ExportSalarySheetView(AdminOnly, APIView):
         worksheet.row_dimensions[header_row].height = 32
 
         output = BytesIO()
+        protect_workbook(workbook)
         workbook.save(output)
         response = HttpResponse(
             output.getvalue(),

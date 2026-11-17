@@ -1,3 +1,4 @@
+from core.excel import protect_workbook
 from decimal import Decimal
 from io import BytesIO
 
@@ -324,6 +325,7 @@ class ProducerExcelExportView(APIView):
         worksheet.column_dimensions["D"].width = 16
 
         output = BytesIO()
+        protect_workbook(workbook)
         workbook.save(output)
         output.seek(0)
         response = HttpResponse(output.read(), content_type="application/vnd.openxmlformats-officedocument.spreadsheetml.sheet")

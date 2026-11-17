@@ -1,3 +1,4 @@
+from core.excel import protect_workbook
 from django.http import HttpResponse
 from openpyxl import Workbook
 from openpyxl.styles import Font, PatternFill
@@ -111,6 +112,7 @@ class WholesaleExcelExportView(APIView):
 
         response = HttpResponse(content_type="application/vnd.openxmlformats-officedocument.spreadsheetml.sheet")
         response["Content-Disposition"] = 'attachment; filename="wholesale-report.xlsx"'
+        protect_workbook(workbook)
         workbook.save(response)
         return response
 
@@ -193,6 +195,7 @@ def _criteria_sheet(workbook, query_params):
 def _workbook_response(workbook, filename):
     response = HttpResponse(content_type="application/vnd.openxmlformats-officedocument.spreadsheetml.sheet")
     response["Content-Disposition"] = f'attachment; filename="{filename}"'
+    protect_workbook(workbook)
     workbook.save(response)
     return response
 

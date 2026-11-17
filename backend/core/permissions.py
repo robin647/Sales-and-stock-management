@@ -39,10 +39,11 @@ class IsAdminOrOwnShowroom(BasePermission):
     """
 
     def has_permission(self, request, view):
-        return bool(request.user and request.user.is_authenticated)
+        return bool(request.user and request.user.is_authenticated and request.user.role in ("admin", "showroom_user"))
 
     def has_object_permission(self, request, view, obj):
         if request.user.role == "admin":
             return True
         showroom_id = getattr(obj, "showroom_id", None)
-        return showroom_id == request.user.showroom_id
+        return bool(request.user.role == "showroom_user" and request.user.showroom_id
+                    and showroom_id == request.user.showroom_id)

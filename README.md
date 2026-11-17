@@ -127,6 +127,9 @@ Official setup references: [Gmail sending](https://developers.google.com/workspa
 
 ## Tech stack
 
+Security fixes, test commands, request limits, proxy/Redis setup and hosting DDoS
+protection boundaries are documented in [SECURITY_REVIEW.md](SECURITY_REVIEW.md).
+
 - Backend: Django, Django REST Framework, PostgreSQL, JWT (SimpleJWT), Gunicorn, WhiteNoise
 - Frontend: React (Vite), React Router, Axios, Tailwind CSS, Recharts
 - Database: **PostgreSQL only** (local and production)

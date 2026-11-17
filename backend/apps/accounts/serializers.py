@@ -17,10 +17,20 @@ class CustomTokenObtainPairSerializer(TokenObtainPairSerializer):
     def validate(self, attrs):
         from django.contrib.auth import authenticate
         from rest_framework.exceptions import AuthenticationFailed
+        if len(attrs.get("password", "")) > 1024:
+            raise AuthenticationFailed("Invalid username or password.")
         user = authenticate(request=self.context.get("request"), username=attrs.get("username"), password=attrs.get("password"))
-        if user and user.role not in ("admin", "ecommerce_staff"):
+        from rest_framework_simplejwt.settings import api_settings
+        if not api_settings.USER_AUTHENTICATION_RULE(user):
+            raise AuthenticationFailed(self.error_messages["no_active_account"], "no_active_account")
+        if user.role not in ("admin", "ecommerce_staff"):
             raise AuthenticationFailed("Use the customer email login or showroom login page for this account.")
-        return super().validate(attrs)
+        self.user = user
+        refresh = self.get_token(user)
+        if api_settings.UPDATE_LAST_LOGIN:
+            from django.contrib.auth.models import update_last_login
+            update_last_login(None, user)
+        return {"refresh": str(refresh), "access": str(refresh.access_token)}
 
     @classmethod
     def get_token(cls, user):
@@ -37,7 +47,7 @@ class ShowroomTokenObtainPairSerializer(serializers.Serializer):
     Returns a JWT token with showroom info in the payload.
     """
     username = serializers.CharField()
-    password = serializers.CharField(write_only=True)
+    password = serializers.CharField(write_only=True, max_length=1024, trim_whitespace=False)
 
     def validate(self, attrs):
         from django.contrib.auth import authenticate
@@ -150,7 +160,7 @@ class CustomerSignupSerializer(serializers.Serializer):
     name = serializers.CharField(max_length=150)
     email = serializers.EmailField()
     phone_number = serializers.CharField(max_length=20, required=False, allow_blank=True)
-    password = serializers.CharField(write_only=True, min_length=8, trim_whitespace=False)
+    password = serializers.CharField(write_only=True, min_length=8, max_length=1024, trim_whitespace=False)
     otp = serializers.RegexField(r"^[0-9]{6}$", write_only=True)
 
     def validate_email(self, value):
@@ -186,7 +196,7 @@ class EmailOtpVerifySerializer(serializers.Serializer):
 
 class CustomerTokenSerializer(serializers.Serializer):
     email = serializers.EmailField()
-    password = serializers.CharField(write_only=True, trim_whitespace=False)
+    password = serializers.CharField(write_only=True, max_length=1024, trim_whitespace=False)
 
     def validate(self, attrs):
         from rest_framework.exceptions import AuthenticationFailed, PermissionDenied
@@ -215,9 +225,9 @@ class VerifiedCustomerRefreshSerializer(TokenRefreshSerializer):
 
 
 class ChangePasswordSerializer(serializers.Serializer):
-    current_password = serializers.CharField(write_only=True, trim_whitespace=False)
-    new_password = serializers.CharField(write_only=True, trim_whitespace=False, min_length=8)
-    confirm_password = serializers.CharField(write_only=True, trim_whitespace=False)
+    current_password = serializers.CharField(write_only=True, max_length=1024, trim_whitespace=False)
+    new_password = serializers.CharField(write_only=True, max_length=1024, trim_whitespace=False, min_length=8)
+    confirm_password = serializers.CharField(write_only=True, max_length=1024, trim_whitespace=False)
 
     def validate(self, attrs):
         from django.contrib.auth.password_validation import validate_password
@@ -235,12 +245,12 @@ class ChangePasswordSerializer(serializers.Serializer):
 
     def save(self, **kwargs):
         from django.db import transaction
-        from rest_framework_simplejwt.token_blacklist.models import OutstandingToken
+        from rest_framework_simplejwt.token_blacklist.models import OutstandingToken, BlacklistedToken
 
         user = self.context["request"].user
         with transaction.atomic():
             user.set_password(self.validated_data["new_password"])
             user.save(update_fields=["password"])
             for token in OutstandingToken.objects.filter(user=user):
-                token.blacklist()
+                BlacklistedToken.objects.get_or_create(token=token)
         return user

@@ -577,6 +577,7 @@ class WholesaleApiTests(TestCase):
         self.assertEqual(movement.quantity, 2)
 
     def test_legacy_and_easy_statement_rows_with_same_table_ids_are_not_collapsed(self):
+        from .models import EasyWholesaleSale
         legacy = self.client.post("/api/wholesale/invoices/", {
             "party": self.party_id, "invoice_number": "LEGACY-SAME-ID", "sale_date": "2026-10-15",
             "items": [{"product": self.product.id, "quantity": 1, "unit_price": "100.00"}],
@@ -587,7 +588,9 @@ class WholesaleApiTests(TestCase):
         }, format="json")
         self.assertEqual(legacy.status_code, 201, legacy.data)
         self.assertEqual(easy.status_code, 201, easy.data)
-        self.assertEqual(legacy.data["id"], easy.data["id"])
+        # PostgreSQL sequences do not rewind between rolled-back TestCases.
+        # Deliberately construct the cross-table ID collision this test needs.
+        EasyWholesaleSale.objects.filter(pk=easy.data["id"]).update(id=legacy.data["id"])
 
         statement = self.client.get(f"/api/wholesale/parties/{self.party_id}/history/")
         self.assertEqual(statement.status_code, 200, statement.data)

@@ -46,6 +46,11 @@ api.interceptors.response.use(
     }
 
     if (error.response?.status === 401 && originalRequest && !originalRequest._retry) {
+      // A rejected login must stay rejected; never replay submitted credentials
+      // using a previous account's refresh token or redirect away from its error.
+      if (/\/auth\/(?:login\/|customer\/login\/|refresh\/)/.test(originalRequest.url || "")) {
+        return Promise.reject(error);
+      }
       const refreshToken = localStorage.getItem("refresh_token");
       if (!refreshToken) {
         if (localStorage.getItem("access_token")) {

@@ -1,4 +1,5 @@
 from decimal import Decimal
+from core.excel import protect_workbook
 
 from django.db import transaction
 from django.http import HttpResponse
@@ -145,6 +146,7 @@ class SwingOperatorsExportView(APIView):
                 cell.number_format = '"৳" #,##0.00;[Red]("৳" #,##0.00)'
         response = HttpResponse(content_type=XLSX_CONTENT_TYPE)
         response["Content-Disposition"] = 'attachment; filename="swing-all-operators.xlsx"'
+        protect_workbook(workbook)
         workbook.save(response)
         return response
 
@@ -204,6 +206,7 @@ class SwingOperatorStatementExportView(APIView):
                 cell.number_format = '"৳" #,##0.00;[Red]("৳" #,##0.00)'
         response = HttpResponse(content_type=XLSX_CONTENT_TYPE)
         response["Content-Disposition"] = f'attachment; filename="swing-operator-{operator.pk}-statement.xlsx"'
+        protect_workbook(workbook)
         workbook.save(response)
         return response
 

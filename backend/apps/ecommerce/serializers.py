@@ -1,6 +1,7 @@
 from django.contrib.auth.password_validation import validate_password
 from django.core.exceptions import ValidationError as DjangoValidationError
 from rest_framework import serializers
+from django.db import transaction
 from apps.accounts.models import User
 from .models import TeamMember
 
@@ -75,6 +76,7 @@ class TeamSerializer(RecordSerializer):
                 raise serializers.ValidationError({"password": exc.messages})
         return attrs
 
+    @transaction.atomic
     def create(self, validated_data):
         user = User.objects.create_user(username=validated_data.pop("username"), password=validated_data.pop("password"), role="ecommerce_staff")
         return TeamMember.objects.create(user=user, **validated_data)

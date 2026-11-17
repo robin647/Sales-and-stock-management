@@ -1,3 +1,4 @@
+from core.excel import protect_workbook
 from django.db.models import Sum
 from django.http import HttpResponse
 from openpyxl import Workbook
@@ -76,6 +77,7 @@ class DailyExcelExportView(APIView):
         )
         filename = f"daily-statement-{showroom_id}-{target_date}.xlsx"
         response["Content-Disposition"] = f'attachment; filename="{filename}"'
+        protect_workbook(wb)
         wb.save(response)
         return response
 
@@ -143,5 +145,6 @@ class MonthlyExcelExportView(APIView):
         )
         filename = f"monthly-report-{year}-{month:02d}.xlsx"
         response["Content-Disposition"] = f'attachment; filename="{filename}"'
+        protect_workbook(wb)
         wb.save(response)
         return response
