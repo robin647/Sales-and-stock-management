@@ -2,11 +2,12 @@ from collections import defaultdict
 from decimal import Decimal
 
 from django.db import transaction
+from django.db.models.deletion import ProtectedError
 from django.utils.dateparse import parse_date
 from rest_framework import permissions, viewsets
 from rest_framework.filters import SearchFilter
 from rest_framework.decorators import action
-from rest_framework.exceptions import MethodNotAllowed, PermissionDenied, ValidationError
+from rest_framework.exceptions import PermissionDenied, ValidationError
 from rest_framework.response import Response
 from rest_framework.views import APIView
 from django_filters.rest_framework import DjangoFilterBackend
@@ -44,8 +45,11 @@ class PartyViewSet(AdminOnlyViewSet):
     filter_backends = [DjangoFilterBackend, SearchFilter]
     filterset_fields = ["is_active"]
 
-    def destroy(self, request, *args, **kwargs):
-        raise MethodNotAllowed(request.method, detail="Deactivate parties instead of deleting account records.")
+    def perform_destroy(self, instance):
+        try:
+            instance.delete()
+        except ProtectedError as exc:
+            raise ValidationError("This party has linked transactions. Deactivate the party to keep its account history.") from exc
 
     def list(self, request, *args, **kwargs):
         queryset = self.filter_queryset(self.get_queryset())

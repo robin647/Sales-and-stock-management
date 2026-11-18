@@ -1,15 +1,34 @@
+from collections.abc import Mapping
+
 from core.product_serializers import InventoryProductSerializer
 from rest_framework import serializers
 
 from apps.showrooms.models import Showroom
 from .models import DailyBalance, DailyStock, FactoryStock, ShowroomStock, StockTransfer
 
-class DailyStockSerializer(InventoryProductSerializer):
+class ShowroomEntrySerializer(InventoryProductSerializer):
+    showroom = serializers.PrimaryKeyRelatedField(queryset=Showroom.objects.all(), required=False)
+
+    def to_internal_value(self, data):
+        user = self.context["request"].user
+        if user.role == "showroom_user" and isinstance(data, Mapping):
+            data = data.copy()
+            data["showroom"] = user.showroom_id
+        return super().to_internal_value(data)
+
+    def validate(self, attrs):
+        if not self.instance and not attrs.get("showroom"):
+            raise serializers.ValidationError({"showroom": "Select a showroom."})
+        return attrs
+
+
+class DailyStockSerializer(ShowroomEntrySerializer):
     product_name = serializers.CharField(source="product.name", read_only=True)
     showroom_name = serializers.CharField(source="showroom.name", read_only=True)
 
     class Meta:
         model = DailyStock
+        validators = []
         fields = [
             "id", "showroom", "showroom_name", "product", "product_name", "date",
             "opening_qty", "received_qty", "sold_qty", "return_qty", "returned_to_factory_qty", "closing_qty",
@@ -18,6 +37,7 @@ class DailyStockSerializer(InventoryProductSerializer):
         read_only_fields = ["id", "opening_qty", "closing_qty", "created_by", "created_at", "updated_at"]
 
     def validate(self, attrs):
+        attrs = super().validate(attrs)
         showroom = attrs.get("showroom") or getattr(self.instance, "showroom", None)
         product = attrs.get("product") or getattr(self.instance, "product", None)
         date = attrs.get("date") or getattr(self.instance, "date", None)
@@ -77,15 +97,12 @@ class DailyStockSerializer(InventoryProductSerializer):
         )
         return super().update(instance, validated_data)
 
-class DailyBalanceSerializer(InventoryProductSerializer):
-
-    showroom = serializers.PrimaryKeyRelatedField(
-        queryset=Showroom.objects.all(), required=False
-    )
+class DailyBalanceSerializer(ShowroomEntrySerializer):
     showroom_name = serializers.CharField(source="showroom.name", read_only=True)
 
     class Meta:
         model = DailyBalance
+        validators = []
         fields = [
             "id", "showroom", "showroom_name", "date",
             "opening_balance", "cash_sale", "card_sale", "total_sale",
@@ -97,13 +114,9 @@ class DailyBalanceSerializer(InventoryProductSerializer):
             "created_by", "created_at", "updated_at",
         ]
 
-    validators = []
-
     def validate(self, attrs):
+        attrs = super().validate(attrs)
         showroom = attrs.get("showroom") or getattr(self.instance, "showroom", None)
-        request = self.context.get("request")
-        if showroom is None and request and request.user.role != "admin":
-            showroom = request.user.showroom
         date = attrs.get("date") or getattr(self.instance, "date", None)
 
         # The opening for an edited entry comes from the preceding date, not

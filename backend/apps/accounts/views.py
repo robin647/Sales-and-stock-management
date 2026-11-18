@@ -3,7 +3,7 @@ from rest_framework.exceptions import PermissionDenied
 from rest_framework.response import Response
 from rest_framework.throttling import ScopedRateThrottle
 from rest_framework.views import APIView
-from rest_framework_simplejwt.views import TokenObtainPairView
+from rest_framework_simplejwt.views import TokenObtainPairView, TokenViewBase
 
 from core.permissions import IsAdmin
 
@@ -23,7 +23,7 @@ class CustomTokenObtainPairView(TokenObtainPairView):
     throttle_classes = [ScopedRateThrottle]
     throttle_scope = "login"
 
-class ShowroomLoginView(APIView):
+class ShowroomLoginView(TokenViewBase):
     """Authenticate a showroom by username and password, return JWT tokens."""
 
     permission_classes = [permissions.AllowAny]
@@ -31,7 +31,7 @@ class ShowroomLoginView(APIView):
     throttle_scope = "login"
 
     def post(self, request):
-        serializer = ShowroomTokenObtainPairSerializer(data=request.data)
+        serializer = ShowroomTokenObtainPairSerializer(data=request.data, context={"request": request})
         if serializer.is_valid():
             return Response(serializer.validated_data, status=status.HTTP_200_OK)
         return Response(serializer.errors, status=status.HTTP_401_UNAUTHORIZED)
@@ -77,7 +77,7 @@ class EmailOtpVerifyView(APIView):
         return Response({"detail": "Email verified. Sign in with your email and existing password."})
 
 
-class CustomerLoginView(APIView):
+class CustomerLoginView(TokenViewBase):
     permission_classes = [permissions.AllowAny]
     throttle_classes = [ScopedRateThrottle]
     throttle_scope = "login"

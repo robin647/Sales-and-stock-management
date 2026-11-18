@@ -6,11 +6,14 @@ export default function ProtectedRoute({ children, requireAdmin = false, require
   const location = useLocation();
 
   if (loading) return null;
-  if (!user) return <Navigate to={requireShowroom ? "/showroom/login" : "/admin/login"} state={{ returnTo: location.pathname + location.search }} replace />;
-  if (user.role === "customer") return <Navigate to="/" replace />;
-  if (requireCommerce && !["admin", "ecommerce_staff"].includes(user.role)) return <Navigate to="/" replace />;
-  if (requireAdmin && user.role !== "admin") return <Navigate to="/" replace />;
-  if (requireShowroom && user.role !== "showroom_user") return <Navigate to="/" replace />;
+  const allowed = user && (
+    requireShowroom ? user.role === "showroom_user" :
+    requireCommerce ? ["admin", "ecommerce_staff"].includes(user.role) :
+    requireAdmin ? user.role === "admin" : user.role !== "customer"
+  );
+  if (!allowed) {
+    return <Navigate to={requireShowroom ? "/showroom/login" : "/admin/login"} state={{ returnTo: location.pathname + location.search }} replace />;
+  }
 
   return children;
 }

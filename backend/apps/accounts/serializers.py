@@ -1,10 +1,11 @@
 from rest_framework import serializers
 from rest_framework_simplejwt.serializers import TokenObtainPairSerializer
-from rest_framework_simplejwt.tokens import Token
+from rest_framework_simplejwt.tokens import AccessToken
 from rest_framework_simplejwt.serializers import TokenRefreshSerializer
 from django.contrib.auth.password_validation import validate_password
 from django.core.exceptions import ValidationError as DjangoValidationError
 
+from .authentication import check_showroom_access
 from .models import User
 
 class CustomTokenObtainPairSerializer(TokenObtainPairSerializer):
@@ -52,7 +53,6 @@ class ShowroomTokenObtainPairSerializer(serializers.Serializer):
     def validate(self, attrs):
         from django.contrib.auth import authenticate
         from django.db import IntegrityError, transaction
-        from rest_framework_simplejwt.tokens import RefreshToken
 
         username = attrs.get("username")
         password = attrs.get("password")
@@ -95,6 +95,7 @@ class ShowroomTokenObtainPairSerializer(serializers.Serializer):
                     raise serializers.ValidationError({"detail": "Invalid username or password."})
                 user = authenticated
 
+        check_showroom_access(user)
         refresh = CustomTokenObtainPairSerializer.get_token(user)
 
         return {
@@ -221,7 +222,15 @@ class VerifiedCustomerRefreshSerializer(TokenRefreshSerializer):
         user = User.objects.filter(pk=refresh.get("user_id")).first()
         if not user or not user.is_active or user.role == "customer" and not user.email_verified:
             raise AuthenticationFailed("Sign in again. Customer email verification may be required.")
-        return super().validate(attrs)
+        check_showroom_access(user)
+        data = super().validate(attrs)
+        access = AccessToken(data["access"])
+        access["role"] = user.role
+        access["showroom_id"] = user.showroom_id
+        access["showroom_name"] = user.showroom.name if user.showroom_id else None
+        access["full_name"] = user.get_full_name() or user.username
+        data["access"] = str(access)
+        return data
 
 
 class ChangePasswordSerializer(serializers.Serializer):

@@ -9,7 +9,7 @@ from .models import Showroom
 
 class ShowroomSerializer(serializers.ModelSerializer):
     username = serializers.CharField(write_only=True, required=False, allow_blank=False, max_length=150)
-    password = serializers.CharField(write_only=True, required=False, allow_blank=False, min_length=8)
+    password = serializers.CharField(write_only=True, required=False, allow_blank=False, min_length=8, max_length=1024, trim_whitespace=False)
     login_username = serializers.SerializerMethodField()
     has_login = serializers.SerializerMethodField()
 
@@ -26,10 +26,10 @@ class ShowroomSerializer(serializers.ModelSerializer):
 
     def get_login_username(self, showroom):
         user = self._login_user(showroom)
-        return user.username if user else None
+        return user.username if user else (showroom.username or None)
 
     def get_has_login(self, showroom):
-        return self._login_user(showroom) is not None
+        return bool(self.get_login_username(showroom))
 
     def validate(self, attrs):
         username = attrs.get("username")
@@ -101,7 +101,7 @@ class ShowroomSerializer(serializers.ModelSerializer):
                 user.set_password(password)
                 user.full_clean()
                 user.save()
-        else:
+        if "is_active" in validated_data:
             instance.users.filter(role=User.Role.SHOWROOM_USER).update(is_active=instance.is_active)
         instance.save()
         return instance

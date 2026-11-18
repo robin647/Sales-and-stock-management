@@ -33,6 +33,14 @@ class WholesaleApiTests(TestCase):
         party_response = self.client.post("/api/wholesale/parties/", {"name": "Test Buyer"}, format="json")
         self.party_id = party_response.data["id"]
 
+    def test_admin_can_delete_unused_party(self):
+        detail = f"/api/wholesale/parties/{self.party_id}/"
+        self.client.force_authenticate(self.showroom_user)
+        self.assertEqual(self.client.delete(detail).status_code, 403)
+        self.client.force_authenticate(self.admin)
+        self.assertEqual(self.client.delete(detail).status_code, 204)
+        self.assertEqual(self.client.get(detail).status_code, 404)
+
     def test_stock_adjustment_updates_only_selected_location_and_keeps_history(self):
         response = self.client.post("/api/wholesale/stock-adjustments/", {
             "product": self.product.id, "location": "factory", "new_quantity": 25, "reason": "Count correction",
@@ -662,6 +670,40 @@ class InventoryApiTests(TestCase):
         self.assertEqual(updated.status_code, 200, updated.data)
         self.assertEqual(updated.data["showroom"], self.showroom.pk)
 
+    def test_balance_is_scoped_and_admin_can_delete_and_recalculate(self):
+        url = "/api/inventory/balances/"
+        created = self.client.post(url, {
+            "date": "2026-10-18", "cash_sale": 100, "showroom": self.other_showroom.pk,
+        }, format="json")
+        self.assertEqual(created.status_code, 201, created.data)
+        self.assertEqual(created.data["showroom"], self.showroom.pk)
+        detail = f"{url}{created.data['id']}/"
+        updated = self.client.patch(detail, {
+            "showroom": self.other_showroom.pk, "cash_sale": 200,
+        }, format="json")
+        self.assertEqual(updated.status_code, 200, updated.data)
+        self.assertEqual(updated.data["showroom"], self.showroom.pk)
+        next_day = self.client.post(url, {"date": "2026-10-19", "cash_sale": 50}, format="json")
+        self.assertEqual(next_day.status_code, 201, next_day.data)
+
+        admin = User.objects.create_user(username="balance-admin", role=User.Role.ADMIN)
+        self.client.force_authenticate(admin)
+        other = self.client.post(url, {
+            "date": "2026-10-18", "cash_sale": 75, "showroom": self.other_showroom.pk,
+        }, format="json")
+        self.assertEqual(other.status_code, 201, other.data)
+        self.client.force_authenticate(self.user)
+        other_url = f"{url}{other.data['id']}/"
+        self.assertEqual(self.client.get(other_url).status_code, 404)
+        self.assertEqual(self.client.patch(other_url, {"cash_sale": 5}, format="json").status_code, 404)
+        self.assertEqual(self.client.delete(other_url).status_code, 404)
+
+        self.client.force_authenticate(admin)
+        self.assertEqual(self.client.delete(detail).status_code, 204)
+        result = self.client.get(f"{url}{next_day.data['id']}/")
+        self.assertEqual(Decimal(result.data["opening_balance"]), 0)
+        self.assertEqual(Decimal(result.data["closing_balance"]), 50)
+
     def test_showroom_report_includes_stock_adjustment_effect(self):
         today = timezone.localdate()
         received = self.client.post("/api/inventory/transfers/", {
@@ -729,6 +771,24 @@ class ShowroomLoginManagementTests(TestCase):
             "username": "shop-login-new", "password": "different-secure-pass-55",
         }, format="json")
         self.assertEqual(inactive_login.status_code, 401)
+
+    def test_active_showroom_required_for_login_refresh_and_api_access(self):
+        showroom = Showroom.objects.create(name="Session showroom")
+        credentials = {"username": "session-showroom", "password": "secure-shop-pass-123"}
+        User.objects.create_user(**credentials, role=User.Role.SHOWROOM_USER, showroom=showroom)
+        browser = APIClient()
+        browser.credentials(HTTP_AUTHORIZATION="Bearer expired-token")
+        login = browser.post("/api/auth/login/showroom/", credentials, format="json")
+        self.assertEqual(login.status_code, 200, login.data)
+        browser.credentials(HTTP_AUTHORIZATION=f"Bearer {login.data['access']}")
+        self.assertEqual(browser.get("/api/accounts/me/").status_code, 200)
+
+        Showroom.objects.filter(pk=showroom.pk).update(is_active=False)
+        self.assertEqual(browser.get("/api/accounts/me/").status_code, 401)
+        self.assertEqual(browser.post(
+            "/api/auth/refresh/", {"refresh": login.data["refresh"]}, format="json",
+        ).status_code, 401)
+        self.assertEqual(browser.post("/api/auth/login/showroom/", credentials, format="json").status_code, 401)
 
     def test_legacy_showroom_credentials_upgrade_after_successful_verified_login(self):
         legacy = Showroom.objects.create(

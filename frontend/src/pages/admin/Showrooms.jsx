@@ -20,10 +20,10 @@ const [credentialsRowId, setCredentialsRowId] = useState(null);
   const [editError, setEditError] = useState("");
 
   function loadShowrooms() {
-    showroomApi.list().then((res) => setShowrooms(res.data.results || res.data));
+    return showroomApi.listAll().then(setShowrooms).catch((err) => setFormError(firstError(err.response?.data)));
   }
 
-  useEffect(loadShowrooms, []);
+  useEffect(() => { loadShowrooms(); }, []);
 
   function firstError(data) {
     if (!data) return "Something went wrong.";
@@ -56,8 +56,12 @@ const [credentialsRowId, setCredentialsRowId] = useState(null);
   }
 
   async function toggleActive(sr) {
-    await showroomApi.update(sr.id, { is_active: !sr.is_active });
-    loadShowrooms();
+    try {
+      await showroomApi.update(sr.id, { is_active: !sr.is_active });
+      await loadShowrooms();
+    } catch (err) {
+      setFormError(firstError(err.response?.data));
+    }
   }
 
   function startEdit(sr) {

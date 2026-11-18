@@ -129,7 +129,7 @@ DEFAULT_AUTO_FIELD = "django.db.models.BigAutoField"
 REST_FRAMEWORK = {
     "NUM_PROXIES": env.int("TRUSTED_PROXY_COUNT", default=0),
     "DEFAULT_AUTHENTICATION_CLASSES": (
-        "rest_framework_simplejwt.authentication.JWTAuthentication",
+        "apps.accounts.authentication.ShowroomAwareJWTAuthentication",
     ),
     "DEFAULT_PERMISSION_CLASSES": (
         "core.permissions.IsStaffUser",

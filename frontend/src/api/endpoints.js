@@ -22,6 +22,7 @@ export const customerApi = {
 
 export const showroomApi = {
   list: () => api.get("/showrooms/"),
+  listAll: () => fetchAllPages("/showrooms/"),
   create: (data) => api.post("/showrooms/", data),
   update: (id, data) => api.patch(`/showrooms/${id}/`, data),
   delete: (id) => api.delete(`/showrooms/${id}/`),
@@ -199,6 +200,7 @@ export const wholesalePartyApi = {
   get: (id) => api.get(`/wholesale/parties/${id}/`),
   create: (data) => api.post("/wholesale/parties/", data),
   update: (id, data) => api.patch(`/wholesale/parties/${id}/`, data),
+  delete: (id) => api.delete(`/wholesale/parties/${id}/`),
   history: (id, params) => api.get(`/wholesale/parties/${id}/history/`, { params }),
   exportStatement: (id, params) => downloadFile(`/wholesale/parties/${id}/statement/export/`, params, `party-${id}-account-statement.xlsx`),
 };
@@ -260,10 +262,12 @@ export const wholesaleReportApi = {
 
 export const showroomStockApi = {
   list: (params) => api.get("/inventory/showroom-stocks/", { params }),
+  listAll: (params) => fetchAllPages("/inventory/showroom-stocks/", params),
 };
 
 export const stockTransferApi = {
   list: (params) => api.get("/inventory/transfers/", { params }),
+  listAll: (params) => fetchAllPages("/inventory/transfers/", params),
   create: (data) => api.post("/inventory/transfers/", data),
   update: (id, data) => api.patch(`/inventory/transfers/${id}/`, data),
   delete: (id) => api.delete(`/inventory/transfers/${id}/`),
@@ -278,6 +282,7 @@ export const balanceApi = {
   list: (params) => api.get("/inventory/balances/", { params }),
   create: (data) => api.post("/inventory/balances/", data),
   update: (id, data) => api.patch(`/inventory/balances/${id}/`, data),
+  delete: (id) => api.delete(`/inventory/balances/${id}/`),
 };
 
 export const reportApi = {

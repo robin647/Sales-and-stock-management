@@ -12,7 +12,10 @@ def resolve_showroom_scope(request):
     requested_showroom_id = request.query_params.get("showroom")
 
     if user.role == "admin":
-        return Showroom.objects.all(), requested_showroom_id
+        showrooms = Showroom.objects.all()
+        if requested_showroom_id:
+            showrooms = showrooms.filter(pk=requested_showroom_id)
+        return showrooms, requested_showroom_id
 
     if requested_showroom_id and str(requested_showroom_id) != str(user.showroom_id):
         raise PermissionDenied("You can only access reports for your own showroom.")

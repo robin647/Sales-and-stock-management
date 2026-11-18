@@ -6,6 +6,13 @@ Mahadi Zone-1, Mahadi Zone-2, Mahadi Zone-3, Mahadi Zone-4, and Mahir Sherwani.
 - **Admin** manages showrooms, products, and views reports across all showrooms.
 - **Showroom User** logs in and can only see/update their own showroom's daily stock and balance.
 
+## Showroom accounts
+
+1. Sign in to the [admin workspace](https://sales-and-stock-management-s7d7.vercel.app/admin/login).
+2. Open **Showrooms** at `/admin/showrooms`. Add the showroom with a username and password, or choose **Set up login** or **Reset login** for an existing showroom to set its account. Keep the showroom active.
+3. Staff sign in with that username and password at [Showroom login](https://sales-and-stock-management-s7d7.vercel.app/showroom/login). For local development, use `http://localhost:5173/showroom/login`.
+4. Showroom staff can access their assigned showroom's dashboard, stock, daily balance, reports, and password change. Admins can select any showroom on **Stock Entry** and **Balance Entry**.
+
 ## Customer email signup and separate portals
 
 | Workspace | URL |

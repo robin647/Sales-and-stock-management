@@ -2,12 +2,14 @@ import TableActionMenu from "../../components/TableActionMenu.jsx";
 import { useEffect, useState } from "react";
 import { productApi, stockTransferApi, showroomStockApi } from "../../api/endpoints";
 
+import ShowroomEntryScope from "./ShowroomEntryScope";
+import { errorMessage } from "../../utils/apiError";
+
 const todayStr = () => {
   const now = new Date();
   return new Date(now.getTime() - now.getTimezoneOffset() * 60_000).toISOString().slice(0, 10);
 };
 
-const listResults = (data) => data?.results ?? data ?? [];
 const transferLabels = {
   sale: "Sale to Customer",
   receive: "Receive from Factory",
@@ -16,6 +18,10 @@ const transferLabels = {
 };
 
 export default function StockEntry() {
+  return <ShowroomEntryScope Page={StockEntryForm} />;
+}
+
+function StockEntryForm({ showroomId }) {
   const [products, setProducts] = useState([]);
   const [transfers, setTransfers] = useState([]);
   const [showroomStocks, setShowroomStocks] = useState({});
@@ -28,17 +34,17 @@ export default function StockEntry() {
   const [success, setSuccess] = useState("");
 
   useEffect(() => {
-    productApi.listAll({ is_active: true }).then(setProducts);
+    productApi.listAll({ is_active: true }).then(setProducts).catch((err) => setError(errorMessage(err)));
   }, []);
 
   function loadTransfers() {
-    return stockTransferApi.list({ date }).then((res) => setTransfers(listResults(res.data)));
+    return stockTransferApi.listAll({ date, showroom: showroomId }).then(setTransfers);
   }
 
   function loadStocks() {
-    return showroomStockApi.list({}).then((res) => {
+    return showroomStockApi.listAll({ showroom: showroomId }).then((rows) => {
       const stocks = {};
-      listResults(res.data).forEach((s) => {
+      rows.forEach((s) => {
         stocks[s.product] = s.quantity;
       });
       setShowroomStocks(stocks);
@@ -46,9 +52,8 @@ export default function StockEntry() {
   }
 
   useEffect(() => {
-    loadTransfers();
-    loadStocks();
-  }, [date]);
+    Promise.all([loadTransfers(), loadStocks()]).catch((err) => setError(errorMessage(err)));
+  }, [date, showroomId]);
 
   async function handleSubmit(e) {
     e.preventDefault();
@@ -69,6 +74,7 @@ export default function StockEntry() {
       }
 
       const payload = {
+        showroom: showroomId,
         product: productId,
         quantity: quantity,
         transfer_type: transferType,

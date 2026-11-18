@@ -1,6 +1,8 @@
-import { useEffect, useState } from "react";
+import { useEffect, useRef, useState } from "react";
 import { balanceApi } from "../../api/endpoints";
 import { localDateString } from "../../utils/date";
+
+import ShowroomEntryScope from "./ShowroomEntryScope";
 
 const todayStr = () => localDateString();
 
@@ -15,40 +17,76 @@ function errorMessage(error) {
 }
 
 export default function BalanceEntry() {
+  return <ShowroomEntryScope Page={BalanceEntryForm} />;
+}
+
+function BalanceEntryForm({ showroomId }) {
   const [date, setDate] = useState(todayStr());
   const [existing, setExisting] = useState(null);
   const [form, setForm] = useState({ cash_sale: 0, card_sale: 0, expense: 0, salary: 0, deposit: 0, notes: "" });
   const [error, setError] = useState("");
   const [success, setSuccess] = useState("");
+  const [busy, setBusy] = useState(false);
+  const [loadedDate, setLoadedDate] = useState("");
+  const requestId = useRef(0);
 
   function loadEntry() {
+    const id = ++requestId.current;
     setError("");
-    balanceApi.list({ date }).then((res) => {
+    setLoadedDate("");
+    return balanceApi.list({ date, showroom: showroomId }).then((res) => {
+      if (id !== requestId.current) return;
+      setLoadedDate(date);
       const results = res.data.results || res.data;
       const entry = results[0] || null;
       setExisting(entry);
       if (entry) setForm({ cash_sale: entry.cash_sale, card_sale: entry.card_sale, expense: entry.expense, salary: entry.salary, deposit: entry.deposit, notes: entry.notes || "" });
       else setForm({ cash_sale: 0, card_sale: 0, expense: 0, salary: 0, deposit: 0, notes: "" });
     }).catch((err) => {
+      if (id !== requestId.current) return;
       setExisting(null);
       setError(err.response?.data?.detail || "Could not load the balance entry for this date.");
     });
   }
 
-  useEffect(loadEntry, [date]);
+  useEffect(() => {
+    loadEntry();
+    return () => { requestId.current += 1; };
+  }, [date, showroomId]);
+
+  const ready = loadedDate === date;
 
   async function handleSubmit(e) {
     e.preventDefault();
+    if (!ready || busy) return;
     setError("");
     setSuccess("");
+    setBusy(true);
     try {
-      const payload = { ...form, date };
+      const payload = { ...form, date, showroom: showroomId };
       if (existing) await balanceApi.update(existing.id, payload);
       else await balanceApi.create(payload);
       setSuccess(existing ? "Sales statement updated." : "Balance entry saved.");
-      loadEntry();
+      await loadEntry();
     } catch (err) {
       setError(errorMessage(err));
+    } finally {
+      setBusy(false);
+    }
+  }
+
+  async function handleDelete() {
+    if (!window.confirm(`Delete the balance entry for ${date}?`)) return;
+    setBusy(true);
+    setSuccess("");
+    try {
+      await balanceApi.delete(existing.id);
+      await loadEntry();
+      setSuccess("Balance entry deleted.");
+    } catch (err) {
+      setError(errorMessage(err));
+    } finally {
+      setBusy(false);
     }
   }
 
@@ -58,10 +96,10 @@ export default function BalanceEntry() {
 
       <div className="max-w-md">
         <label className="block text-xs text-gray-500 mb-1">Date</label>
-        <input type="date" value={date} onChange={(e) => setDate(e.target.value)} className="border border-gray-300 rounded-lg px-3 py-2 text-sm mb-4" />
+        <input type="date" disabled={busy} value={date} onChange={(e) => setDate(e.target.value)} className="border border-gray-300 rounded-lg px-3 py-2 text-sm mb-4" />
       </div>
 
-      {existing && (
+      {ready && existing && (
         <div className="w-full max-w-xl bg-white rounded-2xl border border-gray-100 p-4">
           <div className="text-sm font-medium text-gray-700 mb-3">Already recorded for {date}</div>
           <table className="w-full table-fixed text-sm">
@@ -119,9 +157,14 @@ export default function BalanceEntry() {
             Opening balance is carried forward automatically from yesterday's closing balance.
           </p>
 
-          <button className="w-full bg-brand-500 hover:bg-brand-600 text-white text-sm font-medium py-2 rounded-lg">
+          <button disabled={busy || !ready} className="w-full bg-brand-500 hover:bg-brand-600 text-white text-sm font-medium py-2 rounded-lg">
             {existing ? "Update statement" : "Save entry"}
           </button>
+        {showroomId && ready && existing && (
+          <button type="button" disabled={busy} onClick={handleDelete} className="mt-2 w-full rounded-lg border border-red-200 py-2 text-sm font-medium text-red-700">
+            Delete entry
+          </button>
+        )}
       </form>
     </div>
   );

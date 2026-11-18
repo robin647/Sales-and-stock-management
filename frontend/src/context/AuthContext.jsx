@@ -30,11 +30,28 @@ export function AuthProvider({ children }) {
 
   useEffect(() => {
     const token = localStorage.getItem("access_token");
-    if (token) setUser(userFromToken(token));
-    setLoading(false);
+    if (!token) {
+      setLoading(false);
+      return;
+    }
+    let active = true;
+    authApi.me().then(({ data }) => {
+      if (active) setUser({
+        id: data.id,
+        role: data.role,
+        showroomId: data.showroom,
+        showroomName: data.showroom_name,
+        fullName: [data.first_name, data.last_name].filter(Boolean).join(" ") || data.username,
+      });
+    }).catch(() => {
+      if (active) setUser(null);
+    }).finally(() => {
+      if (active) setLoading(false);
+    });
+    return () => { active = false; };
   }, []);
 
-async function login(username, password) {
+  async function login(username, password) {
     const { data } = await authApi.login(username, password);
     return saveSession(data);
   }

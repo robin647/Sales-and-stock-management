@@ -1,4 +1,5 @@
-from rest_framework import viewsets, permissions
+from django.db import transaction
+from rest_framework import viewsets
 from rest_framework.exceptions import PermissionDenied, ValidationError
 from rest_framework.response import Response
 from core.permissions import IsStaffUser
@@ -32,7 +33,7 @@ class ShowroomScopedMixin:
         date = self.request.query_params.get("date")
         date_from = self.request.query_params.get("date_from")
         date_to = self.request.query_params.get("date_to")
-        if product_id:
+        if product_id and qs.model is DailyStock:
             qs = qs.filter(product_id=product_id)
         if date:
             qs = qs.filter(date=date)
@@ -42,26 +43,6 @@ class ShowroomScopedMixin:
             qs = qs.filter(date__lte=date_to)
         return qs
 
-    def perform_create(self, serializer):
-        user = self.request.user
-        if user.role == "admin":
-            if not serializer.validated_data.get("showroom"):
-                raise PermissionDenied("Admin must specify a showroom when creating an entry.")
-            serializer.save()
-        else:
-            if not user.showroom_id:
-                raise PermissionDenied("Your account is not assigned to a showroom.")
-
-            serializer.save(showroom=user.showroom)
-
-    def perform_update(self, serializer):
-        user = self.request.user
-        if user.role == "admin":
-            serializer.save()
-        else:
-            if not user.showroom_id:
-                raise PermissionDenied("Your account is not assigned to a showroom.")
-            serializer.save(showroom=user.showroom)
 
 class DailyStockViewSet(ShowroomScopedMixin, viewsets.ModelViewSet):
     serializer_class = DailyStockSerializer
@@ -71,13 +52,9 @@ class DailyStockViewSet(ShowroomScopedMixin, viewsets.ModelViewSet):
         return DailyStock.objects.select_related("showroom", "product").all()
 
     def perform_create(self, serializer):
-        from django.db import transaction
         from .services import recalculate_daily_stock
 
-        user = self.request.user
-        showroom = serializer.validated_data.get("showroom") if user.role == "admin" else user.showroom
-        if not showroom:
-            raise PermissionDenied("Admin must specify a showroom when creating an entry.")
+        showroom = serializer.validated_data["showroom"]
         product = serializer.validated_data["product"]
         date = serializer.validated_data["date"]
         with transaction.atomic():
@@ -85,19 +62,12 @@ class DailyStockViewSet(ShowroomScopedMixin, viewsets.ModelViewSet):
             recalculate_daily_stock(showroom.id, product.id, date)
 
     def perform_update(self, serializer):
-        from django.db import transaction
         from .services import recalculate_daily_stock
 
         with transaction.atomic():
             old = serializer.instance
             old_showroom_id, old_product_id, old_date = old.showroom_id, old.product_id, old.date
-            user = self.request.user
-            kwargs = {}
-            if user.role != "admin":
-                if not user.showroom_id:
-                    raise PermissionDenied("Your account is not assigned to a showroom.")
-                kwargs["showroom"] = user.showroom
-            entry = serializer.save(**kwargs)
+            entry = serializer.save()
             recalculate_daily_stock(old_showroom_id, old_product_id, old_date)
             if (entry.showroom_id, entry.product_id, entry.date) != (old_showroom_id, old_product_id, old_date):
                 recalculate_daily_stock(entry.showroom_id, entry.product_id, entry.date)
@@ -139,20 +109,13 @@ class DailyBalanceViewSet(ShowroomScopedMixin, viewsets.ModelViewSet):
             opening = entry.closing_balance
 
     def perform_create(self, serializer):
-        from django.db import transaction
-
-        user = self.request.user
-        showroom = serializer.validated_data.get("showroom") if user.role == "admin" else user.showroom
-        if not showroom:
-            raise PermissionDenied("Admin must specify a showroom when creating an entry.")
+        showroom = serializer.validated_data["showroom"]
         date = serializer.validated_data["date"]
         with transaction.atomic():
             serializer.save(showroom=showroom)
             self._recalculate_from(showroom.id, date)
 
     def perform_update(self, serializer):
-        from django.db import transaction
-
         with transaction.atomic():
             old_showroom_id = serializer.instance.showroom_id
             old_date = serializer.instance.date
@@ -160,6 +123,13 @@ class DailyBalanceViewSet(ShowroomScopedMixin, viewsets.ModelViewSet):
             self._recalculate_from(old_showroom_id, old_date)
             if (entry.showroom_id, entry.date) != (old_showroom_id, old_date):
                 self._recalculate_from(entry.showroom_id, entry.date)
+
+    @transaction.atomic
+    def perform_destroy(self, instance):
+        showroom_id, date = instance.showroom_id, instance.date
+        instance.delete()
+        self._recalculate_from(showroom_id, date)
+
 
 class FactoryStockViewSet(viewsets.ReadOnlyModelViewSet):
     serializer_class = FactoryStockSerializer
@@ -194,6 +164,8 @@ class StockTransferViewSet(viewsets.ModelViewSet):
         user = self.request.user
         if user.role != "admin":
             queryset = queryset.filter(showroom_id=user.showroom_id)
+        elif self.request.query_params.get("showroom"):
+            queryset = queryset.filter(showroom_id=self.request.query_params["showroom"])
         if self.request.query_params.get("date"):
             queryset = queryset.filter(date=self.request.query_params["date"])
         return queryset

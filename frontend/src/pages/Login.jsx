@@ -22,7 +22,7 @@ export default function Login({ portal = "customer" }) {
       const allowed = portal === "customer" ? user?.role === "customer" : portal === "showroom" ? user?.role === "showroom_user" : ["admin", "ecommerce_staff"].includes(user?.role);
       if (!allowed) { logout(); setError("This account belongs to a different login portal."); return; }
       const target = location.state?.returnTo || "";
-      const safeTarget = portal === "admin" ? target.startsWith("/admin/") && target !== "/admin/login" : portal === "showroom" ? target.startsWith("/showroom/") && target !== "/showroom/login" : ["/checkout", "/my-orders", "/support"].includes(target);
+      const safeTarget = portal === "admin" ? (user.role === "admin" ? target.startsWith("/admin/") : target.startsWith("/admin/ecommerce/")) && target !== "/admin/login" : portal === "showroom" ? target.startsWith("/showroom/") && target !== "/showroom/login" : ["/checkout", "/my-orders", "/support"].includes(target);
       navigate(safeTarget ? target : portal === "customer" ? "/" : portal === "showroom" ? "/showroom/dashboard" : user.role === "ecommerce_staff" ? "/admin/ecommerce/dashboard" : "/admin/dashboard", { replace: true });
     } catch (err) { setError(errorMessage(err)); } finally { setBusy(false); }
   }

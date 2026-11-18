@@ -26,6 +26,7 @@ export default function WholesaleParties() {
   const [partySearch, setPartySearch] = useState("");
   const [activeFilter, setActiveFilter] = useState("true");
   const [partyPageNumber, setPartyPageNumber] = useState(1);
+  const [partyListVersion, setPartyListVersion] = useState(0);
   const [selectedParty, setSelectedParty] = useState(null);
   const [statement, setStatement] = useState(null);
   const [statementLoading, setStatementLoading] = useState(false);
@@ -114,7 +115,7 @@ export default function WholesaleParties() {
       .catch(() => { if (!cancelled) setMessage("Could not load parties."); })
       .finally(() => { if (!cancelled) setPartyLoading(false); });
     return () => { cancelled = true; };
-  }, [partySearch, activeFilter, partyPageNumber]);
+  }, [partySearch, activeFilter, partyPageNumber, partyListVersion]);
 
   useEffect(() => {
     productApi.listAll({ is_active: true }).then(setProducts).catch(() => {});
@@ -153,6 +154,23 @@ export default function WholesaleParties() {
     setFormOpen(true);
   }
 
+  async function deleteParty(party) {
+    if (!window.confirm(`Delete ${party.name}?`)) return;
+    try {
+      await wholesalePartyApi.delete(party.id);
+      if (selectedParty?.id === party.id) {
+        setSelectedParty(null);
+        setStatement(null);
+        setPaymentOpen(false);
+      }
+      setPartyPageNumber(1);
+      setPartyListVersion((version) => version + 1);
+      setMessage("Party deleted.");
+    } catch (error) {
+      setMessage(apiError(error));
+    }
+  }
+
   async function saveParty(event) {
     event.preventDefault();
     setFormError("");
@@ -163,6 +181,7 @@ export default function WholesaleParties() {
       setEditingId(null);
       setFormOpen(false);
       setMessage(editingId ? "Party details updated." : "Party added.");
+      setPartyListVersion((version) => version + 1);
       setPartyPageNumber(1);
       if (!editingId) {
         setSelectedParty(savedParty);
@@ -226,7 +245,7 @@ export default function WholesaleParties() {
 
       <section className="overflow-hidden rounded-xl border border-gray-200 bg-white">
         <div className="flex flex-wrap items-center justify-between gap-3 border-b border-gray-100 px-4 py-3"><div><h2 className="text-sm font-semibold">All Parties</h2><p className="mt-0.5 text-xs text-gray-500">{partyPage.count} records</p></div><div className="flex flex-wrap gap-2"><input value={partySearchInput} onChange={(event) => { setPartyPageNumber(1); setPartySearchInput(event.target.value); }} placeholder="Search name or phone" className="rounded-lg border border-gray-300 px-3 py-2 text-sm" /><select value={activeFilter} onChange={(event) => { setPartyPageNumber(1); setActiveFilter(event.target.value); }} aria-label="Party status" className="rounded-lg border border-gray-300 px-3 py-2 text-sm"><option value="true">Active</option><option value="false">Inactive</option><option value="">All statuses</option></select></div></div>
-        {partyLoading ? <p className="px-4 py-8 text-center text-sm text-gray-500">Loading parties...</p> : !parties.length ? <p className="px-4 py-8 text-center text-sm text-gray-500">No parties match the current search.</p> : <div className="overflow-x-auto"><table className="w-full min-w-[760px] text-left text-sm"><thead className="bg-gray-50 text-xs uppercase text-gray-500"><tr><th className="px-4 py-3">Party Name</th><th>Phone</th><th>Net Sales</th><th>Payments</th><th>Returns</th><th>Due</th><th>Actions</th></tr></thead><tbody>{parties.map((party) => <tr key={party.id} className={`border-t border-gray-100 ${selectedParty?.id === party.id ? "bg-gray-50" : ""}`}><td className="px-4 py-3 font-medium">{party.name}<span className="ml-2 text-xs font-normal text-gray-500">{party.is_active ? "Active" : "Inactive"}</span></td><td>{party.phone || "—"}</td><td>{money(party.total_sales)}</td><td>{money(party.total_payments)}</td><td>{money(party.total_returns)}</td><td className="font-semibold">{money(party.total_due)}</td><td className="space-x-3 whitespace-nowrap pr-4"><TableActionMenu><button onClick={() => openParty(party)} className="text-brand-600 hover:underline">View Details</button><button onClick={() => startEdit(party)} className="text-gray-600 hover:underline">Edit</button></TableActionMenu></td></tr>)}</tbody></table></div>}
+        {partyLoading ? <p className="px-4 py-8 text-center text-sm text-gray-500">Loading parties...</p> : !parties.length ? <p className="px-4 py-8 text-center text-sm text-gray-500">No parties match the current search.</p> : <div className="overflow-x-auto"><table className="w-full min-w-[760px] text-left text-sm"><thead className="bg-gray-50 text-xs uppercase text-gray-500"><tr><th className="px-4 py-3">Party Name</th><th>Phone</th><th>Net Sales</th><th>Payments</th><th>Returns</th><th>Due</th><th>Actions</th></tr></thead><tbody>{parties.map((party) => <tr key={party.id} className={`border-t border-gray-100 ${selectedParty?.id === party.id ? "bg-gray-50" : ""}`}><td className="px-4 py-3 font-medium">{party.name}<span className="ml-2 text-xs font-normal text-gray-500">{party.is_active ? "Active" : "Inactive"}</span></td><td>{party.phone || "—"}</td><td>{money(party.total_sales)}</td><td>{money(party.total_payments)}</td><td>{money(party.total_returns)}</td><td className="font-semibold">{money(party.total_due)}</td><td className="space-x-3 whitespace-nowrap pr-4"><TableActionMenu><button onClick={() => openParty(party)} className="text-brand-600 hover:underline">View Details</button><button onClick={() => startEdit(party)} className="text-gray-600 hover:underline">Edit</button><button onClick={() => deleteParty(party)} className="text-red-600 hover:underline">Delete</button></TableActionMenu></td></tr>)}</tbody></table></div>}
         <div className="flex items-center justify-between border-t border-gray-100 px-4 py-3 text-sm text-gray-600"><span>Page {partyPageNumber} of {Math.max(1, Math.ceil(partyPage.count / 12))}</span><div className="flex gap-2"><button disabled={!partyPage.previous} onClick={() => setPartyPageNumber((page) => Math.max(1, page - 1))} className="rounded border border-gray-300 px-3 py-1 disabled:opacity-40">Previous</button><button disabled={!partyPage.next} onClick={() => setPartyPageNumber((page) => page + 1)} className="rounded border border-gray-300 px-3 py-1 disabled:opacity-40">Next</button></div></div>
       </section>
 
