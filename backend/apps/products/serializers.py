@@ -48,6 +48,12 @@ class ProductSerializer(serializers.ModelSerializer):
         read_only_fields = ["id", "created_at", "sales_channel"]
         validators = []
 
+    def variant_color(self, attrs):
+        return getattr(self.instance, "color", "")
+
+    def allows_zero_offer(self):
+        return self.instance is not None and self.instance.discount_price == 0
+
     def validate_selling_price(self, value):
         if value < 0:
             raise serializers.ValidationError("Selling price cannot be negative.")
@@ -87,7 +93,8 @@ class ProductSerializer(serializers.ModelSerializer):
         duplicates = Product.objects.filter(
             name=attrs.get("name", getattr(self.instance, "name", "")),
             category=attrs.get("category", getattr(self.instance, "category", None)),
-            size=attrs.get("size", getattr(self.instance, "size", "")), sales_channel=channel,
+            size=attrs.get("size", getattr(self.instance, "size", "")),
+            color=self.variant_color(attrs), sales_channel=channel,
         )
         if self.instance:
             duplicates = duplicates.exclude(pk=self.instance.pk)
@@ -100,7 +107,7 @@ class ProductSerializer(serializers.ModelSerializer):
             percentage = attrs.pop("discount_percentage")
             attrs["discount_price"] = ((regular_price * (100 - percentage) / 100).quantize(Decimal("0.01"), rounding=ROUND_HALF_UP) if percentage else None)
         discount_price = attrs.get("discount_price", getattr(self.instance, "discount_price", None))
-        if discount_price is not None and discount_price <= 0:
+        if discount_price is not None and discount_price <= 0 and not (discount_price == 0 and self.allows_zero_offer()):
             raise serializers.ValidationError({"discount_price": "Offer price must be greater than zero."})
         if discount_price is not None and regular_price is not None and discount_price >= regular_price:
             raise serializers.ValidationError({"discount_price": "Discount price must be lower than the regular price."})

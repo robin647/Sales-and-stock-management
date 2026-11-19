@@ -20,8 +20,8 @@ const PRODUCT_IMAGES = [
 
 function productPrice(product) {
   const regular = Number(product.selling_price || 0);
-  const offer = Number(product.discount_price || 0);
-  return { regular, current: offer > 0 && offer < regular ? offer : regular };
+  const offer = product.discount_price == null ? regular : Number(product.discount_price);
+  return { regular, current: offer >= 0 && offer < regular ? offer : regular };
 }
 
 function readSavedCart() {

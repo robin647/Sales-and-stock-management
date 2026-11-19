@@ -2,6 +2,7 @@
 import hashlib
 import ipaddress
 import logging
+import re
 import time
 
 from django.conf import settings
@@ -41,12 +42,16 @@ class RequestGuardMiddleware:
             return JsonResponse({"detail": "Invalid content length."}, status=400)
         if length < 0:
             return JsonResponse({"detail": "Invalid content length."}, status=400)
-        if length > settings.REQUEST_MAX_BYTES:
+        media_upload = request.method == "POST" and re.fullmatch(
+            r"/api/moderator/assets/(?:[0-9]+/replace/)?", request.path
+        )
+        max_bytes = settings.MODERATOR_UPLOAD_MAX_BYTES if media_upload else settings.REQUEST_MAX_BYTES
+        if length > max_bytes:
             return JsonResponse({"detail": "Request body is too large."}, status=413)
         if settings.REQUEST_GUARD_ENABLED and request.method != "OPTIONS":
             identity = hashlib.sha256(client_ip(request).encode()).hexdigest()
             policies = [("all", settings.REQUESTS_PER_MINUTE)]
-            if request.method == "POST" and (request.path.startswith("/api/auth/") or request.path == "/admin/login/"):
+            if request.method == "POST" and (request.path.startswith("/api/auth/") or request.path in ("/admin/login/", "/api/moderator/login/")):
                 policies.append(("auth", settings.AUTH_REQUESTS_PER_MINUTE))
             window = int(time.time()) // 60
             cache = caches["security"]

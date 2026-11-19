@@ -44,6 +44,7 @@ export default function Layout({ children }) {
               <div className="px-3 pt-4 pb-1 text-[10px] font-semibold uppercase tracking-widest text-gray-400">Online store</div>
               <NavLink onClick={() => setMenuOpen(false)} to="/admin/ecommerce/dashboard" className={linkClass}>ECOMMERCE ADMIN ?</NavLink>
               <NavLink onClick={() => setMenuOpen(false)} to="/admin/online-products" className={linkClass}>Online Products & Offers</NavLink>
+              <NavLink onClick={() => setMenuOpen(false)} to="/moderator" className={linkClass}>Moderator Workspace</NavLink>
               <NavLink onClick={() => setMenuOpen(false)} to="/admin/customers" className={linkClass}>Customers</NavLink>
               <NavLink onClick={() => setMenuOpen(false)} to="/admin/online-stock" className={linkClass}>Online Stock</NavLink>
               <NavLink onClick={() => setMenuOpen(false)} to="/admin/online-orders" className={linkClass}>Orders, Coupons & Delivery</NavLink>

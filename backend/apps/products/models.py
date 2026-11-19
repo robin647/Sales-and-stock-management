@@ -21,6 +21,7 @@ class Product(models.Model):
     code = models.CharField(max_length=64, blank=True, default="")
     category = models.ForeignKey(ProductCategory, on_delete=models.PROTECT, related_name="products")
     size = models.CharField(max_length=30, blank=True)
+    color = models.CharField(max_length=60, blank=True, default="")
     selling_price = models.DecimalField(max_digits=10, decimal_places=2, validators=[MinValueValidator(0)])
     discount_price = models.DecimalField(max_digits=10, decimal_places=2, null=True, blank=True, validators=[MinValueValidator(0)])
     image = models.ImageField(upload_to="products/%Y/%m/", blank=True)
@@ -35,7 +36,7 @@ class Product(models.Model):
     class Meta:
         ordering = ["name"]
         constraints = [
-            models.UniqueConstraint(fields=["name", "category", "size", "sales_channel"], name="unique_product_channel_variant")
+            models.UniqueConstraint(fields=["name", "category", "size", "color", "sales_channel"], name="unique_product_color_variant")
         ]
 
     def __str__(self):

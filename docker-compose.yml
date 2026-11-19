@@ -33,6 +33,7 @@ services:
       - "8000:8000"
     volumes:
       - ./backend/media:/app/media
+      - moderator_media:/app/moderator-media
     depends_on:
       db:
         condition: service_healthy
@@ -47,3 +48,4 @@ services:
 
 volumes:
   pgdata:
+  moderator_media:

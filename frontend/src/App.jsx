@@ -7,6 +7,7 @@ import ProtectedRoute from "./routes/ProtectedRoute.jsx";
 import { legacyAdminPaths } from "./routes/paths";
 const VerifyEmail = lazy(() => import("./pages/VerifyEmail.jsx"));
 const Login = lazy(() => import("./pages/Login.jsx"));
+const ModeratorWorkspace = lazy(() => import("./pages/moderator/Workspace.jsx"));
 const Storefront = lazy(() => import("./pages/Storefront.jsx"));
 const CustomerSignup = lazy(() => import("./pages/CustomerSignup.jsx"));
 const Reports = lazy(() => import("./pages/Reports.jsx"));
@@ -51,6 +52,8 @@ function LegacyRoute() {
 
 export default function App() {
   const { isAdmin } = useAuth();
+  const { pathname } = useLocation();
+  const moderatorPage = /^\/moderator(?:\/|$)/i.test(pathname);
 
   useEffect(() => {
     const preventWheelChange = (event) => {
@@ -70,6 +73,7 @@ export default function App() {
       <Route path="/shop" element={<Storefront />} />
       <Route path="/login" element={<Login portal="customer" />} />
       <Route path="/signup" element={<CustomerSignup />} />
+      <Route path="/moderator/*" element={<ModeratorWorkspace />} />
       <Route path="/verify-email" element={<VerifyEmail />} />
       <Route path="/checkout" element={<ShopAccount />} />
       <Route path="/my-orders" element={<ShopAccount />} />
@@ -99,8 +103,8 @@ export default function App() {
       <Route path="*" element={<Navigate to="/" replace />} />
     </Routes>
     </Suspense>
-    {isAdmin && <AIAssistantButton />}
-    <WhatsAppButton />
+    {isAdmin && !moderatorPage && <AIAssistantButton />}
+    {!moderatorPage && <WhatsAppButton />}
     </>
   );
 }

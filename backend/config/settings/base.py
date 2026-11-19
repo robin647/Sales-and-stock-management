@@ -39,6 +39,7 @@ INSTALLED_APPS = [
     "apps.accounts",
     "apps.showrooms",
     "apps.products",
+    "apps.moderator",
     "apps.inventory",
     "apps.reports",
     "apps.wholesale",
@@ -123,6 +124,8 @@ STORAGES = {
 }
 MEDIA_URL = "/media/"
 MEDIA_ROOT = Path(env("MEDIA_ROOT", default=str(BASE_DIR / "media")))
+MODERATOR_MEDIA_ROOT = Path(env("MODERATOR_MEDIA_ROOT", default=str(BASE_DIR / "moderator-media")))
+MODERATOR_UPLOAD_MAX_BYTES = 201 * 1024 * 1024
 
 DEFAULT_AUTO_FIELD = "django.db.models.BigAutoField"
 

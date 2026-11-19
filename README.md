@@ -13,6 +13,46 @@ Mahadi Zone-1, Mahadi Zone-2, Mahadi Zone-3, Mahadi Zone-4, and Mahir Sherwani.
 3. Staff sign in with that username and password at [Showroom login](https://sales-and-stock-management-s7d7.vercel.app/showroom/login). For local development, use `http://localhost:5173/showroom/login`.
 4. Showroom staff can access their assigned showroom's dashboard, stock, daily balance, reports, and password change. Admins can select any showroom on **Stock Entry** and **Balance Entry**.
 
+## Moderator workspace
+
+Open `/moderator` on the storefront domain. For local Vite development, open
+`http://localhost:5173/moderator`. Staff sign in at `/moderator/login` with their
+existing admin credentials or a moderator account. An admin can create or
+deactivate moderator accounts and reset passwords under **Moderator accounts**.
+
+The workspace uses the online catalog. Each color and size combination is an
+existing product variant with its own SKU and stock. Use **Add variant** to
+create another color or size and **Edit product** to change details, pricing, or
+stock. New products start as storefront drafts. Use **Active product** to
+archive a variant while keeping stock and order history. The effective discount
+filter uses the saved regular and offer prices, including manual offer overrides.
+
+Edited images, raw images, and videos appear under **Private assets** on a product.
+Select an edited image as the workspace thumbnail. The same page has separate
+edited and raw ZIPs. Under **Asset downloads**, choose the category and offer
+filters, count files, then export the edited-only ZIP. Supported images are JPEG,
+PNG, WebP, GIF, and BMP up to 20 MB each. MP4, WEBM, and MOV are accepted up to
+200 MB each with container checks. Video playback depends on browser codec support.
+
+### Local setup and storage
+
+With the project pointed at a local database, apply the additive migrations:
+
+```powershell
+cd backend
+..\.venv\Scripts\python.exe manage.py migrate
+..\.venv\Scripts\python.exe manage.py runserver
+```
+
+The optional `MODERATOR_MEDIA_ROOT` defaults to `backend/moderator-media`. Set
+it to a writable private directory outside `MEDIA_ROOT`. In local Compose, the
+`moderator_media` volume persists this directory. For a hosted deployment, mount
+durable storage there and include it in backups alongside the database. Keep the
+directory out of public web-server mappings. The API host or reverse proxy must
+accept a multipart request of up to 201 MiB on the moderator upload and replace
+routes. The workspace uses the existing frontend SPA fallback and API origin
+configuration.
+
 ## Customer email signup and separate portals
 
 | Workspace | URL |

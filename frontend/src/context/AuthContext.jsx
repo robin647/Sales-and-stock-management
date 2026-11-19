@@ -66,6 +66,11 @@ export function AuthProvider({ children }) {
     return saveSession(data);
   }
 
+  async function loginModerator(username, password) {
+    const { data } = await authApi.moderatorLogin(username, password);
+    return saveSession(data);
+  }
+
   function saveSession(data) {
     localStorage.setItem("access_token", data.access);
     localStorage.setItem("refresh_token", data.refresh);
@@ -82,7 +87,7 @@ export function AuthProvider({ children }) {
 
   return (
     <AuthContext.Provider
-      value={{ user, loading, login, loginShowroom, loginCustomer, logout, isAdmin: user?.role === "admin" }}
+      value={{ user, loading, login, loginShowroom, loginModerator, loginCustomer, logout, isAdmin: user?.role === "admin" }}
     >
       {children}
     </AuthContext.Provider>

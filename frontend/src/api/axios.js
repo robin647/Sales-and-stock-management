@@ -12,12 +12,24 @@ const API_URL = /\/api$/i.test(configuredBaseUrl)
   : `${configuredBaseUrl}/api`;
 
 const api = axios.create({ baseURL: API_URL });
-const isLoginRequest = (url = "") => /^\/auth\/(?:login\/(?:showroom\/)?|customer\/login\/|refresh\/)$/.test(url);
+const isLoginRequest = (url = "") => /^(?:\/auth\/(?:login\/(?:showroom\/)?|customer\/login\/|refresh\/)|\/moderator\/login\/)$/.test(url);
+
+function signInAgain() {
+  const { pathname, search } = window.location;
+  const login = portalLogin(pathname);
+  const next = login === "/moderator/login" && pathname !== login
+    ? `?next=${encodeURIComponent(pathname + search)}`
+    : "";
+  window.location.href = login + next;
+}
 
 api.interceptors.request.use((config) => {
   const token = localStorage.getItem("access_token");
   if (token && !isLoginRequest(config.url)) {
     config.headers.Authorization = `Bearer ${token}`;
+  }
+  if (config.url === "/moderator/logout/") {
+    config.data = { refresh: localStorage.getItem("refresh_token") };
   }
   return config;
 });
@@ -57,7 +69,7 @@ api.interceptors.response.use(
         if (localStorage.getItem("access_token")) {
           localStorage.removeItem("access_token");
           localStorage.removeItem("refresh_token");
-          window.location.href = portalLogin(window.location.pathname);
+          signInAgain();
         }
         return Promise.reject(error);
       }
@@ -92,7 +104,7 @@ api.interceptors.response.use(
         if (localStorage.getItem("refresh_token") === refreshToken) {
           localStorage.removeItem("access_token");
           localStorage.removeItem("refresh_token");
-          window.location.href = portalLogin(window.location.pathname);
+          signInAgain();
         }
         return Promise.reject(refreshError);
       } finally {

@@ -15,6 +15,8 @@ class CustomTokenObtainPairSerializer(TokenObtainPairSerializer):
     logged-in user is an Admin or which Showroom they belong to.
     """
 
+    allowed_roles = (User.Role.ADMIN, User.Role.ECOMMERCE_STAFF)
+
     def validate(self, attrs):
         from django.contrib.auth import authenticate
         from rest_framework.exceptions import AuthenticationFailed
@@ -24,7 +26,7 @@ class CustomTokenObtainPairSerializer(TokenObtainPairSerializer):
         from rest_framework_simplejwt.settings import api_settings
         if not api_settings.USER_AUTHENTICATION_RULE(user):
             raise AuthenticationFailed(self.error_messages["no_active_account"], "no_active_account")
-        if user.role not in ("admin", "ecommerce_staff"):
+        if user.role not in self.allowed_roles:
             raise AuthenticationFailed("Use the customer email login or showroom login page for this account.")
         self.user = user
         refresh = self.get_token(user)
@@ -37,6 +39,9 @@ class CustomTokenObtainPairSerializer(TokenObtainPairSerializer):
     def get_token(cls, user):
         token = super().get_token(user)
         token["role"] = user.role
+        if user.role == User.Role.MODERATOR:
+            from rest_framework_simplejwt.utils import get_md5_hash_password
+            token["moderator_password"] = get_md5_hash_password(user.password)
         token["showroom_id"] = user.showroom_id
         token["showroom_name"] = user.showroom.name if user.showroom_id else None
         token["full_name"] = user.get_full_name() or user.username
@@ -223,6 +228,8 @@ class VerifiedCustomerRefreshSerializer(TokenRefreshSerializer):
         if not user or not user.is_active or user.role == "customer" and not user.email_verified:
             raise AuthenticationFailed("Sign in again. Customer email verification may be required.")
         check_showroom_access(user)
+        from .authentication import check_moderator_password
+        check_moderator_password(user, refresh)
         data = super().validate(attrs)
         access = AccessToken(data["access"])
         access["role"] = user.role

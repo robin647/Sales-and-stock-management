@@ -8,5 +8,6 @@ export const legacyAdminPaths = {
   "/wholesale/summary": "/admin/wholesale/summary", "/wholesale/reports": "/admin/wholesale/reports",
 };
 export function portalLogin(path) {
+  if (/^\/moderator(?:\/|$)/i.test(path)) return "/moderator/login";
   return path.startsWith("/admin") ? "/admin/login" : path.startsWith("/showroom") ? "/showroom/login" : "/login";
 }

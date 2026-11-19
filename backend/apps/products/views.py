@@ -87,7 +87,7 @@ class ProductViewSet(viewsets.ModelViewSet):
                 "image", "image_url", "photo_version",
             )}
             product, created = Product.objects.get_or_create(
-                name=source.name, category=online_category, size=source.size, sales_channel="online",
+                name=source.name, category=online_category, size=source.size, color=source.color, sales_channel="online",
                 defaults={key: value for key, value in data.items() if key not in ("name", "category", "size")},
             )
             if created:

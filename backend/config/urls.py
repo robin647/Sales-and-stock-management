@@ -15,6 +15,7 @@ urlpatterns = [
     path("api/auth/login/", CustomTokenObtainPairView.as_view(), name="token_obtain_pair"),
     path("api/auth/customer/login/", CustomerLoginView.as_view(), name="customer-login"),
     path("api/auth/login/showroom/", ShowroomLoginView.as_view(), name="showroom_login"),
+    path("api/moderator/", include("apps.moderator.urls")),
     path("api/auth/refresh/", TokenRefreshView.as_view(), name="token_refresh"),
     path("api/accounts/", include("apps.accounts.urls")),
     path("api/showrooms/", include("apps.showrooms.urls")),
