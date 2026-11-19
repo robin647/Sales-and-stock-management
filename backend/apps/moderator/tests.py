@@ -112,21 +112,27 @@ class WorkspaceTests(TestCase):
         order = {
             "tracking_id": "120000001", "invoice": "8", "customer_name": "Sample Customer",
             "phone": "01000000000", "address": "Sample Road", "area": "Dhaka",
-            "quantity": 2, "cod_amount": "2994.50",
+            "quantity": 2, "cod_amount": "2994.50", "delivery_zone": "inside",
         }
         self.assertEqual(moderator.get(url).status_code, 403)
         self.assertEqual(moderator.post(url, order).status_code, 403)
         self.assertEqual(admin.post(url, {**order, "quantity": 0}).status_code, 400)
         first = admin.post(url, order)
         self.assertEqual(first.status_code, 201, first.data)
+        self.assertEqual(first.data["delivery_charge"], 70)
         self.assertEqual(admin.post(url, order).status_code, 400)
-        second = admin.post(url, {**order, "tracking_id": "120000002", "quantity": 3, "cod_amount": "450.25"})
+        second = admin.post(url, {**order, "tracking_id": "120000002", "quantity": 3,
+                                  "cod_amount": "450.25", "delivery_zone": "outside", "delivery_charge": 1})
         self.assertEqual(second.status_code, 201, second.data)
+        self.assertEqual(second.data["delivery_charge"], 150)
         self.assertEqual(moderator.patch(f"{url}{first.data['id']}/", {"quantity": 6}).status_code, 403)
         self.assertEqual(admin.patch(f"{url}{first.data['id']}/", {"quantity": 1}).status_code, 200)
         listing = admin.get(url, {"page_size": 1})
         self.assertEqual(len(listing.data["results"]), 1)
-        self.assertEqual(listing.data["summary"], {"orders": 2, "units": 4, "cod": "3444.75"})
+        self.assertEqual(listing.data["summary"], {
+            "orders": 2, "units": 4, "cod": "3444.75", "delivery": 220, "net_sales": "3224.75",
+            "unclassified": 0,
+        })
 
     def test_admin_account_management_revokes_password_and_inactive_sessions(self):
         admin, _ = self.login(self.admin)

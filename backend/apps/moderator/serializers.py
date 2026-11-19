@@ -15,10 +15,13 @@ from .models import Asset, FacebookOrder
 
 
 class FacebookOrderSerializer(serializers.ModelSerializer):
+    delivery_zone = serializers.ChoiceField(choices=FacebookOrder.DeliveryZone.choices)
+    delivery_charge = serializers.IntegerField(read_only=True)
+
     class Meta:
         model = FacebookOrder
         fields = ("id", "tracking_id", "invoice", "customer_name", "phone", "address", "area",
-                  "quantity", "cod_amount", "created_at")
+                  "quantity", "cod_amount", "delivery_zone", "delivery_charge", "created_at")
         read_only_fields = ("id", "created_at")
 
 

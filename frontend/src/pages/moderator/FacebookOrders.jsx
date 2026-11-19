@@ -2,12 +2,13 @@ import { useEffect, useRef, useState } from "react";
 import { errorMessage } from "../../utils/apiError";
 import { Heading, LoadState, Pager } from "./components";
 import { useWorkspaceData, workspaceApi } from "./data";
+import { deliveryFees, suggestDeliveryZone } from "./deliveryZone";
 import styles from "./workspace.module.css";
 
 const ordersPath = "facebook-orders/";
 const emptyOrder = {
   tracking_id: "", invoice: "", customer_name: "", phone: "", address: "", area: "",
-  quantity: "", cod_amount: "",
+  quantity: "", cod_amount: "", delivery_zone: "",
 };
 const fields = [
   ["tracking_id", "Tracking ID (SF-ID)", { maxLength: 64, required: true }],
@@ -35,6 +36,11 @@ export default function FacebookOrders({ notify }) {
   const editor = useRef(null);
   const result = useWorkspaceData(`${ordersPath}?page=${page}`);
   const busy = reading || saving;
+  const zone = draft.delivery_zone || suggestDeliveryZone(draft.address, draft.area);
+  const totals = result.data?.summary;
+  const history = result.status === 404
+    ? { ...result, error: "Facebook Orders is unavailable on the current backend. Retry after the backend updates." }
+    : result;
 
   useEffect(() => () => { if (image) URL.revokeObjectURL(image); }, [image]);
 
@@ -63,7 +69,7 @@ export default function FacebookOrders({ notify }) {
     try {
       const { default: readCourierImage } = await import("./readCourierImage");
       const extracted = await readCourierImage(file, setProgress);
-      setDraft(extracted);
+      setDraft({ ...emptyOrder, ...extracted });
       setScanMessage(Object.values(extracted).some(Boolean)
         ? "Review the extracted fields and confirm the number of products before saving."
         : "No matching label fields were found. Enter the details from the image.");
@@ -76,13 +82,17 @@ export default function FacebookOrders({ notify }) {
 
   function change(event) {
     const { name, value } = event.target;
-    setDraft((current) => ({ ...current, [name]: value }));
+    setDraft((current) => ({
+      ...current,
+      ...(["address", "area"].includes(name) ? { delivery_zone: "" } : {}),
+      [name]: value,
+    }));
   }
 
   function edit(order) {
     clearDraft();
     setEditing(order.id);
-    setDraft(Object.fromEntries(Object.keys(emptyOrder).map((key) => [key, order[key]])));
+    setDraft(Object.fromEntries(Object.keys(emptyOrder).map((key) => [key, order[key] ?? ""])));
     editor.current.focus();
   }
 
@@ -90,13 +100,14 @@ export default function FacebookOrders({ notify }) {
     event.preventDefault();
     setSaving(true);
     setFailure("");
+    const payload = { ...draft, delivery_zone: zone };
     try {
       if (editing) {
-        await workspaceApi.patch(`${ordersPath}${editing}/`, draft);
+        await workspaceApi.patch(`${ordersPath}${editing}/`, payload);
         notify("Facebook order updated.");
         result.reload();
       } else {
-        await workspaceApi.post(ordersPath, draft);
+        await workspaceApi.post(ordersPath, payload);
         notify("Facebook order saved.");
         if (page === 1) result.reload();
         else setPage(1);
@@ -111,11 +122,16 @@ export default function FacebookOrders({ notify }) {
 
   return <>
     <Heading title="Facebook Orders" />
-    {result.data && <div className={styles.stats} aria-label="All Facebook order totals">
-      <div className={`${styles.panel} ${styles.salesTotal}`}><span>Total order value (COD)</span><strong>{taka.format(result.data.summary.cod)}</strong></div>
-      <div className={styles.panel}><span>Products sold (units)</span><strong>{number.format(result.data.summary.units)}</strong></div>
-      <div className={styles.panel}><span>Orders recorded</span><strong>{number.format(result.data.summary.orders)}</strong></div>
-    </div>}
+    {totals && <>
+      <div className={styles.stats} aria-label="All Facebook order totals">
+        <div className={`${styles.panel} ${styles.salesTotal}`}><span>Total sales after delivery</span><strong>{totals.net_sales == null ? "—" : taka.format(totals.net_sales)}</strong></div>
+        <div className={styles.panel}><span>Total COD</span><strong>{taka.format(totals.cod)}</strong></div>
+        <div className={styles.panel}><span>Delivery charges</span><strong>{taka.format(totals.delivery ?? 0)}</strong></div>
+        <div className={styles.panel}><span>Products sold (units)</span><strong>{number.format(totals.units)}</strong></div>
+        <div className={styles.panel}><span>Orders recorded</span><strong>{number.format(totals.orders)}</strong></div>
+      </div>
+      {totals.unclassified > 0 && <p className={styles.scanMessage}>Set a delivery zone on {totals.unclassified} older {totals.unclassified === 1 ? "order" : "orders"} to calculate total sales after delivery.</p>}
+    </>}
     <div className={styles.orderIntake}>
       <section className={styles.panel}>
         <h2>Courier label</h2>
@@ -138,6 +154,17 @@ export default function FacebookOrders({ notify }) {
             <label className={styles.wide}>Delivery address
               <textarea name="address" maxLength={500} rows={2} required value={draft.address} onChange={change} />
             </label>
+            <label>Delivery zone
+              <select name="delivery_zone" value={zone} onChange={change} required>
+                <option value="">Select delivery zone</option>
+                <option value="inside">Inside Dhaka</option>
+                <option value="outside">Outside Dhaka</option>
+              </select>
+              {!draft.delivery_zone && zone && <small>Suggested from the address. Change if needed.</small>}
+            </label>
+            <label>Delivery charge
+              <input readOnly value={zone ? taka.format(deliveryFees[zone]) : ""} />
+            </label>
             {failure && <p className={`${styles.error} ${styles.wide}`} role="alert">{failure}</p>}
             <div className={`${styles.actions} ${styles.wide}`}>
               <button className={styles.primary}>{saving ? "Saving…" : editing ? "Save changes" : "Save order"}</button>
@@ -149,15 +176,16 @@ export default function FacebookOrders({ notify }) {
     </div>
     <section className={styles.panel}>
       <h2>Order history</h2>
-      <LoadState result={result}>{(data) => data.results.length ? <>
+      <LoadState result={history}>{(data) => data.results.length ? <>
         <div className={styles.tableWrap}><table>
-          <thead><tr><th>Tracking ID</th><th>Customer</th><th>Delivery address</th><th>Units</th><th>COD</th><th>Recorded</th><th>Actions</th></tr></thead>
+          <thead><tr><th>Tracking ID</th><th>Customer</th><th>Delivery address</th><th>Units</th><th>COD</th><th>Delivery</th><th>Recorded</th><th>Actions</th></tr></thead>
           <tbody>{data.results.map((order) => <tr key={order.id}>
             <td><strong>{order.tracking_id}</strong>{order.invoice && <small>Invoice {order.invoice}</small>}</td>
             <td>{order.customer_name}<small>{order.phone}</small></td>
             <td className={styles.orderAddress}>{order.address}{order.area && <small>{order.area}</small>}</td>
             <td>{number.format(order.quantity)}</td>
             <td className={styles.orderAmount}>{taka.format(order.cod_amount)}</td>
+            <td className={styles.orderAmount}>{order.delivery_charge == null ? "Set zone" : taka.format(order.delivery_charge)}</td>
             <td>{date.format(new Date(order.created_at))}</td>
             <td><button type="button" disabled={busy} onClick={() => edit(order)}>Edit</button></td>
           </tr>)}</tbody>

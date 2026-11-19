@@ -65,15 +65,26 @@ def remove_asset_file(sender, instance, using, **kwargs):
 
 
 class FacebookOrder(models.Model):
+    class DeliveryZone(models.TextChoices):
+        INSIDE = "inside", "Inside Dhaka"
+        OUTSIDE = "outside", "Outside Dhaka"
+
+    DELIVERY_FEES = {DeliveryZone.INSIDE: 70, DeliveryZone.OUTSIDE: 150}
+
     tracking_id = models.CharField(max_length=64, unique=True)
     invoice = models.CharField(max_length=64, blank=True)
     customer_name = models.CharField(max_length=150)
     phone = models.CharField(max_length=32)
     address = models.CharField(max_length=500)
     area = models.CharField(max_length=150, blank=True)
+    delivery_zone = models.CharField(max_length=7, choices=DeliveryZone.choices, blank=True)
     quantity = models.PositiveIntegerField(validators=[MinValueValidator(1)])
     cod_amount = models.DecimalField(max_digits=12, decimal_places=2, validators=[MinValueValidator(0)])
     created_at = models.DateTimeField(auto_now_add=True)
+
+    @property
+    def delivery_charge(self):
+        return self.DELIVERY_FEES.get(self.delivery_zone)
 
     class Meta:
         ordering = ["-created_at", "-pk"]

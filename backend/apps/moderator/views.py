@@ -1,5 +1,5 @@
 from django.db import IntegrityError, transaction
-from django.db.models import Count, OuterRef, Subquery, Sum
+from django.db.models import Case, Count, OuterRef, Q, Subquery, Sum, When
 from django.db.models.deletion import ProtectedError
 from django.shortcuts import get_object_or_404
 from rest_framework import mixins, serializers, viewsets
@@ -105,8 +105,12 @@ class FacebookOrderViewSet(mixins.CreateModelMixin, mixins.ListModelMixin, mixin
         response = super().list(request, *args, **kwargs)
         totals = self.get_queryset().aggregate(
             orders=Count("pk"), units=Sum("quantity", default=0), cod=Sum("cod_amount", default=0),
+            delivery=Sum(Case(*(When(delivery_zone=zone, then=fee)
+                                for zone, fee in FacebookOrder.DELIVERY_FEES.items())), default=0),
+            unclassified=Count("pk", filter=Q(delivery_zone="")),
         )
-        response.data["summary"] = {**totals, "cod": str(totals["cod"])}
+        net_sales = None if totals["unclassified"] else str(totals["cod"] - totals["delivery"])
+        response.data["summary"] = {**totals, "cod": str(totals["cod"]), "net_sales": net_sales}
         return response
 
     def create(self, request, *args, **kwargs):

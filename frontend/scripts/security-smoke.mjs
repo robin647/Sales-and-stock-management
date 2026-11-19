@@ -65,8 +65,8 @@ try {
       else if (path.includes('/public/')) body = { store: {}, content: [], campaigns: [], locales: [], brands: [], reviews: [] };
       else if (createOrder) body = savedOrder;
       else if (facebookOrders) body = savedOrder
-        ? { count: 1, results: [savedOrder], summary: { orders: 1, units: savedOrder.quantity, cod: savedOrder.cod_amount } }
-        : { ...body, summary: { orders: 0, units: 0, cod: '0' } };
+        ? { count: 1, results: [{ ...savedOrder, delivery_charge: 150 }], summary: { orders: 1, units: savedOrder.quantity, cod: savedOrder.cod_amount, delivery: 150, net_sales: '2844.50' } }
+        : { ...body, summary: { orders: 0, units: 0, cod: '0', delivery: 0, net_sales: '0' } };
       await command('Fetch.fulfillRequest', { requestId, responseCode: request.method === 'OPTIONS' ? 204 : auth ? 401 : (createTest || createOrder) ? 201 : 200,
         responseHeaders: [{ name: 'Content-Type', value: 'application/json' }, { name: 'Access-Control-Allow-Origin', value: '*' },
           { name: 'Access-Control-Allow-Headers', value: 'content-type,authorization' }, { name: 'Access-Control-Allow-Methods', value: 'GET,POST,OPTIONS' }],
@@ -151,7 +151,7 @@ try {
         ctx.textAlign = 'left';
       });
     [['Name', 'Sample Buyer'], ['Phone', '01000000000'], ['Address', '15 Sample Road, Building 2'],
-      ['', 'Near Sample Junction'], ['Area', 'Dhaka']].forEach(([label, value], i) => {
+      ['', 'Near Sample Junction'], ['Area', 'Sylhet']].forEach(([label, value], i) => {
       ctx.fillText(label, 60, 475 + i * 49);
       ctx.fillText(value, 240, 475 + i * 49);
     });
@@ -173,6 +173,7 @@ try {
   assert.equal(await evaluate(`document.querySelector('[name="tracking_id"]').value`), '120000001', await evaluate('document.body.innerText'));
   assert.equal(await evaluate(`document.querySelector('[name="cod_amount"]').value`), '2994.50');
   assert.equal(await evaluate(`document.querySelector('[name="quantity"]').value`), '');
+  assert.equal(await evaluate(`document.querySelector('[name="delivery_zone"]').value`), 'outside');
   await evaluate(`const quantity = document.querySelector('[name="quantity"]');
     Object.getOwnPropertyDescriptor(HTMLInputElement.prototype, 'value').set.call(quantity, '2');
     quantity.dispatchEvent(new Event('input', { bubbles: true }));
@@ -181,7 +182,8 @@ try {
   assert.equal(savedOrder?.customer_name, 'Sample Buyer');
   assert.equal(savedOrder?.phone, '01000000000');
   assert.match(savedOrder?.address, /15 Sample Road.*Near Sample Junction/);
-  assert.equal(savedOrder?.area, 'Dhaka');
+  assert.equal(savedOrder?.area, 'Sylhet');
+  assert.equal(savedOrder?.delivery_zone, 'outside');
   assert.equal(savedOrder?.invoice, '8');
   assert.equal(savedOrder?.quantity, '2');
   for (let attempt = 0; attempt < 50; attempt++) {
@@ -189,6 +191,7 @@ try {
     await new Promise(resolve => setTimeout(resolve, 100));
   }
   assert.ok(await evaluate(`document.querySelector('[aria-label="All Facebook order totals"]').textContent.includes('2,994.50')`));
+  assert.ok(await evaluate(`document.querySelector('[aria-label="All Facebook order totals"]').textContent.includes('2,844.50')`));
   assert.deepEqual(exceptions, []);
   console.log('PASS: portal routes, legacy redirects, CSP rendering, login-refresh isolation and Facebook order image intake. External API requests were mocked.');
 } finally {

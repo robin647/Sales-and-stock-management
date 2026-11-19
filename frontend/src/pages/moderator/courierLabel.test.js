@@ -1,6 +1,7 @@
 import assert from "node:assert/strict";
 import test from "node:test";
 import { parseCourierLabel } from "./courierLabel.js";
+import { suggestDeliveryZone } from "./deliveryZone.js";
 
 test("imports a courier label without guessing quantity from the invoice", () => {
   assert.deepEqual(parseCourierLabel(`
@@ -26,4 +27,12 @@ test("reads explicit quantities and keeps a missing COD amount blank", () => {
   assert.equal(result.tracking_id, "12345678");
   assert.equal(result.quantity, "3");
   assert.equal(result.cod_amount, "");
+});
+
+test("suggests a delivery zone and leaves unclear addresses for review", () => {
+  assert.equal(suggestDeliveryZone("Dhaka Road", "Ambarkhana, Sylhet"), "outside");
+  assert.equal(suggestDeliveryZone("House 12, Dhanmondi", ""), "inside");
+  assert.equal(suggestDeliveryZone("সাভার, ঢাকা", ""), "outside");
+  assert.equal(suggestDeliveryZone("বাসা ১২, মিরপুর", ""), "inside");
+  assert.equal(suggestDeliveryZone("House 12, Road 4", ""), "");
 });

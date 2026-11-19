@@ -21,7 +21,9 @@ export function useWorkspaceData(path) {
     workspaceApi.get(path, { signal: controller.signal }).then(({ data }) => {
       if (!controller.signal.aborted) setResult({ path, version, data });
     }).catch((error) => {
-      if (!controller.signal.aborted) setResult({ path, version, error: errorMessage(error) });
+      if (!controller.signal.aborted) {
+        setResult({ path, version, error: errorMessage(error), status: error.response?.status });
+      }
     });
     return () => controller.abort();
   }, [path, version]);
