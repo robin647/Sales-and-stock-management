@@ -15,7 +15,7 @@ from .models import Asset
 
 
 class ModeratorLoginSerializer(CustomTokenObtainPairSerializer):
-    allowed_roles = (User.Role.ADMIN, User.Role.MODERATOR)
+    allowed_roles = (User.Role.MODERATOR,)
 
 
 class ModeratorAccountSerializer(serializers.ModelSerializer):

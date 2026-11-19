@@ -53,7 +53,8 @@ class WorkspaceTests(TestCase):
 
     def login(self, user, password=None):
         browser = APIClient()
-        reply = browser.post(API + "login/", {"username": user.username, "password": password or self.password})
+        login_url = "/api/auth/login/" if user.role == User.Role.ADMIN else API + "login/"
+        reply = browser.post(login_url, {"username": user.username, "password": password or self.password})
         self.assertEqual(reply.status_code, 200, reply.data)
         browser.credentials(HTTP_AUTHORIZATION=f"Bearer {reply.data['access']}")
         return browser, reply.data
@@ -72,6 +73,9 @@ class WorkspaceTests(TestCase):
         return response.data
 
     def test_workspace_permissions_and_variant_filters(self):
+        self.assertEqual(self.client.post(API + "login/", {
+            "username": self.admin.username, "password": self.password,
+        }).status_code, 401)
         for user, status in [(None, 401), (self.customer, 403)]:
             self.client.force_authenticate(user)
             for route in ["dashboard/", "products/", "categories/", "accounts/", "downloads/bulk/?preview=1"]:

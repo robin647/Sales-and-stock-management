@@ -6,12 +6,12 @@ import { Heading, LoadState, Modal, money, Pager, ProtectedPreview } from "./com
 import { useWorkspaceData, workspaceApi } from "./data";
 import styles from "./workspace.module.css";
 
-export function ProductTable({ products }) {
+export function ProductTable({ products, basePath }) {
   if (!products.length) return <p className={styles.state}>No matching products.</p>;
   return <div className={styles.tableWrap}><table>
     <thead><tr><th>Product / SKU</th><th>Category</th><th>Color / Size</th><th>Price</th><th>Stock</th></tr></thead>
     <tbody>{products.map((product) => <tr key={product.id}>
-      <td><Link className={styles.productLink} to={`/moderator/products/${product.id}`}>
+      <td><Link className={styles.productLink} to={`${basePath}/products/${product.id}`}>
         {product.primary_asset && <ProtectedPreview id={product.primary_asset} thumbnail />}
         <span><strong>{product.name}</strong><small>{product.code}{!product.is_active && " · Inactive"}</small></span>
       </Link></td>
@@ -122,7 +122,7 @@ function ProductEditor({ product, copyFrom, categories, close, saved }) {
   </Modal>;
 }
 
-export function Catalog({ isAdmin, notify }) {
+export function Catalog({ basePath, isAdmin, notify }) {
   const [params, setParams] = useSearchParams();
   const [adding, setAdding] = useState(false);
   const navigate = useNavigate();
@@ -138,11 +138,11 @@ export function Catalog({ isAdmin, notify }) {
         <ProductFilters key={filterKey.toString()} params={params} setParams={setParams} categories={categories} isAdmin={isAdmin} />
         {adding && <ProductEditor categories={categories} close={() => setAdding(false)} saved={(product) => {
           notify("Product created.");
-          navigate(`/moderator/products/${product.id}`);
+          navigate(`${basePath}/products/${product.id}`);
         }} />}
       </>}</LoadState>
       <LoadState result={result}>{(data) => <>
-        <ProductTable products={data.results} />
+        <ProductTable products={data.results} basePath={basePath} />
         <Pager page={page} data={data} onPage={(value) => {
           const next = new URLSearchParams(params);
           next.set("page", value);
@@ -153,13 +153,13 @@ export function Catalog({ isAdmin, notify }) {
   </>;
 }
 
-function ProductRecord({ id, isAdmin, notify }) {
+function ProductRecord({ id, basePath, isAdmin, notify }) {
   const result = useWorkspaceData(`products/${id}/`);
   const categories = useWorkspaceData(isAdmin ? "categories/" : null);
   const navigate = useNavigate();
   const [editor, setEditor] = useState("");
   return <>
-    <Link to="/moderator/products">← Products</Link>
+    <Link to={`${basePath}/products`}>← Products</Link>
     <LoadState result={result}>{(product) => <>
       <Heading title={product.name}>
         {isAdmin && <div className={styles.actions}>
@@ -178,7 +178,7 @@ function ProductRecord({ id, isAdmin, notify }) {
         </dl>
         {product.description && <p className={styles.description}>{product.description}</p>}
         {!!product.variants.length && <div className={styles.variants}><h3>Other variants</h3>
-          {product.variants.map((variant) => <Link key={variant.id} to={`/moderator/products/${variant.id}`}>
+          {product.variants.map((variant) => <Link key={variant.id} to={`${basePath}/products/${variant.id}`}>
             {[variant.color, variant.size].filter(Boolean).join(" / ") || "Standard"} · {variant.code} · {variant.factory_quantity} units
             {!variant.is_active && " · Inactive"}
           </Link>)}
@@ -190,7 +190,7 @@ function ProductRecord({ id, isAdmin, notify }) {
           categories={rows} close={() => setEditor("")} saved={(saved) => {
             setEditor("");
             notify(editor === "variant" ? "Variant created." : "Product updated.");
-            if (saved.id !== product.id) navigate(`/moderator/products/${saved.id}`);
+            if (saved.id !== product.id) navigate(`${basePath}/products/${saved.id}`);
             else result.reload();
           }} />
       )}</LoadState>}

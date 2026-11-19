@@ -28,7 +28,7 @@ from .serializers import AssetSerializer, CatalogProductSerializer, ModeratorAcc
 class WorkspaceSessionPermission(BasePermission):
     def has_permission(self, request, view):
         user = request.user
-        if not user.is_authenticated or user.role not in ModeratorLoginSerializer.allowed_roles:
+        if not user.is_authenticated or user.role not in (User.Role.ADMIN, User.Role.MODERATOR):
             return False
         if request.auth and BlacklistedToken.objects.filter(token__jti=request.auth[api_settings.JTI_CLAIM]).exists():
             raise AuthenticationFailed("This workspace session has ended. Sign in again.")

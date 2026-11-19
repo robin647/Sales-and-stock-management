@@ -81,6 +81,7 @@ export default function App() {
       <Route path="/pages/:slug" element={<StorePage />} />
       <Route path="/admin/login" element={<Login portal="admin" />} />
       <Route path="/admin" element={<Navigate to="/admin/dashboard" replace />} />
+      <Route path="/admin/moderator-management/*" element={<ProtectedRoute requireAdmin><Layout><ModeratorWorkspace admin /></Layout></ProtectedRoute>} />
       <Route path="/admin/ecommerce/:module?" element={<ProtectedRoute requireCommerce><EcommerceAdmin /></ProtectedRoute>} />
       {[
         ["dashboard", AdminDashboard], ["customers", Customers], ["showrooms", Showrooms],

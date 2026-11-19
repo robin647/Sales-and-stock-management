@@ -15,10 +15,14 @@ Mahadi Zone-1, Mahadi Zone-2, Mahadi Zone-3, Mahadi Zone-4, and Mahir Sherwani.
 
 ## Moderator workspace
 
-Open `/moderator` on the storefront domain. For local Vite development, open
-`http://localhost:5173/moderator`. Staff sign in at `/moderator/login` with their
-existing admin credentials or a moderator account. An admin can create or
-deactivate moderator accounts and reset passwords under **Moderator accounts**.
+Moderators open `/moderator` on the storefront domain and sign in with the
+username and password set by an admin. The dashboard, products, and asset
+downloads are available after sign-in. For local Vite development, open
+`http://localhost:5173/moderator`.
+
+Admins sign in at `/admin/login` and choose **Moderator Management** in the admin
+sidebar. Use **Accounts** to create or deactivate moderators and reset passwords.
+Product, category, and asset tools are also available in **Moderator Management**.
 
 The workspace uses the online catalog. Each color and size combination is an
 existing product variant with its own SKU and stock. Use **Add variant** to
