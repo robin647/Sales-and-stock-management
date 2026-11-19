@@ -21,8 +21,10 @@ from apps.products.serializers import ProductCategorySerializer
 
 from .assets import archive, download_asset, save_upload
 from .catalog import catalog, filtered_catalog, visible_products
-from .models import Asset
-from .serializers import AssetSerializer, CatalogProductSerializer, ModeratorAccountSerializer, ModeratorLoginSerializer
+from .models import Asset, FacebookOrder
+from .serializers import (
+    AssetSerializer, CatalogProductSerializer, FacebookOrderSerializer, ModeratorAccountSerializer, ModeratorLoginSerializer,
+)
 
 
 class WorkspaceSessionPermission(BasePermission):
@@ -90,6 +92,36 @@ class AccountViewSet(mixins.CreateModelMixin, mixins.ListModelMixin, mixins.Retr
     def update(self, request, *args, **kwargs):
         self.queryset = self.queryset.select_for_update()
         return super().update(request, *args, **kwargs)
+
+
+class FacebookOrderViewSet(mixins.CreateModelMixin, mixins.ListModelMixin, mixins.UpdateModelMixin,
+                           viewsets.GenericViewSet):
+    lookup_value_regex = r"[0-9]+"
+    permission_classes = [WorkspaceAdminPermission]
+    serializer_class = FacebookOrderSerializer
+    queryset = FacebookOrder.objects.all()
+
+    def list(self, request, *args, **kwargs):
+        response = super().list(request, *args, **kwargs)
+        totals = self.get_queryset().aggregate(
+            orders=Count("pk"), units=Sum("quantity", default=0), cod=Sum("cod_amount", default=0),
+        )
+        response.data["summary"] = {**totals, "cod": str(totals["cod"])}
+        return response
+
+    def create(self, request, *args, **kwargs):
+        try:
+            with transaction.atomic():
+                return super().create(request, *args, **kwargs)
+        except IntegrityError:
+            raise serializers.ValidationError({"tracking_id": "An order with this tracking ID already exists."})
+
+    def update(self, request, *args, **kwargs):
+        try:
+            with transaction.atomic():
+                return super().update(request, *args, **kwargs)
+        except IntegrityError:
+            raise serializers.ValidationError({"tracking_id": "An order with this tracking ID already exists."})
 
 
 class CategoryViewSet(viewsets.ModelViewSet):

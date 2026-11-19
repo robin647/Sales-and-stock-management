@@ -11,7 +11,15 @@ from apps.accounts.serializers import CustomTokenObtainPairSerializer
 from apps.inventory.services import adjust_stock
 from apps.products.serializers import ProductSerializer
 
-from .models import Asset
+from .models import Asset, FacebookOrder
+
+
+class FacebookOrderSerializer(serializers.ModelSerializer):
+    class Meta:
+        model = FacebookOrder
+        fields = ("id", "tracking_id", "invoice", "customer_name", "phone", "address", "area",
+                  "quantity", "cod_amount", "created_at")
+        read_only_fields = ("id", "created_at")
 
 
 class ModeratorLoginSerializer(CustomTokenObtainPairSerializer):

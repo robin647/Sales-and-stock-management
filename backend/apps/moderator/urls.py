@@ -8,6 +8,7 @@ router.register("products", views.ProductViewSet, basename="moderator-product")
 router.register("categories", views.CategoryViewSet, basename="moderator-category")
 router.register("accounts", views.AccountViewSet, basename="moderator-account")
 router.register("assets", views.AssetViewSet, basename="moderator-asset")
+router.register("facebook-orders", views.FacebookOrderViewSet, basename="moderator-facebook-order")
 
 urlpatterns = [
     path("login/", views.ModeratorLoginView.as_view(), name="moderator-login"),

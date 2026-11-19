@@ -35,7 +35,7 @@ try {
   socket = new WebSocket(targets.find(target => target.type === 'page').webSocketDebuggerUrl);
   await new Promise(resolve => socket.addEventListener('open', resolve, { once: true }));
   const pending = new Map(), exceptions = [];
-  let next = 0, refreshRequests = 0;
+  let next = 0, refreshRequests = 0, savedOrder;
   function command(method, params = {}) {
     return new Promise((resolve, reject) => {
       const id = ++next;
@@ -55,8 +55,19 @@ try {
       if (path.includes('/refresh/')) refreshRequests++;
       const auth = path.includes('/auth/');
       const createTest = path.endsWith('/customers/create-test-account/');
-      const body = createTest ? { id: 99, email: 'demo@example.test' } : auth ? { detail: 'Invalid credentials.' } : path.includes('/public/') ? { store: {}, content: [], campaigns: [], locales: [], brands: [], reviews: [] } : { count: 0, results: [] };
-      await command('Fetch.fulfillRequest', { requestId, responseCode: request.method === 'OPTIONS' ? 204 : auth ? 401 : createTest ? 201 : 200,
+      const facebookOrders = path.endsWith('/moderator/facebook-orders/');
+      const createOrder = facebookOrders && request.method === 'POST';
+      if (createOrder) savedOrder = { ...JSON.parse(request.postData), id: 1, created_at: '2026-11-19T00:00:00Z' };
+      let body = { count: 0, results: [] };
+      if (createTest) body = { id: 99, email: 'demo@example.test' };
+      else if (auth) body = { detail: 'Invalid credentials.' };
+      else if (path.endsWith('/accounts/me/')) body = { id: 1, role: 'admin', username: 'test-admin' };
+      else if (path.includes('/public/')) body = { store: {}, content: [], campaigns: [], locales: [], brands: [], reviews: [] };
+      else if (createOrder) body = savedOrder;
+      else if (facebookOrders) body = savedOrder
+        ? { count: 1, results: [savedOrder], summary: { orders: 1, units: savedOrder.quantity, cod: savedOrder.cod_amount } }
+        : { ...body, summary: { orders: 0, units: 0, cod: '0' } };
+      await command('Fetch.fulfillRequest', { requestId, responseCode: request.method === 'OPTIONS' ? 204 : auth ? 401 : (createTest || createOrder) ? 201 : 200,
         responseHeaders: [{ name: 'Content-Type', value: 'application/json' }, { name: 'Access-Control-Allow-Origin', value: '*' },
           { name: 'Access-Control-Allow-Headers', value: 'content-type,authorization' }, { name: 'Access-Control-Allow-Methods', value: 'GET,POST,OPTIONS' }],
         body: request.method === 'OPTIONS' ? '' : Buffer.from(JSON.stringify(body)).toString('base64') });
@@ -111,8 +122,75 @@ try {
     await new Promise(resolve => setTimeout(resolve, 100));
   }
   assert.ok(await evaluate(`document.body.innerText.includes('Test customer demo@example.test created.')`));
+  await evaluate(`document.querySelector('[aria-controls="moderator-management-links"]').click();
+    document.querySelector('#moderator-management-links a[href$="/facebook-orders"]').click();`);
+  for (let attempt = 0; attempt < 50; attempt++) {
+    if (await evaluate(`Boolean(document.querySelector('input[type=file]'))`)) break;
+    await new Promise(resolve => setTimeout(resolve, 100));
+  }
+  assert.ok(await evaluate(`Boolean(document.querySelector('input[type=file]'))`), 'Facebook Orders did not open from the sidebar');
+  await evaluate(`(async () => {
+    const canvas = document.createElement('canvas');
+    canvas.width = 1000;
+    canvas.height = 900;
+    const ctx = canvas.getContext('2d');
+    ctx.fillStyle = 'white';
+    ctx.fillRect(0, 0, canvas.width, canvas.height);
+    ctx.fillStyle = 'black';
+    ctx.font = 'bold 36px Arial';
+    ctx.fillText('Sample Store', 60, 75);
+    ctx.fillText('120000001', 385, 160);
+    ctx.fillRect(60, 185, 880, 4);
+    ctx.fillRect(60, 420, 880, 4);
+    ctx.font = '32px Arial';
+    [['Invoice', '8'], ['SF-ID', '120000001'], ['Delivery', 'Home'], ['Weight', '0.5 KG']]
+      .forEach(([label, value], i) => {
+        ctx.fillText(label, 280, 235 + i * 50);
+        ctx.textAlign = 'right';
+        ctx.fillText(value, 940, 235 + i * 50);
+        ctx.textAlign = 'left';
+      });
+    [['Name', 'Sample Buyer'], ['Phone', '01000000000'], ['Address', '15 Sample Road, Building 2'],
+      ['', 'Near Sample Junction'], ['Area', 'Dhaka']].forEach(([label, value], i) => {
+      ctx.fillText(label, 60, 475 + i * 49);
+      ctx.fillText(value, 240, 475 + i * 49);
+    });
+    ctx.fillRect(60, 707, 880, 87);
+    ctx.fillStyle = 'white';
+    ctx.fillText('Cash on Delivery', 85, 763);
+    ctx.fillText('৳ 2,994.50', 745, 763);
+    const image = await new Promise(resolve => canvas.toBlob(resolve, 'image/png'));
+    const transfer = new DataTransfer();
+    transfer.items.add(new File([image], 'test-label.png', { type: 'image/png' }));
+    const input = document.querySelector('input[type=file]');
+    input.files = transfer.files;
+    input.dispatchEvent(new Event('change', { bubbles: true }));
+  })()`);
+  for (let attempt = 0; attempt < 240; attempt++) {
+    if (await evaluate(`!document.querySelector('input[type=file]').disabled`)) break;
+    await new Promise(resolve => setTimeout(resolve, 100));
+  }
+  assert.equal(await evaluate(`document.querySelector('[name="tracking_id"]').value`), '120000001', await evaluate('document.body.innerText'));
+  assert.equal(await evaluate(`document.querySelector('[name="cod_amount"]').value`), '2994.50');
+  assert.equal(await evaluate(`document.querySelector('[name="quantity"]').value`), '');
+  await evaluate(`const quantity = document.querySelector('[name="quantity"]');
+    Object.getOwnPropertyDescriptor(HTMLInputElement.prototype, 'value').set.call(quantity, '2');
+    quantity.dispatchEvent(new Event('input', { bubbles: true }));
+    quantity.form.requestSubmit();`);
+  for (let attempt = 0; attempt < 50 && !savedOrder; attempt++) await new Promise(resolve => setTimeout(resolve, 100));
+  assert.equal(savedOrder?.customer_name, 'Sample Buyer');
+  assert.equal(savedOrder?.phone, '01000000000');
+  assert.match(savedOrder?.address, /15 Sample Road.*Near Sample Junction/);
+  assert.equal(savedOrder?.area, 'Dhaka');
+  assert.equal(savedOrder?.invoice, '8');
+  assert.equal(savedOrder?.quantity, '2');
+  for (let attempt = 0; attempt < 50; attempt++) {
+    if (await evaluate(`document.querySelector('[aria-label="All Facebook order totals"]').textContent.includes('2,994.50')`)) break;
+    await new Promise(resolve => setTimeout(resolve, 100));
+  }
+  assert.ok(await evaluate(`document.querySelector('[aria-label="All Facebook order totals"]').textContent.includes('2,994.50')`));
   assert.deepEqual(exceptions, []);
-  console.log('PASS: portal routes, legacy redirects, CSP rendering and failed-login refresh isolation. External API requests were mocked.');
+  console.log('PASS: portal routes, legacy redirects, CSP rendering, login-refresh isolation and Facebook order image intake. External API requests were mocked.');
 } finally {
   socket?.close(); chrome.kill(); server.close();
   await new Promise(resolve => chrome.once('exit', resolve));

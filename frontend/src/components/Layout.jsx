@@ -1,5 +1,5 @@
 import { useState } from "react";
-import { NavLink, useNavigate } from "react-router-dom";
+import { NavLink, useLocation, useNavigate } from "react-router-dom";
 import { useAuth } from "../context/AuthContext.jsx";
 import { useTheme } from "../context/ThemeContext.jsx";
 import { SiteFooter } from "./SiteFooter.jsx";
@@ -13,7 +13,12 @@ export default function Layout({ children }) {
   const { user, logout, isAdmin } = useAuth();
   const { theme, toggleTheme } = useTheme();
   const navigate = useNavigate();
+  const { pathname } = useLocation();
   const [menuOpen, setMenuOpen] = useState(false);
+  const managementPath = "/admin/moderator-management";
+  const inManagement = pathname === managementPath || pathname.startsWith(managementPath + "/");
+  const [managementOpen, setManagementOpen] = useState(null);
+  const showManagement = managementOpen ?? inManagement;
 
   function handleLogout() {
     logout();
@@ -44,7 +49,18 @@ export default function Layout({ children }) {
               <div className="px-3 pt-4 pb-1 text-[10px] font-semibold uppercase tracking-widest text-gray-400">Online store</div>
               <NavLink onClick={() => setMenuOpen(false)} to="/admin/ecommerce/dashboard" className={linkClass}>ECOMMERCE ADMIN ?</NavLink>
               <NavLink onClick={() => setMenuOpen(false)} to="/admin/online-products" className={linkClass}>Online Products & Offers</NavLink>
-              <NavLink onClick={() => setMenuOpen(false)} to="/admin/moderator-management" className={linkClass}>Moderator Management</NavLink>
+              <button type="button" aria-expanded={showManagement} aria-controls="moderator-management-links"
+                className={`${linkClass({ isActive: inManagement })} flex w-full items-center justify-between gap-2 text-left`}
+                onClick={() => setManagementOpen(!showManagement)}>
+                Moderator Management
+                <span aria-hidden="true" className={`h-2 w-2 shrink-0 border-b border-r transition-transform ${showManagement ? "rotate-[225deg]" : "rotate-45"}`} />
+              </button>
+              <div id="moderator-management-links" hidden={!showManagement} className="ml-4 space-y-1 border-l border-gray-200 pl-2 dark:border-slate-700">
+                {[["Accounts", ""], ["Products", "/products"], ["Categories", "/categories"],
+                  ["Asset downloads", "/downloads"], ["Facebook Orders", "/facebook-orders"]].map(([label, path]) => (
+                  <NavLink key={label} end={!path} onClick={() => setMenuOpen(false)} to={managementPath + path} className={linkClass}>{label}</NavLink>
+                ))}
+              </div>
               <NavLink onClick={() => setMenuOpen(false)} to="/admin/customers" className={linkClass}>Customers</NavLink>
               <NavLink onClick={() => setMenuOpen(false)} to="/admin/online-stock" className={linkClass}>Online Stock</NavLink>
               <NavLink onClick={() => setMenuOpen(false)} to="/admin/online-orders" className={linkClass}>Orders, Coupons & Delivery</NavLink>

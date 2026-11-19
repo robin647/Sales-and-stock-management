@@ -24,6 +24,12 @@ Admins sign in at `/admin/login` and choose **Moderator Management** in the admi
 sidebar. Use **Accounts** to create or deactivate moderators and reset passwords.
 Product, category, and asset tools are also available in **Moderator Management**.
 
+Under **Facebook Orders**, upload a courier label to fill in the customer,
+tracking and cash-on-delivery fields. Review the extracted text and enter the
+number of products when the label omits it. The browser reads the image locally.
+The database stores the confirmed order details. The summary adds the saved
+COD amounts and quantities across all pages.
+
 The workspace uses the online catalog. Each color and size combination is an
 existing product variant with its own SKU and stock. Use **Add variant** to
 create another color or size and **Edit product** to change details, pricing, or

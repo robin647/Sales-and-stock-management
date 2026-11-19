@@ -105,6 +105,29 @@ class WorkspaceTests(TestCase):
         self.assertEqual(admin.get(API + "dashboard/").data["moderators"], 1)
         self.assertNotIn("moderators", moderator.get(API + "dashboard/").data)
 
+    def test_facebook_orders_are_admin_only_and_totals_cover_every_page(self):
+        url = API + "facebook-orders/"
+        admin, _ = self.login(self.admin)
+        moderator, _ = self.login(self.moderator)
+        order = {
+            "tracking_id": "120000001", "invoice": "8", "customer_name": "Sample Customer",
+            "phone": "01000000000", "address": "Sample Road", "area": "Dhaka",
+            "quantity": 2, "cod_amount": "2994.50",
+        }
+        self.assertEqual(moderator.get(url).status_code, 403)
+        self.assertEqual(moderator.post(url, order).status_code, 403)
+        self.assertEqual(admin.post(url, {**order, "quantity": 0}).status_code, 400)
+        first = admin.post(url, order)
+        self.assertEqual(first.status_code, 201, first.data)
+        self.assertEqual(admin.post(url, order).status_code, 400)
+        second = admin.post(url, {**order, "tracking_id": "120000002", "quantity": 3, "cod_amount": "450.25"})
+        self.assertEqual(second.status_code, 201, second.data)
+        self.assertEqual(moderator.patch(f"{url}{first.data['id']}/", {"quantity": 6}).status_code, 403)
+        self.assertEqual(admin.patch(f"{url}{first.data['id']}/", {"quantity": 1}).status_code, 200)
+        listing = admin.get(url, {"page_size": 1})
+        self.assertEqual(len(listing.data["results"]), 1)
+        self.assertEqual(listing.data["summary"], {"orders": 2, "units": 4, "cod": "3444.75"})
+
     def test_admin_account_management_revokes_password_and_inactive_sessions(self):
         admin, _ = self.login(self.admin)
         password = uuid4().hex

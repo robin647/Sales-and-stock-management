@@ -5,6 +5,7 @@ import { useTheme } from "../../context/ThemeContext";
 import { errorMessage } from "../../utils/apiError";
 import { Catalog, ProductDetail, ProductTable } from "./Catalog";
 import { Downloads, Manage } from "./Manage";
+import FacebookOrders from "./FacebookOrders";
 import { Heading, LoadState } from "./components";
 import { useWorkspaceData, workspaceApi } from "./data";
 import styles from "./workspace.module.css";
@@ -115,15 +116,10 @@ export default function ModeratorWorkspace({ admin = false }) {
   const toast = notice && <div className={styles.toast} role="status">{notice}</div>;
 
   if (admin) return <section className={`${styles.workspace} ${styles.adminWorkspace}`} data-theme={adminTheme}>
-    <Heading title="Moderator Management" />
-    <nav className={styles.managementNav} aria-label="Moderator management">
-      {[["Accounts", ""], ["Products", "/products"], ["Categories", "/categories"], ["Asset downloads", "/downloads"]].map(([label, path]) => (
-        <NavLink end={!path} key={label} className={({ isActive }) => isActive ? styles.active : undefined} to={basePath + path}>{label}</NavLink>
-      ))}
-    </nav>
     <Routes>
       <Route index element={<Manage key="accounts" kind="accounts" notify={setNotice} />} />
       <Route path="categories" element={<Manage key="categories" kind="categories" notify={setNotice} />} />
+      <Route path="facebook-orders" element={<FacebookOrders notify={setNotice} />} />
       {tools}
       <Route path="*" element={<Navigate to={basePath} replace />} />
     </Routes>
