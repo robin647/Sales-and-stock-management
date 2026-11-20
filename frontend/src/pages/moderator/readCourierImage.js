@@ -24,7 +24,13 @@ export default async function readCourierImage(file, onProgress) {
     ]);
     await worker.setParameters({ tessedit_pageseg_mode: PSM.AUTO });
     const { data: { text } } = await worker.recognize(file);
-    return parseCourierLabel(text);
+    const fields = parseCourierLabel(text);
+    if (fields.invoice && fields.cod_amount && fields.weight_kg) return fields;
+
+    await worker.setParameters({ tessedit_pageseg_mode: PSM.SPARSE_TEXT });
+    const { data: { text: sparseText } } = await worker.recognize(file);
+    const fallback = parseCourierLabel(sparseText);
+    return Object.fromEntries(Object.entries(fields).map(([key, value]) => [key, value || fallback[key]]));
   } finally {
     await worker?.terminate();
   }

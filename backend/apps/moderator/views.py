@@ -30,8 +30,10 @@ from .assets import archive, download_asset, save_upload
 from .catalog import catalog, filtered_catalog, visible_products
 from .models import Asset, FacebookOrder
 from .serializers import (
-    AssetSerializer, CatalogProductSerializer, FacebookOrderSerializer, ModeratorAccountSerializer, ModeratorLoginSerializer,
+    AssetSerializer, CatalogProductSerializer, FacebookOrderSerializer, ModeratorAccountSerializer,
+    ModeratorLoginSerializer, SteadfastQuoteSerializer,
 )
+from .steadfast import quote_delivery
 
 
 class WorkspaceSessionPermission(BasePermission):
@@ -108,6 +110,12 @@ class FacebookOrderViewSet(mixins.CreateModelMixin, mixins.ListModelMixin, mixin
     serializer_class = FacebookOrderSerializer
     queryset = FacebookOrder.objects.all()
 
+    @action(detail=False, methods=["get"], url_path="steadfast-quote")
+    def steadfast_quote(self, request):
+        params = SteadfastQuoteSerializer(data=request.query_params)
+        params.is_valid(raise_exception=True)
+        return Response({"courier_charge": quote_delivery(**params.validated_data)})
+
     def get_queryset(self):
         orders = super().get_queryset()
         if self.action not in ("list", "export"):
@@ -157,7 +165,7 @@ class FacebookOrderViewSet(mixins.CreateModelMixin, mixins.ListModelMixin, mixin
         sheet.freeze_panes = "A2"
         sheet.append((
             "Recorded (Dhaka)", "Tracking ID", "Invoice", "Customer", "Phone", "Address", "Area",
-            "Delivery zone", "Status", "Ordered units", "COD requested", "COD collected",
+            "Delivery zone", "Weight (kg)", "Delivery type", "Status", "Ordered units", "COD requested", "COD collected",
             "Customer delivery rate", "Steadfast delivery charge", "Steadfast COD fee", "Net sales",
         ))
         for column in sheet[1]:
@@ -166,7 +174,8 @@ class FacebookOrderViewSet(mixins.CreateModelMixin, mixins.ListModelMixin, mixin
             sheet.append((
                 timezone.localtime(order.created_at).replace(tzinfo=None), order.tracking_id,
                 order.invoice, order.customer_name, order.phone, order.address, order.area,
-                order.get_delivery_zone_display(), order.get_status_display(), order.quantity,
+                order.get_delivery_zone_display(), order.weight_kg, order.get_courier_delivery_display(),
+                order.get_status_display(), order.quantity,
                 order.cod_amount, order.collected_cod, order.delivery_charge, order.courier_charge,
                 order.steadfast_fee, order.net_sales if order.status != FacebookOrder.Status.PENDING else None,
             ))

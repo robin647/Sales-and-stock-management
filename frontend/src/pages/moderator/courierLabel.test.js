@@ -1,7 +1,9 @@
 import assert from "node:assert/strict";
 import test from "node:test";
 import { parseCourierLabel } from "./courierLabel.js";
+import { courierPdfText } from "./courierPdfText.js";
 import { suggestDeliveryZone } from "./deliveryZone.js";
+import { suggestSteadfastDestination } from "./steadfastDistrict.js";
 
 test("imports a courier label without guessing quantity from the invoice", () => {
   assert.deepEqual(parseCourierLabel(`
@@ -18,8 +20,27 @@ test("imports a courier label without guessing quantity from the invoice", () =>
   `), {
     tracking_id: "120000001", invoice: "8", customer_name: "Sample Customer",
     phone: "01000000000", address: "Apartment 2, Sample Road Sample Junction",
-    area: "Dhaka", quantity: "", cod_amount: "2994.50",
+    area: "Dhaka", quantity: "", cod_amount: "2994.50", weight_kg: "", courier_delivery: "",
   });
+});
+
+test("pairs far-apart PDF label columns and the larger COD text", () => {
+  const item = (str, x, y) => ({ str, transform: [1, 0, 0, 1, x, y] });
+  const result = parseCourierLabel(courierPdfText([
+    item("3", 425, 629), item("Invoice", 256, 629),
+    item("Delivery", 256, 601), item("Home", 405, 601),
+    item("Weight", 256, 587), item("1.5 KG", 403, 587),
+    item("Area", 182, 509), item("Dinajpur Sadar, Dinajpur", 227, 509),
+    item("Cash on Delivery", 191, 480), item("৳", 372, 479), item("2,394", 385, 479),
+  ]));
+  assert.equal(result.invoice, "3");
+  assert.equal(result.cod_amount, "2394");
+  assert.equal(result.weight_kg, "1.5");
+  assert.equal(result.courier_delivery, "home");
+  assert.equal(suggestSteadfastDestination(result.address, result.area), "15");
+  assert.equal(suggestSteadfastDestination("", "দিনাজপুর সদর, দিনাজপুর"), "15");
+  assert.equal(suggestSteadfastDestination("", "মিরপুর, ঢাকা"), "1");
+  assert.equal(parseCourierLabel("Weight:\n750 g").weight_kg, "0.75");
 });
 
 test("reads explicit quantities and keeps a missing COD amount blank", () => {
@@ -27,6 +48,13 @@ test("reads explicit quantities and keeps a missing COD amount blank", () => {
   assert.equal(result.tracking_id, "12345678");
   assert.equal(result.quantity, "3");
   assert.equal(result.cod_amount, "");
+});
+
+test("reads the black COD box when OCR mistakes the taka symbol for a digit", () => {
+  const result = parseCourierLabel("[=] [=] Invoice 3\n[=] = Weight 1.5KG\nCash on Delivery 5 2,394");
+  assert.equal(result.invoice, "3");
+  assert.equal(result.cod_amount, "2394");
+  assert.equal(result.weight_kg, "1.5");
 });
 
 test("reads invoice and COD values that OCR puts on the next line", () => {

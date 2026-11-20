@@ -3,13 +3,16 @@ import { errorMessage } from "../../utils/apiError";
 import { Heading, LoadState, Pager } from "./components";
 import { download, useWorkspaceData, workspaceApi } from "./data";
 import { deliveryFees, suggestDeliveryZone } from "./deliveryZone";
+import { districts, suggestSteadfastDestination } from "./steadfastDistrict";
 import styles from "./workspace.module.css";
 
 const ordersPath = "facebook-orders/";
 const emptyOrder = {
   tracking_id: "", invoice: "", customer_name: "", phone: "", address: "", area: "",
   quantity: "", cod_amount: "", delivery_zone: "", status: "pending", courier_charge: "",
+  weight_kg: "", courier_origin: "1", courier_destination: "", courier_delivery: "home",
 };
+const imageTypes = ["image/jpeg", "image/png", "image/webp"];
 const statusLabels = { pending: "Pending", delivered: "Delivered", cancelled: "Cancelled" };
 const fields = [
   ["tracking_id", "Tracking ID (SF-ID)", { maxLength: 64, required: true }],
@@ -29,6 +32,7 @@ export default function FacebookOrders({ notify }) {
   const [draft, setDraft] = useState(emptyOrder);
   const [editing, setEditing] = useState(null);
   const [image, setImage] = useState("");
+  const [pdfName, setPdfName] = useState("");
   const [reading, setReading] = useState(false);
   const [saving, setSaving] = useState(false);
   const [progress, setProgress] = useState(null);
@@ -44,6 +48,13 @@ export default function FacebookOrders({ notify }) {
   const result = useWorkspaceData(`${ordersPath}?page=${page}&${range}`);
   const busy = reading || saving;
   const zone = draft.delivery_zone || suggestDeliveryZone(draft.address, draft.area);
+  const destination = draft.courier_destination || suggestSteadfastDestination(draft.address, draft.area);
+  const weight = Number(draft.weight_kg);
+  const quoteParams = destination && weight >= 0.01 && weight <= 600 ? new URLSearchParams({
+    origin: draft.courier_origin, destination, weight: String(weight), delivery: draft.courier_delivery,
+  }) : null;
+  const quote = useWorkspaceData(quoteParams ? `${ordersPath}steadfast-quote/?${quoteParams}` : null);
+  const quotedCharge = quote.data?.courier_charge;
   const totals = result.data?.summary;
   const history = result.status === 404
     ? { ...result, error: "Facebook Orders is unavailable on the current backend. Retry after the backend updates." }
@@ -55,33 +66,40 @@ export default function FacebookOrders({ notify }) {
     setDraft(emptyOrder);
     setEditing(null);
     setImage("");
+    setPdfName("");
     setScanMessage("");
     setFailure("");
   }
 
-  async function readImage(event) {
+  async function readLabel(event) {
     const file = event.currentTarget.files?.[0];
     if (!file) return;
     event.currentTarget.value = "";
     setFailure("");
     setScanMessage("");
-    if (!["image/jpeg", "image/png", "image/webp"].includes(file.type) || file.size > 12 * 1024 * 1024) {
-      setFailure("Choose a JPG, PNG, or WebP image up to 12 MB.");
+    const isPdf = file.type === "application/pdf" || (!file.type && /\.pdf$/i.test(file.name));
+    if ((!isPdf && !imageTypes.includes(file.type)) || file.size > 12 * 1024 * 1024) {
+      setFailure("Choose a JPG, PNG, WebP or single-page PDF up to 12 MB.");
       return;
     }
-    setImage(URL.createObjectURL(file));
+    setImage(isPdf ? "" : URL.createObjectURL(file));
+    setPdfName(isPdf ? file.name : "");
     setDraft(emptyOrder);
     setReading(true);
     setProgress(null);
     try {
-      const { default: readCourierImage } = await import("./readCourierImage");
-      const extracted = await readCourierImage(file, setProgress);
-      setDraft({ ...emptyOrder, ...extracted });
-      setScanMessage(Object.values(extracted).some(Boolean)
-        ? "Review the extracted fields and confirm the number of products before saving."
-        : "No matching label fields were found. Enter the details from the image.");
+      const { default: read } = isPdf ? await import("./readCourierPdf") : await import("./readCourierImage");
+      const { courier_delivery, ...extracted } = await read(file, setProgress);
+      setDraft({ ...emptyOrder, ...extracted, courier_delivery: courier_delivery || emptyOrder.courier_delivery });
+      const missing = [["invoice", "invoice number"], ["cod_amount", "COD"], ["weight_kg", "weight"]]
+        .filter(([key]) => !extracted[key]).map(([, label]) => label);
+      setScanMessage(missing.length
+        ? `Review the label and enter the missing fields: ${missing.join(", ")}.`
+        : "Review the extracted fields and confirm the number of products before saving.");
     } catch {
-      setFailure("The image could not be read. Try a clearer label or enter the details manually.");
+      setFailure(isPdf
+        ? "The PDF could not be read. Upload a single-page, unlocked PDF with one label."
+        : "The image could not be read. Try a clearer label or enter the details manually.");
     } finally {
       setReading(false);
     }
@@ -107,7 +125,10 @@ export default function FacebookOrders({ notify }) {
     event.preventDefault();
     setSaving(true);
     setFailure("");
-    const payload = { ...draft, delivery_zone: zone, courier_charge: draft.courier_charge === "" ? null : draft.courier_charge };
+    const payload = {
+      ...draft, delivery_zone: zone, courier_destination: destination || null,
+      weight_kg: draft.weight_kg || null, courier_charge: draft.courier_charge || quotedCharge || null,
+    };
     try {
       if (editing) {
         await workspaceApi.patch(`${ordersPath}${editing}/`, payload);
@@ -187,12 +208,13 @@ export default function FacebookOrders({ notify }) {
       <section className={styles.panel}>
         <h2>Courier label</h2>
         <label className={styles.labelUpload}>
-          <span>Upload label image</span>
-          <input type="file" accept="image/jpeg,image/png,image/webp" disabled={busy || Boolean(editing)} onChange={readImage} />
-          <small>JPG, PNG or WebP · Up to 12 MB</small>
+          <span>Upload courier label</span>
+          <input type="file" accept="image/jpeg,image/png,image/webp,application/pdf,.pdf" disabled={busy || Boolean(editing)} onChange={readLabel} />
+          <small>JPG, PNG, WebP or single-page PDF · Up to 12 MB</small>
         </label>
         {reading && <p role="status">{progress === null ? "Preparing image scan…" : `Reading label… ${progress}%`}</p>}
         {image && <img className={styles.labelPreview} src={image} alt="Courier label selected for this order" />}
+        {pdfName && <p>{pdfName}</p>}
       </section>
       <section className={styles.panel}>
         <h2 ref={editor} tabIndex={-1}>{editing ? "Edit order" : "Order details"}</h2>
@@ -221,11 +243,33 @@ export default function FacebookOrders({ notify }) {
                 {Object.entries(statusLabels).map(([value, label]) => <option value={value} key={value}>{label}</option>)}
               </select>
             </label>
+            <label>Parcel weight (kg)
+              <input name="weight_kg" type="number" min=".01" max="600" step=".01" value={draft.weight_kg} onChange={change} />
+            </label>
+            <label>Steadfast pickup district
+              <select name="courier_origin" value={draft.courier_origin} onChange={change}>
+                {districts.map(({ id, name }) => <option value={id} key={id}>{name}</option>)}
+              </select>
+            </label>
+            <label>Steadfast delivery district
+              <select name="courier_destination" value={destination} onChange={change}>
+                <option value="">Select delivery district</option>
+                {districts.map(({ id, name }) => <option value={id} key={id}>{name}</option>)}
+              </select>
+            </label>
+            <label>Steadfast delivery type
+              <select name="courier_delivery" value={draft.courier_delivery} onChange={change}>
+                <option value="home">Home</option>
+                <option value="point">Point</option>
+              </select>
+            </label>
             <div>
-              <label>Actual Steadfast delivery charge (৳)
-                <input name="courier_charge" type="number" min="0" max="9999999999.99" step=".01" value={draft.courier_charge} onChange={change} required={draft.status !== "pending"} />
+              <label>Steadfast delivery charge override (৳)
+                <input name="courier_charge" type="number" min="0" max="9999999999.99" step=".01" value={draft.courier_charge} onChange={change}
+                  placeholder={quotedCharge ?? ""} required={draft.status !== "pending" && quotedCharge == null} />
               </label>
-              <small>Use the delivery charge from your merchant bill, or check the <a href="https://steadfast.com.bd/pricing" target="_blank" rel="noreferrer">Steadfast calculator</a>.</small>
+              {quoteParams && <small role="status">{quote.error || (quotedCharge == null ? "Getting Steadfast rate…" : `Steadfast standard rate: ${taka.format(quotedCharge)}`)}</small>}
+              <small>Leave blank to use the calculated rate. Enter your merchant bill amount if it differs.</small>
             </div>
             {failure && <p className={`${styles.error} ${styles.wide}`} role="alert">{failure}</p>}
             <div className={`${styles.actions} ${styles.wide}`}>

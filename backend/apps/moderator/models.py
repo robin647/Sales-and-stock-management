@@ -5,7 +5,7 @@ from uuid import uuid4
 from django.conf import settings
 from django.core.exceptions import ImproperlyConfigured
 from django.core.files.storage import FileSystemStorage
-from django.core.validators import MinValueValidator
+from django.core.validators import MaxValueValidator, MinValueValidator
 from django.db import models, transaction
 from django.db.models.signals import post_delete
 from django.dispatch import receiver
@@ -66,6 +66,10 @@ def remove_asset_file(sender, instance, using, **kwargs):
 
 
 class FacebookOrder(models.Model):
+    class CourierDelivery(models.TextChoices):
+        HOME = "home", "Home"
+        POINT = "point", "Point"
+
     class Status(models.TextChoices):
         PENDING = "pending", "Pending"
         DELIVERED = "delivered", "Delivered"
@@ -90,6 +94,13 @@ class FacebookOrder(models.Model):
     courier_charge = models.DecimalField(
         max_digits=12, decimal_places=2, null=True, blank=True, validators=[MinValueValidator(0)],
     )
+    weight_kg = models.DecimalField(
+        max_digits=5, decimal_places=2, null=True, blank=True,
+        validators=[MinValueValidator(Decimal("0.01")), MaxValueValidator(600)],
+    )
+    courier_origin = models.PositiveSmallIntegerField(default=1, validators=[MinValueValidator(1)])
+    courier_destination = models.PositiveSmallIntegerField(null=True, blank=True, validators=[MinValueValidator(1)])
+    courier_delivery = models.CharField(max_length=5, choices=CourierDelivery.choices, default=CourierDelivery.HOME)
     created_at = models.DateTimeField(auto_now_add=True)
 
     @property

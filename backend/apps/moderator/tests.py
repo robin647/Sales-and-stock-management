@@ -2,6 +2,7 @@ from datetime import timedelta
 from io import BytesIO
 from pathlib import Path
 from tempfile import TemporaryDirectory
+from unittest.mock import patch
 from uuid import uuid4
 from zipfile import ZipFile
 
@@ -158,6 +159,21 @@ class WorkspaceTests(TestCase):
         self.assertEqual(rows[1][1], order["tracking_id"])
         self.assertEqual(rows[1][-4:], (70, 80, 29.15, 2885.35))
         self.assertEqual(admin.get(url + "export/", {**params, "end_date": "2000-01-01"}).status_code, 400)
+
+    def test_steadfast_quote_validates_route_and_uses_official_delivery_amount(self):
+        cache.clear()
+        self.addCleanup(cache.clear)
+        admin, _ = self.login(self.admin)
+        url = API + "facebook-orders/steadfast-quote/"
+        params = {"origin": 1, "destination": 15, "weight": "1.5", "delivery": "home"}
+        with patch("apps.moderator.steadfast.urlopen") as fetch:
+            fetch.return_value.__enter__.return_value.read.return_value = b'{"available":true,"charge":155}'
+            self.assertEqual(admin.get(url, {**params, "weight": 0}).status_code, 400)
+            response = admin.get(url, params)
+            self.assertEqual(response.status_code, 200, response.data)
+            self.assertEqual(response.data["courier_charge"], "155.00")
+            self.assertEqual(fetch.call_args.args[0].full_url,
+                             "https://steadfast.com.bd/pricing/quote?from=1&to=15&weight=1.50&category=1&service=1&delivery=0")
 
     def test_admin_account_management_revokes_password_and_inactive_sessions(self):
         admin, _ = self.login(self.admin)

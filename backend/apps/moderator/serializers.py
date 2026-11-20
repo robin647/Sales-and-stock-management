@@ -14,6 +14,13 @@ from apps.products.serializers import ProductSerializer
 from .models import Asset, FacebookOrder
 
 
+class SteadfastQuoteSerializer(serializers.Serializer):
+    origin = serializers.IntegerField(min_value=1, max_value=32767)
+    destination = serializers.IntegerField(min_value=1, max_value=32767)
+    weight = serializers.DecimalField(max_digits=5, decimal_places=2, min_value=Decimal("0.01"), max_value=Decimal("600"))
+    delivery = serializers.ChoiceField(choices=FacebookOrder.CourierDelivery.choices)
+
+
 class FacebookOrderSerializer(serializers.ModelSerializer):
     delivery_zone = serializers.ChoiceField(choices=FacebookOrder.DeliveryZone.choices, allow_blank=True)
     delivery_charge = serializers.IntegerField(read_only=True)
@@ -24,6 +31,7 @@ class FacebookOrderSerializer(serializers.ModelSerializer):
         model = FacebookOrder
         fields = ("id", "tracking_id", "invoice", "customer_name", "phone", "address", "area",
                   "quantity", "cod_amount", "status", "delivery_zone", "delivery_charge",
+                  "weight_kg", "courier_origin", "courier_destination", "courier_delivery",
                   "courier_charge", "steadfast_fee", "net_sales", "created_at")
         read_only_fields = ("id", "created_at")
 
