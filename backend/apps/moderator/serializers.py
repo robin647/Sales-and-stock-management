@@ -15,14 +15,24 @@ from .models import Asset, FacebookOrder
 
 
 class FacebookOrderSerializer(serializers.ModelSerializer):
-    delivery_zone = serializers.ChoiceField(choices=FacebookOrder.DeliveryZone.choices)
+    delivery_zone = serializers.ChoiceField(choices=FacebookOrder.DeliveryZone.choices, allow_blank=True)
     delivery_charge = serializers.IntegerField(read_only=True)
+    steadfast_fee = serializers.DecimalField(max_digits=12, decimal_places=2, read_only=True)
+    net_sales = serializers.DecimalField(max_digits=12, decimal_places=2, read_only=True)
 
     class Meta:
         model = FacebookOrder
         fields = ("id", "tracking_id", "invoice", "customer_name", "phone", "address", "area",
-                  "quantity", "cod_amount", "delivery_zone", "delivery_charge", "created_at")
+                  "quantity", "cod_amount", "status", "delivery_zone", "delivery_charge",
+                  "courier_charge", "steadfast_fee", "net_sales", "created_at")
         read_only_fields = ("id", "created_at")
+
+    def validate(self, attrs):
+        status = attrs.get("status", getattr(self.instance, "status", FacebookOrder.Status.PENDING))
+        charge = attrs.get("courier_charge", getattr(self.instance, "courier_charge", None))
+        if status != FacebookOrder.Status.PENDING and charge is None:
+            raise serializers.ValidationError({"courier_charge": "Enter the actual Steadfast delivery charge (0 if none)."})
+        return attrs
 
 
 class ModeratorLoginSerializer(CustomTokenObtainPairSerializer):

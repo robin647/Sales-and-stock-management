@@ -1,15 +1,16 @@
 import { useEffect, useRef, useState } from "react";
 import { errorMessage } from "../../utils/apiError";
 import { Heading, LoadState, Pager } from "./components";
-import { useWorkspaceData, workspaceApi } from "./data";
+import { download, useWorkspaceData, workspaceApi } from "./data";
 import { deliveryFees, suggestDeliveryZone } from "./deliveryZone";
 import styles from "./workspace.module.css";
 
 const ordersPath = "facebook-orders/";
 const emptyOrder = {
   tracking_id: "", invoice: "", customer_name: "", phone: "", address: "", area: "",
-  quantity: "", cod_amount: "", delivery_zone: "",
+  quantity: "", cod_amount: "", delivery_zone: "", status: "pending", courier_charge: "",
 };
+const statusLabels = { pending: "Pending", delivered: "Delivered", cancelled: "Cancelled" };
 const fields = [
   ["tracking_id", "Tracking ID (SF-ID)", { maxLength: 64, required: true }],
   ["invoice", "Invoice number", { maxLength: 64 }],
@@ -33,8 +34,14 @@ export default function FacebookOrders({ notify }) {
   const [progress, setProgress] = useState(null);
   const [scanMessage, setScanMessage] = useState("");
   const [failure, setFailure] = useState("");
+  const [period, setPeriod] = useState("all");
+  const [startDate, setStartDate] = useState("");
+  const [endDate, setEndDate] = useState("");
+  const [range, setRange] = useState("period=all");
+  const [exporting, setExporting] = useState(false);
+  const [exportError, setExportError] = useState("");
   const editor = useRef(null);
-  const result = useWorkspaceData(`${ordersPath}?page=${page}`);
+  const result = useWorkspaceData(`${ordersPath}?page=${page}&${range}`);
   const busy = reading || saving;
   const zone = draft.delivery_zone || suggestDeliveryZone(draft.address, draft.area);
   const totals = result.data?.summary;
@@ -92,7 +99,7 @@ export default function FacebookOrders({ notify }) {
   function edit(order) {
     clearDraft();
     setEditing(order.id);
-    setDraft(Object.fromEntries(Object.keys(emptyOrder).map((key) => [key, order[key] ?? ""])));
+    setDraft(Object.fromEntries(Object.keys(emptyOrder).map((key) => [key, order[key] ?? emptyOrder[key]])));
     editor.current.focus();
   }
 
@@ -100,7 +107,7 @@ export default function FacebookOrders({ notify }) {
     event.preventDefault();
     setSaving(true);
     setFailure("");
-    const payload = { ...draft, delivery_zone: zone };
+    const payload = { ...draft, delivery_zone: zone, courier_charge: draft.courier_charge === "" ? null : draft.courier_charge };
     try {
       if (editing) {
         await workspaceApi.patch(`${ordersPath}${editing}/`, payload);
@@ -120,18 +127,61 @@ export default function FacebookOrders({ notify }) {
     }
   }
 
+  function applyRange(event) {
+    event.preventDefault();
+    const params = new URLSearchParams({ period });
+    if (period === "custom") {
+      params.set("start_date", startDate);
+      params.set("end_date", endDate);
+    }
+    setRange(params.toString());
+    setPage(1);
+    setExportError("");
+  }
+
+  async function exportOrders() {
+    setExporting(true);
+    setExportError("");
+    try {
+      await download(`${ordersPath}export/?${range}`, "facebook-orders.xlsx");
+    } catch (error) {
+      setExportError(errorMessage(error));
+    } finally {
+      setExporting(false);
+    }
+  }
+
   return <>
     <Heading title="Facebook Orders" />
+    <section className={styles.panel} aria-label="Order history date range">
+      <form className={styles.actions} onSubmit={applyRange}>
+        <label>Recorded date
+          <select value={period} onChange={(event) => setPeriod(event.target.value)}>
+            <option value="all">All time</option>
+            <option value="week">Last 7 days</option>
+            <option value="month">Last 30 days</option>
+            <option value="custom">Custom dates</option>
+          </select>
+        </label>
+        {period === "custom" && <>
+          <label>From<input type="date" value={startDate} max={endDate || undefined} onChange={(event) => setStartDate(event.target.value)} required /></label>
+          <label>Through<input type="date" value={endDate} min={startDate || undefined} onChange={(event) => setEndDate(event.target.value)} required /></label>
+        </>}
+        <button type="submit">Apply dates</button>
+        <button type="button" onClick={exportOrders} disabled={exporting || !result.data}>{exporting ? "Downloading…" : "Download filtered XLSX"}</button>
+      </form>
+      {exportError && <p className={styles.error} role="alert">{exportError}</p>}
+    </section>
     {totals && <>
-      <div className={`${styles.stats} ${styles.orderStats}`} aria-label="All Facebook order totals">
+      <div className={`${styles.stats} ${styles.orderStats}`} aria-label="Totals for selected order dates">
         <div className={`${styles.panel} ${styles.salesTotal}`}><span>Net sales</span><strong>{totals.net_sales == null ? "—" : taka.format(totals.net_sales)}</strong></div>
-        <div className={styles.panel}><span>Total COD</span><strong>{taka.format(totals.cod)}</strong></div>
-        <div className={styles.panel}><span>Delivery charges</span><strong>{taka.format(totals.delivery ?? 0)}</strong></div>
+        <div className={styles.panel}><span>Collected COD</span><strong>{taka.format(totals.cod)}</strong></div>
+        <div className={styles.panel}><span>Steadfast delivery cost</span><strong>{taka.format(totals.courier_charge ?? 0)}</strong></div>
         {totals.steadfast_fee != null && <div className={styles.panel}><span>Steadfast COD fee (1%)</span><strong>{taka.format(totals.steadfast_fee)}</strong></div>}
         <div className={styles.panel}><span>Products sold (units)</span><strong>{number.format(totals.units)}</strong></div>
-        <div className={styles.panel}><span>Orders recorded</span><strong>{number.format(totals.orders)}</strong></div>
+        <div className={styles.panel}><span>Orders recorded</span><strong>{number.format(totals.orders)}</strong><small>{number.format(totals.pending)} pending · {number.format(totals.cancelled)} cancelled</small></div>
       </div>
-      {totals.unclassified > 0 && <p className={styles.scanMessage}>Set a delivery zone on {totals.unclassified} older {totals.unclassified === 1 ? "order" : "orders"} to calculate net sales.</p>}
+      {totals.pending > 0 && <p className={styles.scanMessage}>Pending orders enter the sales or cost totals when marked delivered or cancelled.</p>}
     </>}
     <div className={styles.orderIntake}>
       <section className={styles.panel}>
@@ -156,16 +206,27 @@ export default function FacebookOrders({ notify }) {
               <textarea name="address" maxLength={500} rows={2} required value={draft.address} onChange={change} />
             </label>
             <label>Delivery zone
-              <select name="delivery_zone" value={zone} onChange={change} required>
+              <select name="delivery_zone" value={zone} onChange={change}>
                 <option value="">Select delivery zone</option>
                 <option value="inside">Inside Dhaka</option>
                 <option value="outside">Outside Dhaka</option>
               </select>
               {!draft.delivery_zone && zone && <small>Suggested from the address. Change if needed.</small>}
             </label>
-            <label>Delivery charge
+            <label>Customer delivery rate
               <input readOnly value={zone ? taka.format(deliveryFees[zone]) : ""} />
             </label>
+            <label>Order status
+              <select name="status" value={draft.status} onChange={change}>
+                {Object.entries(statusLabels).map(([value, label]) => <option value={value} key={value}>{label}</option>)}
+              </select>
+            </label>
+            <div>
+              <label>Actual Steadfast delivery charge (৳)
+                <input name="courier_charge" type="number" min="0" max="9999999999.99" step=".01" value={draft.courier_charge} onChange={change} required={draft.status !== "pending"} />
+              </label>
+              <small>Use the delivery charge from your merchant bill, or check the <a href="https://steadfast.com.bd/pricing" target="_blank" rel="noreferrer">Steadfast calculator</a>.</small>
+            </div>
             {failure && <p className={`${styles.error} ${styles.wide}`} role="alert">{failure}</p>}
             <div className={`${styles.actions} ${styles.wide}`}>
               <button className={styles.primary}>{saving ? "Saving…" : editing ? "Save changes" : "Save order"}</button>
@@ -179,14 +240,17 @@ export default function FacebookOrders({ notify }) {
       <h2>Order history</h2>
       <LoadState result={history}>{(data) => data.results.length ? <>
         <div className={styles.tableWrap}><table>
-          <thead><tr><th>Tracking ID</th><th>Customer</th><th>Delivery address</th><th>Units</th><th>COD</th><th>Delivery</th><th>Recorded</th><th>Actions</th></tr></thead>
+          <thead><tr><th>Tracking ID</th><th>Customer</th><th>Delivery address</th><th>Status</th><th>Units</th><th>COD requested</th><th>Customer rate</th><th>Steadfast charge</th><th>Net sales</th><th>Recorded</th><th>Actions</th></tr></thead>
           <tbody>{data.results.map((order) => <tr key={order.id}>
             <td><strong>{order.tracking_id}</strong>{order.invoice && <small>Invoice {order.invoice}</small>}</td>
             <td>{order.customer_name}<small>{order.phone}</small></td>
             <td className={styles.orderAddress}>{order.address}{order.area && <small>{order.area}</small>}</td>
+            <td>{statusLabels[order.status]}</td>
             <td>{number.format(order.quantity)}</td>
             <td className={styles.orderAmount}>{taka.format(order.cod_amount)}</td>
             <td className={styles.orderAmount}>{order.delivery_charge == null ? "Set zone" : taka.format(order.delivery_charge)}</td>
+            <td className={styles.orderAmount}>{order.courier_charge == null ? "—" : taka.format(order.courier_charge)}</td>
+            <td className={styles.orderAmount}>{order.status === "pending" || order.net_sales == null ? "—" : taka.format(order.net_sales)}</td>
             <td>{date.format(new Date(order.created_at))}</td>
             <td><button type="button" disabled={busy} onClick={() => edit(order)}>Edit</button></td>
           </tr>)}</tbody>

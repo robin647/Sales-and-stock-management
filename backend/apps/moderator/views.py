@@ -1,9 +1,13 @@
-from decimal import Decimal, ROUND_HALF_UP
+from datetime import timedelta
+from decimal import Decimal
 
 from django.db import IntegrityError, transaction
-from django.db.models import Case, Count, OuterRef, Q, Subquery, Sum, When
+from django.db.models import Count, OuterRef, Subquery, Sum
 from django.db.models.deletion import ProtectedError
+from django.http import HttpResponse
 from django.shortcuts import get_object_or_404
+from django.utils import timezone
+from openpyxl import Workbook
 from rest_framework import mixins, serializers, viewsets
 from rest_framework.decorators import action, api_view, permission_classes
 from rest_framework.exceptions import AuthenticationFailed
@@ -20,6 +24,7 @@ from apps.accounts.models import User
 from apps.accounts.views import CustomTokenObtainPairView
 from apps.products.models import ProductCategory
 from apps.products.serializers import ProductCategorySerializer
+from core.excel import protect_workbook
 
 from .assets import archive, download_asset, save_upload
 from .catalog import catalog, filtered_catalog, visible_products
@@ -103,20 +108,73 @@ class FacebookOrderViewSet(mixins.CreateModelMixin, mixins.ListModelMixin, mixin
     serializer_class = FacebookOrderSerializer
     queryset = FacebookOrder.objects.all()
 
+    def get_queryset(self):
+        orders = super().get_queryset()
+        if self.action not in ("list", "export"):
+            return orders
+        period = serializers.ChoiceField(choices=("all", "week", "month", "custom")).run_validation(
+            self.request.query_params.get("period", "all"),
+        )
+        if period in ("week", "month"):
+            today = timezone.localdate()
+            days = 7 if period == "week" else 30
+            return orders.filter(created_at__date__range=(today - timedelta(days=days - 1), today))
+        if period == "custom":
+            date = serializers.DateField()
+            start = date.run_validation(self.request.query_params.get("start_date"))
+            end = date.run_validation(self.request.query_params.get("end_date"))
+            if start > end:
+                raise serializers.ValidationError({"end_date": "End date must be on or after the start date."})
+            return orders.filter(created_at__date__range=(start, end))
+        return orders
+
     def list(self, request, *args, **kwargs):
         response = super().list(request, *args, **kwargs)
-        totals = self.get_queryset().aggregate(
-            orders=Count("pk"), units=Sum("quantity", default=0), cod=Sum("cod_amount", default=0),
-            delivery=Sum(Case(*(When(delivery_zone=zone, then=fee)
-                                for zone, fee in FacebookOrder.DELIVERY_FEES.items())), default=0),
-            unclassified=Count("pk", filter=Q(delivery_zone="")),
-        )
-        cod = totals["cod"]
-        steadfast_fee = (cod * Decimal("0.01")).quantize(Decimal("0.01"), rounding=ROUND_HALF_UP)
-        net_sales = None if totals["unclassified"] else str(cod - totals["delivery"] - steadfast_fee)
+        counts = dict(orders=0, units=0, pending=0, cancelled=0)
+        zero = Decimal("0.00")
+        cod = courier_charge = steadfast_fee = zero
+        orders = self.get_queryset().order_by().only("status", "quantity", "cod_amount", "courier_charge")
+        for order in orders.iterator():
+            counts["orders"] += 1
+            if order.status == FacebookOrder.Status.DELIVERED:
+                counts["units"] += order.quantity
+            else:
+                counts[order.status] += 1
+            cod += order.collected_cod
+            courier_charge += order.settled_courier_charge or zero
+            steadfast_fee += order.steadfast_fee or zero
         response.data["summary"] = {
-            **totals, "cod": str(cod), "steadfast_fee": str(steadfast_fee), "net_sales": net_sales,
+            **counts, "cod": str(cod), "courier_charge": str(courier_charge),
+            "steadfast_fee": str(steadfast_fee), "net_sales": str(cod - courier_charge - steadfast_fee),
         }
+        return response
+
+    @action(detail=False, methods=["get"])
+    def export(self, request):
+        workbook = Workbook()
+        sheet = workbook.active
+        sheet.title = "Facebook orders"
+        sheet.freeze_panes = "A2"
+        sheet.append((
+            "Recorded (Dhaka)", "Tracking ID", "Invoice", "Customer", "Phone", "Address", "Area",
+            "Delivery zone", "Status", "Ordered units", "COD requested", "COD collected",
+            "Customer delivery rate", "Steadfast delivery charge", "Steadfast COD fee", "Net sales",
+        ))
+        for column in sheet[1]:
+            sheet.column_dimensions[column.column_letter].width = len(column.value) + 4
+        for order in self.get_queryset().iterator():
+            sheet.append((
+                timezone.localtime(order.created_at).replace(tzinfo=None), order.tracking_id,
+                order.invoice, order.customer_name, order.phone, order.address, order.area,
+                order.get_delivery_zone_display(), order.get_status_display(), order.quantity,
+                order.cod_amount, order.collected_cod, order.delivery_charge, order.courier_charge,
+                order.steadfast_fee, order.net_sales if order.status != FacebookOrder.Status.PENDING else None,
+            ))
+        sheet.auto_filter.ref = sheet.dimensions
+        protect_workbook(workbook)
+        response = HttpResponse(content_type="application/vnd.openxmlformats-officedocument.spreadsheetml.sheet")
+        response["Content-Disposition"] = 'attachment; filename="facebook-orders.xlsx"'
+        workbook.save(response)
         return response
 
     def create(self, request, *args, **kwargs):

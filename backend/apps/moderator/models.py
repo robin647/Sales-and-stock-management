@@ -1,3 +1,4 @@
+from decimal import Decimal, ROUND_HALF_UP
 from pathlib import Path
 from uuid import uuid4
 
@@ -65,6 +66,11 @@ def remove_asset_file(sender, instance, using, **kwargs):
 
 
 class FacebookOrder(models.Model):
+    class Status(models.TextChoices):
+        PENDING = "pending", "Pending"
+        DELIVERED = "delivered", "Delivered"
+        CANCELLED = "cancelled", "Cancelled"
+
     class DeliveryZone(models.TextChoices):
         INSIDE = "inside", "Inside Dhaka"
         OUTSIDE = "outside", "Outside Dhaka"
@@ -80,11 +86,41 @@ class FacebookOrder(models.Model):
     delivery_zone = models.CharField(max_length=7, choices=DeliveryZone.choices, blank=True)
     quantity = models.PositiveIntegerField(validators=[MinValueValidator(1)])
     cod_amount = models.DecimalField(max_digits=12, decimal_places=2, validators=[MinValueValidator(0)])
+    status = models.CharField(max_length=9, choices=Status.choices, default=Status.PENDING)
+    courier_charge = models.DecimalField(
+        max_digits=12, decimal_places=2, null=True, blank=True, validators=[MinValueValidator(0)],
+    )
     created_at = models.DateTimeField(auto_now_add=True)
 
     @property
     def delivery_charge(self):
         return self.DELIVERY_FEES.get(self.delivery_zone)
+
+    @property
+    def collected_cod(self):
+        return self.cod_amount if self.status == self.Status.DELIVERED else Decimal("0.00")
+
+    @property
+    def settled_courier_charge(self):
+        if self.status == self.Status.PENDING:
+            return Decimal("0.00")
+        return self.courier_charge
+
+    @property
+    def steadfast_fee(self):
+        charge = self.settled_courier_charge
+        if charge is None:
+            return None
+        return (max(self.collected_cod - charge, 0) * Decimal("0.01")).quantize(
+            Decimal("0.01"), rounding=ROUND_HALF_UP,
+        )
+
+    @property
+    def net_sales(self):
+        fee = self.steadfast_fee
+        if fee is None:
+            return None
+        return self.collected_cod - self.settled_courier_charge - fee
 
     class Meta:
         ordering = ["-created_at", "-pk"]

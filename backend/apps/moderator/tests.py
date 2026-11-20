@@ -1,3 +1,4 @@
+from datetime import timedelta
 from io import BytesIO
 from pathlib import Path
 from tempfile import TemporaryDirectory
@@ -7,6 +8,8 @@ from zipfile import ZipFile
 from django.core.cache import cache
 from django.core.files.uploadedfile import SimpleUploadedFile
 from django.test import TestCase
+from django.utils import timezone
+from openpyxl import load_workbook
 from PIL import Image
 from rest_framework.test import APIClient
 
@@ -15,7 +18,7 @@ from apps.inventory.models import FactoryStock, StockAdjustment
 from apps.products.models import Product, ProductCategory
 from apps.shop.models import Order, ShopSettings
 
-from .models import Asset
+from .models import Asset, FacebookOrder
 
 
 API = "/api/moderator/"
@@ -115,10 +118,12 @@ class WorkspaceTests(TestCase):
             "quantity": 2, "cod_amount": "2994.50", "delivery_zone": "inside",
         }
         self.assertEqual(moderator.get(url).status_code, 403)
+        self.assertEqual(moderator.get(url + "export/").status_code, 403)
         self.assertEqual(moderator.post(url, order).status_code, 403)
         self.assertEqual(admin.post(url, {**order, "quantity": 0}).status_code, 400)
         first = admin.post(url, order)
         self.assertEqual(first.status_code, 201, first.data)
+        self.assertEqual(first.data["status"], "pending")
         self.assertEqual(first.data["delivery_charge"], 70)
         self.assertEqual(admin.post(url, order).status_code, 400)
         second = admin.post(url, {**order, "tracking_id": "120000002", "quantity": 3,
@@ -126,14 +131,33 @@ class WorkspaceTests(TestCase):
         self.assertEqual(second.status_code, 201, second.data)
         self.assertEqual(second.data["delivery_charge"], 150)
         self.assertEqual(moderator.patch(f"{url}{first.data['id']}/", {"quantity": 6}).status_code, 403)
-        self.assertEqual(admin.patch(f"{url}{first.data['id']}/", {"quantity": 1}).status_code, 200)
+        first_url = f"{url}{first.data['id']}/"
+        self.assertEqual(admin.patch(first_url, {"status": "delivered"}).status_code, 400)
+        self.assertEqual(admin.patch(first_url, {
+            "quantity": 1, "status": "delivered", "courier_charge": "80.00",
+        }).status_code, 200)
+        self.assertEqual(admin.patch(f"{url}{second.data['id']}/", {
+            "status": "cancelled", "courier_charge": "110.00",
+        }).status_code, 200)
+        FacebookOrder.objects.filter(pk=second.data["id"]).update(created_at=timezone.now() - timedelta(days=10))
         listing = admin.get(url, {"page_size": 1})
         self.assertEqual(len(listing.data["results"]), 1)
         self.assertEqual(listing.data["summary"], {
-            "orders": 2, "units": 4, "cod": "3444.75", "delivery": 220,
-            "steadfast_fee": "34.45", "net_sales": "3190.30",
-            "unclassified": 0,
+            "orders": 2, "units": 1, "cod": "2994.50", "courier_charge": "190.00",
+            "steadfast_fee": "29.15", "net_sales": "2775.35", "pending": 0, "cancelled": 1,
         })
+        self.assertEqual(admin.get(url, {"period": "week"}).data["summary"]["orders"], 1)
+        self.assertEqual(admin.get(url, {"period": "month"}).data["summary"]["orders"], 2)
+        today = timezone.localdate().isoformat()
+        params = {"period": "custom", "start_date": today, "end_date": today}
+        response = admin.get(url + "export/", params)
+        self.assertEqual(response.status_code, 200)
+        sheet = load_workbook(BytesIO(response.content), read_only=True).active
+        rows = list(sheet.values)
+        self.assertEqual(len(rows), 2)
+        self.assertEqual(rows[1][1], order["tracking_id"])
+        self.assertEqual(rows[1][-4:], (70, 80, 29.15, 2885.35))
+        self.assertEqual(admin.get(url + "export/", {**params, "end_date": "2000-01-01"}).status_code, 400)
 
     def test_admin_account_management_revokes_password_and_inactive_sessions(self):
         admin, _ = self.login(self.admin)
