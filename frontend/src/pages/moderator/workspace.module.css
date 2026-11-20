@@ -92,6 +92,8 @@
 .stats { display: grid; grid-template-columns: repeat(auto-fit, minmax(144px, 1fr)); gap: .75rem; }
 .stats span, .facts dt { color: var(--muted); font-size: .83rem; }
 .stats strong { font-size: 1.75rem; line-height: 1; }
+.orderStats { grid-template-columns: repeat(auto-fit, minmax(min(100%, 12rem), 1fr)); }
+.orderStats strong { min-width: 0; font-size: clamp(1.2rem, 2.5vw, 1.75rem); line-height: 1.15; overflow-wrap: anywhere; }
 .state { padding: 1rem; color: var(--muted); }
 .state button { margin-left: .5rem; }
 .salesTotal { background: var(--accent); color: var(--accent-ink); }

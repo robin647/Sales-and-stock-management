@@ -130,7 +130,8 @@ class WorkspaceTests(TestCase):
         listing = admin.get(url, {"page_size": 1})
         self.assertEqual(len(listing.data["results"]), 1)
         self.assertEqual(listing.data["summary"], {
-            "orders": 2, "units": 4, "cod": "3444.75", "delivery": 220, "net_sales": "3224.75",
+            "orders": 2, "units": 4, "cod": "3444.75", "delivery": 220,
+            "steadfast_fee": "34.45", "net_sales": "3190.30",
             "unclassified": 0,
         })
 

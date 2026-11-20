@@ -1,3 +1,5 @@
+from decimal import Decimal, ROUND_HALF_UP
+
 from django.db import IntegrityError, transaction
 from django.db.models import Case, Count, OuterRef, Q, Subquery, Sum, When
 from django.db.models.deletion import ProtectedError
@@ -109,8 +111,12 @@ class FacebookOrderViewSet(mixins.CreateModelMixin, mixins.ListModelMixin, mixin
                                 for zone, fee in FacebookOrder.DELIVERY_FEES.items())), default=0),
             unclassified=Count("pk", filter=Q(delivery_zone="")),
         )
-        net_sales = None if totals["unclassified"] else str(totals["cod"] - totals["delivery"])
-        response.data["summary"] = {**totals, "cod": str(totals["cod"]), "net_sales": net_sales}
+        cod = totals["cod"]
+        steadfast_fee = (cod * Decimal("0.01")).quantize(Decimal("0.01"), rounding=ROUND_HALF_UP)
+        net_sales = None if totals["unclassified"] else str(cod - totals["delivery"] - steadfast_fee)
+        response.data["summary"] = {
+            **totals, "cod": str(cod), "steadfast_fee": str(steadfast_fee), "net_sales": net_sales,
+        }
         return response
 
     def create(self, request, *args, **kwargs):

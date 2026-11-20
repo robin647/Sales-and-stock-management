@@ -123,14 +123,15 @@ export default function FacebookOrders({ notify }) {
   return <>
     <Heading title="Facebook Orders" />
     {totals && <>
-      <div className={styles.stats} aria-label="All Facebook order totals">
-        <div className={`${styles.panel} ${styles.salesTotal}`}><span>Total sales after delivery</span><strong>{totals.net_sales == null ? "—" : taka.format(totals.net_sales)}</strong></div>
+      <div className={`${styles.stats} ${styles.orderStats}`} aria-label="All Facebook order totals">
+        <div className={`${styles.panel} ${styles.salesTotal}`}><span>Net sales</span><strong>{totals.net_sales == null ? "—" : taka.format(totals.net_sales)}</strong></div>
         <div className={styles.panel}><span>Total COD</span><strong>{taka.format(totals.cod)}</strong></div>
         <div className={styles.panel}><span>Delivery charges</span><strong>{taka.format(totals.delivery ?? 0)}</strong></div>
+        {totals.steadfast_fee != null && <div className={styles.panel}><span>Steadfast COD fee (1%)</span><strong>{taka.format(totals.steadfast_fee)}</strong></div>}
         <div className={styles.panel}><span>Products sold (units)</span><strong>{number.format(totals.units)}</strong></div>
         <div className={styles.panel}><span>Orders recorded</span><strong>{number.format(totals.orders)}</strong></div>
       </div>
-      {totals.unclassified > 0 && <p className={styles.scanMessage}>Set a delivery zone on {totals.unclassified} older {totals.unclassified === 1 ? "order" : "orders"} to calculate total sales after delivery.</p>}
+      {totals.unclassified > 0 && <p className={styles.scanMessage}>Set a delivery zone on {totals.unclassified} older {totals.unclassified === 1 ? "order" : "orders"} to calculate net sales.</p>}
     </>}
     <div className={styles.orderIntake}>
       <section className={styles.panel}>
